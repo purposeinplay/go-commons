@@ -69,6 +69,12 @@ func (l *structuredLoggerEntry) Panic(v interface{}, stack []byte) {
 	)
 }
 
+// Helper methods used by the application to get the request-scoped
+// logger entry and set additional fields between handlers.
+//
+// This is a useful pattern to use to set state on the entry as it
+// passes through the handler chain, which at any point can be logged
+// with a call to .Print(), .Info(), etc.
 func GetLogEntry(r *http.Request) *zap.Logger {
 	entry, _ := cmiddleware.GetLogEntry(r).(*structuredLoggerEntry)
 

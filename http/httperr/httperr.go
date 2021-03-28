@@ -135,11 +135,9 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		if e.Code >= http.StatusInternalServerError {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
-			//log.WithError(e.Cause()).Error(e.Error())
 			log.With(zap.Error(e.Cause())).Error(e.Error())
 		} else {
 			log.With(zap.Error(e.Cause())).Warn(e.Error())
-			//log.WithError(e.Cause()).Warn(e.Error())
 		}
 		if jsonErr := render.SendJSON(w, e.Code, e); jsonErr != nil {
 			HandleError(jsonErr, w, r)
@@ -152,13 +150,11 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 	case ErrorCause:
 		HandleError(e.Cause(), w, r)
 	default:
-		//log.WithError(e).Errorf("Unhandled server error: %s", e.Error())
 		log.With(zap.Error(e)).Error(e.Error())
 
 		// hide real error details from response to prevent info leaks
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, writeErr := w.Write([]byte(`{"code":500,"msg":"Internal server error","error_id":"` + errorID + `"}`)); writeErr != nil {
-			//log.WithError(writeErr).Error("Error writing generic error message")
 			log.With(zap.Error(writeErr)).Error(e.Error())
 		}
 	}

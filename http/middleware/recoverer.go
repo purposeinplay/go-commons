@@ -1,12 +1,12 @@
 package middleware
 
 import (
-"context"
-"fmt"
+	"context"
+	"fmt"
 	"github.com/purposeinplay/go-commons/http/httperr"
-"net/http"
-"os"
-"runtime/debug"
+	"net/http"
+	"os"
+	"runtime/debug"
 )
 
 // Recoverer is a middleware that recovers from panics, logs the panic (and a
