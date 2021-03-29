@@ -3,12 +3,12 @@ package middleware
 import (
 	"fmt"
 	cmiddleware "github.com/go-chi/chi/middleware"
+	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
 	"time"
 )
-
 
 func NewLoggerMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
 	return cmiddleware.RequestLogger(&structuredLogger{logger})
@@ -19,7 +19,7 @@ type structuredLogger struct {
 }
 
 func (l *structuredLogger) NewLogEntry(r *http.Request) cmiddleware.LogEntry {
-	entry := &structuredLoggerEntry{Logger: l.Logger}
+	entry := &logs.StructuredLoggerEntry{Logger: l.Logger}
 
 	fields := []zapcore.Field{zap.String("ts", time.Now().UTC().Format(time.RFC1123))}
 
@@ -47,42 +47,41 @@ func (l *structuredLogger) NewLogEntry(r *http.Request) cmiddleware.LogEntry {
 
 	return entry
 }
-
-type structuredLoggerEntry struct {
-	Logger *zap.Logger
-}
-
-func (l *structuredLoggerEntry) Write(status, bytes int, elapsed time.Duration) {
-	l.Logger = l.Logger.With(
-		zap.Int("status", status),
-		zap.Int("bytes_length", bytes),
-		zap.Float64("duration_ms", float64(elapsed.Nanoseconds())/1000000.0),
-	)
-
-	l.Logger.Info("request complete")
-}
-
-func (l *structuredLoggerEntry) Panic(v interface{}, stack []byte) {
-	l.Logger = l.Logger.With(
-		zap.String("stack", string(stack)),
-		zap.String("panic", fmt.Sprintf("%+v", v)),
-	)
-}
-
-// Helper methods used by the application to get the request-scoped
-// logger entry and set additional fields between handlers.
 //
-// This is a useful pattern to use to set state on the entry as it
-// passes through the handler chain, which at any point can be logged
-// with a call to .Print(), .Info(), etc.
-func GetLogEntry(r *http.Request) *zap.Logger {
-	entry, _ := cmiddleware.GetLogEntry(r).(*structuredLoggerEntry)
-
-	if entry == nil {
-		logger, _ := zap.NewProduction()
-		defer logger.Sync()
-		return logger
-	}
-
-	return entry.Logger
-}
+//type StructuredLoggerEntry struct {
+//	Logger *zap.Logger
+//}
+//
+//func (l *StructuredLoggerEntry) Write(status, bytes int, elapsed time.Duration) {
+//	l.Logger = l.Logger.With(
+//		zap.Int("status", status),
+//		zap.Int("bytes_length", bytes),
+//		zap.Float64("duration_ms", float64(elapsed.Nanoseconds())/1000000.0),
+//	)
+//
+//	l.Logger.Info("request complete")
+//}
+//
+//func (l *StructuredLoggerEntry) Panic(v interface{}, stack []byte) {
+//	l.Logger = l.Logger.With(
+//		zap.String("stack", string(stack)),
+//		zap.String("panic", fmt.Sprintf("%+v", v)),
+//	)
+//}
+//
+//// Helper methods used by the application to get the request-scoped
+//// logger entry and set additional fields between handlers.
+////
+//// This is a useful pattern to use to set state on the entry as it
+//// passes through the handler chain, which at any point can be logged
+//// with a call to .Print(), .Info(), etc.
+//func GetLogEntry(r *http.Request) *zap.Logger {
+//	entry, _ := cmiddleware.GetLogEntry(r).(*StructuredLoggerEntry)
+//
+//	if entry == nil {
+//		logger := logs.NewLogger()
+//		return logger
+//	}
+//
+//	return entry.Logger
+//}

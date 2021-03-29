@@ -3,8 +3,8 @@ package httperr
 import (
 	"fmt"
 	"github.com/go-chi/chi/middleware"
-	mw "github.com/purposeinplay/go-commons/http/middleware"
 	"github.com/purposeinplay/go-commons/http/render"
+	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -128,7 +128,7 @@ type ErrorCause interface {
 }
 
 func HandleError(err error, w http.ResponseWriter, r *http.Request) {
-	log := mw.GetLogEntry(r)
+	log := logs.GetLogEntry(r)
 	errorID := middleware.GetReqID(r.Context())
 	switch e := err.(type) {
 	case *HTTPError:
