@@ -12,7 +12,7 @@ type StructuredLoggerEntry struct {
 	Logger *zap.Logger
 }
 
-func (l *StructuredLoggerEntry) Write(status, bytes int, elapsed time.Duration) {
+func (l *StructuredLoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
 	l.Logger = l.Logger.With(
 		zap.Int("status", status),
 		zap.Int("bytes_length", bytes),
