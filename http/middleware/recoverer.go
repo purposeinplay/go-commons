@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/purposeinplay/go-commons/http/httperr"
+	"github.com/purposeinplay/go-commons/logs"
 	"net/http"
 	"os"
 	"runtime/debug"
@@ -15,7 +16,7 @@ import (
 func Recoverer(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	defer func() {
 		if rvr := recover(); rvr != nil {
-			logEntry := GetLogEntry(r)
+			logEntry := logs.GetLogEntry(r)
 
 			if logEntry != nil {
 				logEntry.Sugar().Panic(rvr, debug.Stack())
