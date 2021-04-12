@@ -22,7 +22,7 @@ type AuthorizerConfig struct {
 
 type AuthorizerInterceptor struct {
 	logger     *zap.Logger
-	jwtManager *auth.JWTManager
+	jwtManager *JWTManager
 	config     *AuthorizerConfig
 }
 
@@ -32,7 +32,7 @@ type ProviderClaims struct {
 
 type CtxProviderClaimsKey struct{}
 
-func NewAuthorizerInterceptor(logger *zap.Logger, jwtManager *auth.JWTManager, config *AuthorizerConfig) *AuthorizerInterceptor {
+func NewAuthorizerInterceptor(logger *zap.Logger, jwtManager *JWTManager, config *AuthorizerConfig) *AuthorizerInterceptor {
 	return &AuthorizerInterceptor{
 		logger:     logger,
 		jwtManager: jwtManager,
@@ -66,7 +66,7 @@ func (i *AuthorizerInterceptor) authorize(ctx context.Context, method string) (c
 		return ctx, status.Errorf(codes.Unauthenticated, "signature is required")
 	}
 
-	signature, ok := md["x-win-auth"]
+	signature, ok := md["x-app-auth"]
 	if !ok {
 		return ctx, status.Errorf(codes.Unauthenticated, "invalid signature")
 	}
