@@ -100,7 +100,7 @@ type Server struct {
 	opts              serverOptions
 }
 
-func NewServer(muxOpts [] runtime.ServeMuxOption, opt ...ServerOption) *Server {
+func NewServer(muxOpts []runtime.ServeMuxOption, opt ...ServerOption) *Server {
 
 	opts := defaultServerOptions
 	for _, o := range opt {
@@ -140,7 +140,7 @@ func NewServer(muxOpts [] runtime.ServeMuxOption, opt ...ServerOption) *Server {
 	opts.logger.Info("Starting gRPC gateway for HTTP requests", zap.String("gRPC gateway", dialAddr))
 	go func() {
 		grpcGatewayMux := runtime.NewServeMux(
-			muxOpts ...
+			muxOpts...,
 		)
 
 		dialOptions := []grpc.DialOption{grpc.WithInsecure()}
