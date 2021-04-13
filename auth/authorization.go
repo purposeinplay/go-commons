@@ -66,7 +66,7 @@ func (i *AuthorizerInterceptor) authorize(ctx context.Context, method string) (c
 		return ctx, status.Errorf(codes.Unauthenticated, "signature is required")
 	}
 
-	signature, ok := md["x-app-auth"]
+	signature, ok := md["x-api-key"]
 	if !ok {
 		return ctx, status.Errorf(codes.Unauthenticated, "invalid signature")
 	}
