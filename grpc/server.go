@@ -54,7 +54,7 @@ func Address(a string) ServerOption {
 	})
 }
 
-func ServerOptions(opts []grpc.ServerOption) ServerOption {
+func WithServerOptions(opts []grpc.ServerOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.serverOptions = opts
 	})
@@ -122,7 +122,7 @@ type Server struct {
 	opts              serverOptions
 }
 
-func NewServer(muxOpts []runtime.ServeMuxOption, opt ...ServerOption) *Server {
+func NewServer(opt ...ServerOption) *Server {
 
 	opts := defaultServerOptions
 	for _, o := range opt {
