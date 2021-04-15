@@ -40,66 +40,49 @@ func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 	) (interface{}, error) {
 		log.Println("--> unary interceptor: ", info.FullMethod)
 
-		err := i.authorize(ctx, info.FullMethod)
+		ctxAuth, err := i.authorize(ctx, info.FullMethod)
 		if err != nil {
 			return nil, err
 		}
 
-		return handler(ctx, req)
+		return handler(ctxAuth, req)
 	}
 }
 
-// Stream returns a server interceptor function to authenticate and authorize stream RPC
-func (i *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
-	return func(
-		srv interface{},
-		stream grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
-		log.Println("--> stream interceptor: ", info.FullMethod)
-
-		err := i.authorize(stream.Context(), info.FullMethod)
-		if err != nil {
-			return err
-		}
-
-		return handler(srv, stream)
-	}
-}
-
-func (i *AuthInterceptor) authorize(ctx context.Context, method string) error {
+func (i *AuthInterceptor) authorize(ctx context.Context, method string) (context.Context, error) {
 	authRoles, ok := i.authRoles[method]
 	if !ok {
 		// public route
-		return nil
+		return ctx, nil
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
 		i.logger.Error("metadata was not provided")
-		return status.Errorf(codes.Unauthenticated, "auth token is invalid")
+		return ctx, status.Errorf(codes.Unauthenticated, "auth token is invalid")
 	}
 
 	signature, err := ExtractTokenFromMetadata(md)
 
 	if err != nil {
 		i.logger.Error("ExtractTokenFromMetadata error", zap.Error(err))
-		return status.Errorf(codes.Unauthenticated, "auth token is invalid")
+		return ctx, status.Errorf(codes.Unauthenticated, "auth token is invalid")
 	}
 
 	claims, err := i.jwtManager.Verify(signature)
 
 	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "auth token is invalid")
+		return ctx, status.Errorf(codes.Unauthenticated, "auth token is invalid")
 	}
+
+	authCtx := WithUser(ctx, claims)
 
 	for _, role := range authRoles {
 		if role == claims.Role {
-			return nil
+			return authCtx, nil
 		}
 	}
 
-	return status.Error(codes.Unauthenticated, "no permission to access this RPC")
+	return ctx, status.Error(codes.Unauthenticated, "no permission to access this RPC")
 }

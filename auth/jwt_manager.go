@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,6 +18,18 @@ type JWTManager struct {
 type UserClaims struct {
 	jwt.StandardClaims
 	Role string `json:"role"`
+}
+
+type CtxUserClaimsKey struct{}
+
+// WithUser sets user claims on the context.
+func WithUser(ctx context.Context, claims *UserClaims) context.Context {
+	return context.WithValue(ctx, CtxUserClaimsKey{}, claims)
+}
+
+// GetUser reads the user claims from the context.
+func GetUser(ctx context.Context) *UserClaims {
+	return ctx.Value(CtxProviderClaimsKey{}).(*UserClaims)
 }
 
 // NewJWTManager returns a new JWT manager
