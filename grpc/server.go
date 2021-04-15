@@ -38,14 +38,14 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type serverOptions struct {
-	address         string
-	port            int
-	logger          *zap.Logger
-	serverOptions   []grpc.ServerOption
-	muxOptions      []runtime.ServeMuxOption
-	httpMiddleware  chi.Middlewares
-	registerServer  func(server *grpc.Server)
-	registerGateway func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
+	address           string
+	port              int
+	logger            *zap.Logger
+	grpcServerOptions []grpc.ServerOption
+	muxOptions        []runtime.ServeMuxOption
+	httpMiddleware    chi.Middlewares
+	registerServer    func(server *grpc.Server)
+	registerGateway   func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
 }
 
 func Address(a string) ServerOption {
@@ -54,9 +54,9 @@ func Address(a string) ServerOption {
 	})
 }
 
-func WithServerOptions(opts []grpc.ServerOption) ServerOption {
+func WithGrpcServerOptions(opts []grpc.ServerOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.serverOptions = opts
+		o.grpcServerOptions = opts
 	})
 }
 
@@ -129,7 +129,7 @@ func NewServer(opt ...ServerOption) *Server {
 		o.apply(&opts)
 	}
 
-	grpcServer := grpc.NewServer(opts.serverOptions...)
+	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
 
 	server := &Server{
 		opts:       opts,
