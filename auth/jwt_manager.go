@@ -20,16 +20,17 @@ type UserClaims struct {
 	Role string `json:"role"`
 }
 
-type CtxUserClaimsKey struct{}
+type ctxUserClaimsKey struct{}
 
 // WithUser sets user claims on the context.
 func WithUser(ctx context.Context, claims *UserClaims) context.Context {
-	return context.WithValue(ctx, CtxUserClaimsKey{}, claims)
+	return context.WithValue(ctx, ctxUserClaimsKey{}, claims)
 }
 
-// GetUser reads the user claims from the context.
-func GetUser(ctx context.Context) *UserClaims {
-	return ctx.Value(CtxProviderClaimsKey{}).(*UserClaims)
+// GetUserFromContext reads the user claims from the context.
+func GetUserFromContext(ctx context.Context) (*UserClaims, bool) {
+	user, ok := ctx.Value(ctxUserClaimsKey{}).(*UserClaims)
+	return user, ok
 }
 
 // NewJWTManager returns a new JWT manager
