@@ -18,6 +18,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // funcServerOption wraps a function that modifies serverOptions into an
@@ -41,6 +42,7 @@ type serverOptions struct {
 	port            int
 	logger          *zap.Logger
 	serverOptions   []grpc.ServerOption
+	muxOptions      []runtime.ServeMuxOption
 	httpMiddleware  chi.Middlewares
 	registerServer  func(server *grpc.Server)
 	registerGateway func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
@@ -55,6 +57,12 @@ func Address(a string) ServerOption {
 func ServerOptions(opts []grpc.ServerOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.serverOptions = opts
+	})
+}
+
+func WithMuxOptions(opts []runtime.ServeMuxOption) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.muxOptions = opts
 	})
 }
 
@@ -87,6 +95,20 @@ var defaultServerOptions = serverOptions{
 	port:           7350,
 	httpMiddleware: nil,
 	logger:         logs.NewLogger(),
+	muxOptions: []runtime.ServeMuxOption{
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.HTTPBodyMarshaler{
+			Marshaler: &runtime.JSONPb{
+				MarshalOptions: protojson.MarshalOptions{
+					UseProtoNames:   true,
+					UseEnumNumbers:  false,
+					EmitUnpopulated: true,
+				},
+				UnmarshalOptions: protojson.UnmarshalOptions{
+					DiscardUnknown: true,
+				},
+			},
+		}),
+	},
 }
 
 // A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
@@ -110,8 +132,7 @@ func NewServer(muxOpts []runtime.ServeMuxOption, opt ...ServerOption) *Server {
 	grpcServer := grpc.NewServer(opts.serverOptions...)
 
 	server := &Server{
-		opts: opts,
-		//logger:     logger,
+		opts:       opts,
 		grpcServer: grpcServer,
 	}
 
@@ -140,7 +161,7 @@ func NewServer(muxOpts []runtime.ServeMuxOption, opt ...ServerOption) *Server {
 	opts.logger.Info("Starting gRPC gateway for HTTP requests", zap.String("gRPC gateway", dialAddr))
 	go func() {
 		grpcGatewayMux := runtime.NewServeMux(
-			muxOpts...,
+			opts.muxOptions...,
 		)
 
 		dialOptions := []grpc.DialOption{grpc.WithInsecure()}
