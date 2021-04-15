@@ -12,10 +12,6 @@ import (
 
 	"github.com/go-chi/chi"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
-	grpcgw "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-
 	"go.uber.org/zap"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -104,7 +100,7 @@ type Server struct {
 	opts              serverOptions
 }
 
-func NewServer(opt ...ServerOption) *Server {
+func NewServer(muxOpts []runtime.ServeMuxOption, opt ...ServerOption) *Server {
 
 	opts := defaultServerOptions
 	for _, o := range opt {
@@ -144,18 +140,7 @@ func NewServer(opt ...ServerOption) *Server {
 	opts.logger.Info("Starting gRPC gateway for HTTP requests", zap.String("gRPC gateway", dialAddr))
 	go func() {
 		grpcGatewayMux := runtime.NewServeMux(
-			grpcgw.WithMarshalerOption(grpcgw.MIMEWildcard, &grpcgw.HTTPBodyMarshaler{
-				Marshaler: &grpcgw.JSONPb{
-					MarshalOptions: protojson.MarshalOptions{
-						UseProtoNames:   true,
-						UseEnumNumbers:  false,
-						EmitUnpopulated: true,
-					},
-					UnmarshalOptions: protojson.UnmarshalOptions{
-						DiscardUnknown: true,
-					},
-				},
-			}),
+			muxOpts...,
 		)
 
 		dialOptions := []grpc.DialOption{grpc.WithInsecure()}
