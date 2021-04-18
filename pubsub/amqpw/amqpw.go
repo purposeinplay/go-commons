@@ -4,10 +4,11 @@ import (
 	"context"
 	fmt "fmt"
 
+	"github.com/purposeinplay/go-commons/logs"
 	"github.com/purposeinplay/go-commons/pubsub"
+	"go.uber.org/zap"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -17,7 +18,7 @@ type Options struct {
 	Connection *amqp.Connection
 
 	// Logger is a logger interface to write the worker logs.
-	Logger *logrus.Logger
+	Logger *zap.Logger
 
 	// Name is used to identify the app as a consumer. Defaults to "win".
 	Name string
@@ -45,9 +46,7 @@ func New(opts Options) *Adapter {
 	}
 
 	if opts.Logger == nil {
-		l := logrus.New()
-		l.Level = logrus.InfoLevel
-		l.Formatter = &logrus.TextFormatter{}
+		l := logs.NewLogger()
 		opts.Logger = l
 	}
 
@@ -64,7 +63,7 @@ func New(opts Options) *Adapter {
 type Adapter struct {
 	Connection     *amqp.Connection
 	Channel        *amqp.Channel
-	Logger         *logrus.Logger
+	Logger         *zap.Logger
 	consumerName   string
 	ctx            context.Context
 	maxConcurrency int
@@ -121,7 +120,7 @@ func (q *Adapter) Start(ctx context.Context) error {
 
 // Stop closes the connection to the broker.
 func (q *Adapter) Stop() error {
-	q.Logger.Info("Stopping AMQP Worker")
+	q.Logger.Info("stopping AMQP worker")
 	if q.Channel == nil {
 		return nil
 	}
@@ -133,7 +132,7 @@ func (q *Adapter) Stop() error {
 
 // Emit enqueues a new job.
 func (q Adapter) Emit(job pubsub.Job) error {
-	q.Logger.Infof("Enqueuing job %s", job)
+	q.Logger.Info("enqueuing job", zap.Any("job", job))
 
 	err := q.Channel.Publish(
 		job.Exchange, // exchange
@@ -148,7 +147,8 @@ func (q Adapter) Emit(job pubsub.Job) error {
 	)
 
 	if err != nil {
-		q.Logger.Errorf("error enqueuing job \"%s\"", job)
+		q.Logger.Error("error enqueuing job", zap.Any("job", job))
+
 		return errors.WithStack(err)
 	}
 	return nil
