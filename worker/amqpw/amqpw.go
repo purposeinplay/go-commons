@@ -2,10 +2,10 @@ package amqpw
 
 import (
 	"context"
-	fmt "fmt"
+	"fmt"
 
 	"github.com/purposeinplay/go-commons/logs"
-	"github.com/purposeinplay/go-commons/pubsub"
+	"github.com/purposeinplay/go-commons/worker"
 	"go.uber.org/zap"
 
 	"github.com/pkg/errors"
@@ -31,7 +31,7 @@ type Options struct {
 var ErrInvalidConnection = errors.New("invalid connection")
 
 // Ensures Adapter implements the buffalo.Worker interface.
-var _ pubsub.Events = &Adapter{}
+var _ worker.Events = &Adapter{}
 
 // New creates a new AMQP adapter
 func New(opts Options) *Adapter {
@@ -131,7 +131,7 @@ func (q *Adapter) Stop() error {
 }
 
 // Emit enqueues a new job.
-func (q Adapter) Emit(job pubsub.Job) error {
+func (q Adapter) Emit(job worker.Job) error {
 	q.Logger.Info("enqueuing job", zap.Any("job", job))
 
 	err := q.Channel.Publish(

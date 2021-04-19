@@ -1,4 +1,4 @@
-package pubsub
+package worker
 
 import "encoding/json"
 

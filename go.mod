@@ -10,6 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/streadway/amqp v1.0.0
+	github.com/stretchr/testify v1.7.0 // indirect
 	go.uber.org/zap v1.16.0
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
