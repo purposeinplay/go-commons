@@ -2,8 +2,8 @@ on:
   # Trigger the workflow on push request if the files
   # in ./pubsub package were modified
   push:
-#    paths:
-#      - pubsub/**
+    paths:
+      - pubsub/**
 
 name: test
 jobs:
