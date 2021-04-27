@@ -54,6 +54,12 @@ func Address(a string) ServerOption {
 	})
 }
 
+func WithPort(a int) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.port = a
+	})
+}
+
 func WithGrpcServerOptions(opts []grpc.ServerOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.grpcServerOptions = opts
