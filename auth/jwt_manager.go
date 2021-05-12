@@ -17,7 +17,9 @@ type JWTManager struct {
 // UserClaims is a custom JWT claims that contains some user's information
 type UserClaims struct {
 	jwt.StandardClaims
-	Role string `json:"role"`
+	Role string `json:"role,omitempty"`
+	Nid string `json:"nid,omitempty"`
+	Username string `json:"username,omitempty"`
 }
 
 type ctxUserClaimsKey struct{}
