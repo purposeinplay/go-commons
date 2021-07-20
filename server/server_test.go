@@ -129,11 +129,11 @@ func TestServer(t *testing.T) {
 				logger:  zap.NewExample(),
 				handler: defaultHandler(),
 				options: []server.Option{
-					server.WithShutdownSignalsOption(syscall.SIGINFO),
+					server.WithShutdownSignalsOption(syscall.SIGINT),
 				},
 			},
 			extraWgCounter:            1,
-			shutdownSignals:           []os.Signal{syscall.SIGINFO},
+			shutdownSignals:           []os.Signal{syscall.SIGINT},
 			expectedHandlerExitStatus: exitTimeAfter,
 		},
 	}
