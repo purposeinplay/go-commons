@@ -1,8 +1,7 @@
-package server
+package httpserver
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -16,6 +15,9 @@ const (
 )
 
 // Info holds relevant information about the Server.
+// This can be used in the future to hold information about:
+// - number of requests received
+// - average response time
 type Info struct {
 	Addr string
 }
@@ -23,14 +25,18 @@ type Info struct {
 // Server handles the setup and shutdown of the http server
 // for an http.Handler
 type Server struct {
+	// underlying http server
 	httpServer *http.Server
 
 	log *zap.Logger
 
+	// chan to signal that the
 	done chan struct{}
 
+	// holds extra information about the service
 	info Info
 
+	// once function to only close the done channel once.
 	closeDoneOnce sync.Once
 }
 
@@ -78,7 +84,9 @@ func (s *Server) Shutdown(timeout time.Duration) error {
 // on the provided listener.
 func (s *Server) Serve(ln net.Listener) error {
 	err := s.httpServer.Serve(ln)
-	if err != http.ErrServerClosed {
+
+	err = s.handleShutdown(err)
+	if err != nil {
 		return err
 	}
 
@@ -91,10 +99,16 @@ func (s *Server) ListenAndServe() error {
 	s.log.Info("starting server", zap.String("address", s.httpServer.Addr))
 
 	err := s.httpServer.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+
+	err = s.handleShutdown(err)
+	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (s *Server) handleShutdown(err error) error {
 	// log that the server shutdown
 	s.log.Debug("listener shutdown, waiting for connections to drain")
 

@@ -1,4 +1,4 @@
-package server_test
+package httpserver_test
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/purposeinplay/go-commons/server"
+	"github.com/purposeinplay/go-commons/httpserver"
 )
 
 func ExampleWithShutdownSignalsOption() {
-	opt := server.WithShutdownSignalsOption(
+	opt := httpserver.WithShutdownSignalsOption(
 		syscall.SIGINT,
 		syscall.SIGTERM)
 
@@ -19,7 +19,7 @@ func ExampleWithShutdownSignalsOption() {
 }
 
 func ExampleWithAddress() {
-	opt := server.WithAddress(":8080")
+	opt := httpserver.WithAddress(":8080")
 
 	fmt.Println(opt)
 	// Output: server.Address: :8080
@@ -30,16 +30,16 @@ func ExampleWithBaseContext() {
 
 	ctx := context.WithValue(context.Background(), key("server"), "example")
 
-	opt := server.WithBaseContext(ctx, true)
+	opt := httpserver.WithBaseContext(ctx, true)
 
 	fmt.Println(opt)
 	// Output:
-	// server.BaseContext: (*context.valueCtx)(context.Background.WithValue(type server_test.key, val example))
+	// server.BaseContext: (*context.valueCtx)(context.Background.WithValue(type httpserver_test.key, val example))
 	// server.CancelContextOnShutdown: true
 }
 
 func ExampleWithServerTimeouts() {
-	opt := server.WithServerTimeouts(
+	opt := httpserver.WithServerTimeouts(
 		time.Nanosecond,
 		2*time.Nanosecond,
 		3*time.Nanosecond,
