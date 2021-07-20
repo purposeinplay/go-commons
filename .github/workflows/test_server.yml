@@ -3,7 +3,7 @@ on:
   # in ./pubsub package were modified
   push:
     paths:
-      - server/**
+      - httpserver/**
 
 name: test
 jobs:
