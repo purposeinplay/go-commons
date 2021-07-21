@@ -30,7 +30,8 @@ type Server struct {
 
 	log *zap.Logger
 
-	// chan to signal that the
+	// chan to signal that the server was shutdown which means that either the
+	// Server() or ListenAndServe() methods returned.
 	done chan struct{}
 
 	// holds extra information about the service
