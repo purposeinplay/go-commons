@@ -1,95 +1,143 @@
 package router
 
 import (
-	"context"
+	commonshttp "github.com/purposeinplay/go-commons/http"
+	"go.uber.org/zap"
 	"net/http"
-
-	"github.com/purposeinplay/go-commons/http/httperr"
 
 	"github.com/go-chi/chi"
 )
 
-func NewRouter() *Router {
-	return &Router{chi.NewRouter()}
+type chiRouter struct {
+	chi chi.Router
 }
 
-type Router struct {
-	Chi chi.Router
+// Router wraps the chi router to make it slightly more accessible
+type Router interface {
+	// Use appends one middleware onto the Router stack.
+	Use(fn Middleware)
+
+	// With adds an inline middleware for an endpoint handler.
+	With(fn Middleware) Router
+
+	// Route mounts a sub-Router along a `pattern`` string.
+	Route(pattern string, fn func(r Router))
+
+	// Method adds a routes for a `pattern` that matches the `method` HTTP method.
+	Method(method, pattern string, h HandlerErrorFunc)
+
+	// HTTP-method routing along `pattern`
+	Delete(pattern string, h HandlerErrorFunc)
+	Get(pattern string, h HandlerErrorFunc)
+	Post(pattern string, h HandlerErrorFunc)
+	Put(pattern string, h HandlerErrorFunc)
+
+	// Mount attaches another http.Handler along ./pattern/*
+	Mount(pattern string, h http.Handler)
+
+	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
-func (r *Router) Route(pattern string, fn func(*Router)) {
-	r.Chi.Route(pattern, func(c chi.Router) {
-		fn(&Router{c})
+// New creates a router with sensible defaults (xff, request id, cors)
+func New(options ...Option) Router {
+	r := &chiRouter{
+		chi:        chi.NewRouter(),
+	}
+
+	for _, opt := range options {
+		opt(r)
+	}
+
+	return r
+}
+
+func NewDefaultRouter(logger *zap.Logger) Router {
+	r := New(
+		WithRequestID(),
+		WithRealIP(),
+		WithRecoverer(),
+		WithLogger(logger),
+		WithCors(defaultCorsOptions),
+		WithHealthcheck("/health", nil),
+	)
+
+	return r
+}
+
+// Route allows creating a generic route
+func (r *chiRouter) Route(pattern string, fn func(Router)) {
+	r.chi.Route(pattern, func(c chi.Router) {
+		wrapper := new(chiRouter)
+		*wrapper = *r
+		wrapper.chi = c
+		fn(wrapper)
 	})
 }
 
-func (r *Router) Group(fn func(*Router)) {
-	r.Chi.Group(func(c chi.Router) {
-		fn(&Router{c})
-	})
+// Method adds a routes for a `pattern` that matches the `method` HTTP method.
+func (r *chiRouter) Method(method, pattern string, h HandlerErrorFunc) {
+	f := HandlerFunc(h)
+	r.chi.Method(method, pattern, f)
 }
 
-func (r *Router) Get(pattern string, fn handlerFunc) {
-	r.Chi.Get(pattern, handler(fn))
-}
-func (r *Router) Post(pattern string, fn handlerFunc) {
-	r.Chi.Post(pattern, handler(fn))
-}
-func (r *Router) Put(pattern string, fn handlerFunc) {
-	r.Chi.Put(pattern, handler(fn))
-}
-func (r *Router) Delete(pattern string, fn handlerFunc) {
-	r.Chi.Delete(pattern, handler(fn))
+// Get adds a GET route
+func (r *chiRouter) Get(pattern string, fn HandlerErrorFunc) {
+	r.chi.Get(pattern, HandlerFunc(fn))
 }
 
-func (r *Router) With(fn MiddlewareHandler) *Router {
-	c := r.Chi.With(middleware(fn))
-	return &Router{c}
+// Post adds a POST route
+func (r *chiRouter) Post(pattern string, fn HandlerErrorFunc) {
+	r.chi.Post(pattern, HandlerFunc(fn))
 }
 
-func (r *Router) Use(fn MiddlewareHandler) {
-	r.Chi.Use(middleware(fn))
-}
-func (r *Router) UseBypass(fn func(next http.Handler) http.Handler) {
-	r.Chi.Use(fn)
+// Put adds a PUT route
+func (r *chiRouter) Put(pattern string, fn HandlerErrorFunc) {
+	r.chi.Put(pattern, HandlerFunc(fn))
 }
 
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.Chi.ServeHTTP(w, req)
+// Delete adds a DELETE route
+func (r *chiRouter) Delete(pattern string, fn HandlerErrorFunc) {
+	r.chi.Delete(pattern, HandlerFunc(fn))
 }
 
-type handlerFunc func(w http.ResponseWriter, r *http.Request) error
-
-func handler(fn handlerFunc) http.HandlerFunc {
-	return fn.serve
+// With adds an inline chi middleware for an endpoint handler
+func (r *chiRouter) With(fn Middleware) Router {
+	r.chi = r.chi.With(fn)
+	return r
 }
 
-func (h handlerFunc) serve(w http.ResponseWriter, r *http.Request) {
-	if err := h(w, r); err != nil {
-		httperr.HandleError(err, w, r)
+// Use appends one chi middleware onto the Router stack
+func (r *chiRouter) Use(fn Middleware) {
+	r.chi.Use(fn)
+}
+
+// ServeHTTP will serve a request
+func (r *chiRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.chi.ServeHTTP(w, req)
+}
+
+// Mount attaches another http.Handler along ./pattern/*
+func (r *chiRouter) Mount(pattern string, h http.Handler) {
+	r.chi.Mount(pattern, h)
+}
+
+// =======================================
+// HTTP handler with custom error payload
+// =======================================
+
+type HandlerErrorFunc func(w http.ResponseWriter, r *http.Request) error
+
+func HandlerFunc(fn HandlerErrorFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := fn(w, r); err != nil {
+			commonshttp.HandleError(err, w, r)
+		}
 	}
 }
 
-type MiddlewareHandler func(w http.ResponseWriter, r *http.Request) (context.Context, error)
-
-func (m MiddlewareHandler) handler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		m.serve(next, w, r)
-	})
-}
-
-func (m MiddlewareHandler) serve(next http.Handler, w http.ResponseWriter, r *http.Request) {
-	ctx, err := m(w, r)
-	if err != nil {
-		httperr.HandleError(err, w, r)
-		return
+func Healthcheck() HandlerErrorFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		w.WriteHeader(http.StatusOK)
+		return nil
 	}
-	if ctx != nil {
-		r = r.WithContext(ctx)
-	}
-	next.ServeHTTP(w, r)
-}
-
-func middleware(fn MiddlewareHandler) func(http.Handler) http.Handler {
-	return fn.handler
 }

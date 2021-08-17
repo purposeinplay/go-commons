@@ -1,14 +1,57 @@
-package middleware
+package router
 
 import (
 	"fmt"
 	cmiddleware "github.com/go-chi/chi/middleware"
+	http2 "github.com/purposeinplay/go-commons/http"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"time"
 )
+
+type Middleware func(http.Handler) http.Handler
+
+func MiddlewareFunc(f func(w http.ResponseWriter, r *http.Request, next http.Handler)) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			f(w, r, next)
+		})
+	}
+}
+
+// Recoverer is a middleware that recovers from panics, logs the panic (and a
+// backtrace), and returns a HTTP 500 (Internal Server Error) status if
+// possible. Recoverer prints a request ID if one is provided.
+func Recoverer() Middleware {
+	return MiddlewareFunc(func(w http.ResponseWriter, r *http.Request, next http.Handler) {
+		defer func() {
+			if rvr := recover(); rvr != nil {
+				logEntry := logs.GetLogEntry(r)
+
+				if logEntry != nil {
+					logEntry.Sugar().Panic(rvr, debug.Stack())
+				} else {
+					fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
+					debug.PrintStack()
+				}
+
+				err := &http2.HTTPError{
+					Code:    http.StatusInternalServerError,
+					Message: http.StatusText(http.StatusInternalServerError),
+				}
+				http2.HandleError(err, w, r)
+			}
+		}()
+
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 
 func NewLoggerMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
 	return cmiddleware.RequestLogger(&structuredLogger{logger})

@@ -1,12 +1,14 @@
-package httperr
+package http
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/middleware"
 	"github.com/purposeinplay/go-commons/http/render"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"net/http"
+	"reflect"
 )
 
 var oauthErrorMap = map[int]string{
@@ -128,27 +130,26 @@ type ErrorCause interface {
 }
 
 func HandleError(err error, w http.ResponseWriter, r *http.Request) {
+	if err == nil || reflect.ValueOf(err).IsNil() {
+		return
+	}
+
 	log := logs.GetLogEntry(r)
 	errorID := middleware.GetReqID(r.Context())
-	switch e := err.(type) {
-	case *HTTPError:
+
+	var e *HTTPError
+	switch {
+	case errors.As(err, &e):
 		if e.Code >= http.StatusInternalServerError {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
 			log.With(zap.Error(e.Cause())).Error(e.Error())
-		} else {
-			log.With(zap.Error(e.Cause())).Warn(e.Error())
 		}
+
+		log.With(zap.Error(e.Cause())).Warn(e.Error())
 		if jsonErr := render.SendJSON(w, e.Code, e); jsonErr != nil {
 			HandleError(jsonErr, w, r)
 		}
-	case *OAuthError:
-		log.With(zap.Error(e.Cause())).Info(e.Error())
-		if jsonErr := render.SendJSON(w, http.StatusBadRequest, e); jsonErr != nil {
-			HandleError(jsonErr, w, r)
-		}
-	case ErrorCause:
-		HandleError(e.Cause(), w, r)
 	default:
 		log.With(zap.Error(e)).Error(e.Error())
 
