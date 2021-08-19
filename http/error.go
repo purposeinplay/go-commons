@@ -148,9 +148,11 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
 			logger.With(zap.Error(e.Cause())).Error(e.Error())
+		}else{
+			logger.With(zap.Error(e.Cause())).Warn(e.Error())
 		}
 
-		logger.With(zap.Error(e.Cause())).Warn(e.Error())
+
 		if err := render.SendJSON(w, e.Code, e); err != nil {
 			HandleError(err, w, r)
 		}
