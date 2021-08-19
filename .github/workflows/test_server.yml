@@ -24,4 +24,4 @@ jobs:
           working-directory: ./httpserver/
 
       - name: Run tests
-        run: make test -C ./server
+        run: make test -C ./httpserver
