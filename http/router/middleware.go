@@ -3,7 +3,7 @@ package router
 import (
 	"fmt"
 	cmiddleware "github.com/go-chi/chi/middleware"
-	http2 "github.com/purposeinplay/go-commons/http"
+	commonshttp "github.com/purposeinplay/go-commons/http"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -39,11 +39,11 @@ func Recoverer() Middleware {
 					debug.PrintStack()
 				}
 
-				err := &http2.HTTPError{
+				err := &commonshttp.HTTPError{
 					Code:    http.StatusInternalServerError,
 					Message: http.StatusText(http.StatusInternalServerError),
 				}
-				http2.HandleError(err, w, r)
+				commonshttp.HandleError(err, w, r)
 			}
 		}()
 

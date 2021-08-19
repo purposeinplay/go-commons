@@ -23,7 +23,7 @@ func WithCors(options cors.Options) Option {
 	}
 }
 
-func WithHealthcheck(path string, handler HandlerErrorFunc) Option {
+func WithHealthcheck(path string, handler ErrorHandler) Option {
 	return func(r *chiRouter) {
 		if handler == nil {
 			handler = Healthcheck()

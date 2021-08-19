@@ -24,13 +24,13 @@ type Router interface {
 	Route(pattern string, fn func(r Router))
 
 	// Method adds a routes for a `pattern` that matches the `method` HTTP method.
-	Method(method, pattern string, h HandlerErrorFunc)
+	Method(method, pattern string, h ErrorHandler)
 
 	// HTTP-method routing along `pattern`
-	Delete(pattern string, h HandlerErrorFunc)
-	Get(pattern string, h HandlerErrorFunc)
-	Post(pattern string, h HandlerErrorFunc)
-	Put(pattern string, h HandlerErrorFunc)
+	Delete(pattern string, h ErrorHandler)
+	Get(pattern string, h ErrorHandler)
+	Post(pattern string, h ErrorHandler)
+	Put(pattern string, h ErrorHandler)
 
 	// Mount attaches another http.Handler along ./pattern/*
 	Mount(pattern string, h http.Handler)
@@ -77,29 +77,29 @@ func (r *chiRouter) Route(pattern string, fn func(Router)) {
 }
 
 // Method adds a routes for a `pattern` that matches the `method` HTTP method.
-func (r *chiRouter) Method(method, pattern string, h HandlerErrorFunc) {
-	f := HandlerFunc(h)
+func (r *chiRouter) Method(method, pattern string, h ErrorHandler) {
+	f := ErrorHandlerFunc(h)
 	r.chi.Method(method, pattern, f)
 }
 
 // Get adds a GET route
-func (r *chiRouter) Get(pattern string, fn HandlerErrorFunc) {
-	r.chi.Get(pattern, HandlerFunc(fn))
+func (r *chiRouter) Get(pattern string, fn ErrorHandler) {
+	r.chi.Get(pattern, ErrorHandlerFunc(fn))
 }
 
 // Post adds a POST route
-func (r *chiRouter) Post(pattern string, fn HandlerErrorFunc) {
-	r.chi.Post(pattern, HandlerFunc(fn))
+func (r *chiRouter) Post(pattern string, fn ErrorHandler) {
+	r.chi.Post(pattern, ErrorHandlerFunc(fn))
 }
 
 // Put adds a PUT route
-func (r *chiRouter) Put(pattern string, fn HandlerErrorFunc) {
-	r.chi.Put(pattern, HandlerFunc(fn))
+func (r *chiRouter) Put(pattern string, fn ErrorHandler) {
+	r.chi.Put(pattern, ErrorHandlerFunc(fn))
 }
 
 // Delete adds a DELETE route
-func (r *chiRouter) Delete(pattern string, fn HandlerErrorFunc) {
-	r.chi.Delete(pattern, HandlerFunc(fn))
+func (r *chiRouter) Delete(pattern string, fn ErrorHandler) {
+	r.chi.Delete(pattern, ErrorHandlerFunc(fn))
 }
 
 // With adds an inline chi middleware for an endpoint handler
@@ -138,9 +138,9 @@ func (r *chiRouter) Group(fn func(r Router)) {
 // HTTP handler with custom error payload
 // =======================================
 
-type HandlerErrorFunc func(w http.ResponseWriter, r *http.Request) error
+type ErrorHandler func(w http.ResponseWriter, r *http.Request) error
 
-func HandlerFunc(fn HandlerErrorFunc) http.HandlerFunc {
+func ErrorHandlerFunc(fn ErrorHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := fn(w, r); err != nil {
 			commonshttp.HandleError(err, w, r)
@@ -148,7 +148,7 @@ func HandlerFunc(fn HandlerErrorFunc) http.HandlerFunc {
 	}
 }
 
-func Healthcheck() HandlerErrorFunc {
+func Healthcheck() ErrorHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 		return nil
