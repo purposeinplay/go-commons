@@ -35,6 +35,8 @@ type Router interface {
 	// Mount attaches another http.Handler along ./pattern/*
 	Mount(pattern string, h http.Handler)
 
+	Group(fn func(r Router))
+
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
@@ -119,6 +121,17 @@ func (r *chiRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // Mount attaches another http.Handler along ./pattern/*
 func (r *chiRouter) Mount(pattern string, h http.Handler) {
 	r.chi.Mount(pattern, h)
+}
+
+// Group adds a new inline-Router along the current routing
+// path, with a fresh middleware stack for the inline-Router.
+func (r *chiRouter) Group(fn func(r Router)) {
+	r.chi.Group(func(c chi.Router){
+		wrapper := new(chiRouter)
+		*wrapper = *r
+		wrapper.chi = c
+		fn(wrapper)
+	})
 }
 
 // =======================================
