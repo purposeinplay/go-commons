@@ -151,8 +151,8 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		}
 
 		logger.With(zap.Error(e.Cause())).Warn(e.Error())
-		if jsonErr := render.SendJSON(w, e.Code, e); jsonErr != nil {
-			HandleError(jsonErr, w, r)
+		if err := render.SendJSON(w, e.Code, e); err != nil {
+			HandleError(err, w, r)
 		}
 	default:
 		logger.With(zap.Error(e)).Error(e.Error())
