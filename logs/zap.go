@@ -2,7 +2,7 @@ package logs
 
 import (
 	"fmt"
-	cmiddleware "github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/middleware"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -50,7 +50,7 @@ func (l *StructuredLoggerEntry) Panic(v interface{}, stack []byte) {
 // passes through the handler chain, which at any point can be logged
 // with a call to .Print(), .Info(), etc.
 func GetLogEntry(r *http.Request) (*zap.Logger, error) {
-	entry, _ := cmiddleware.GetLogEntry(r).(*StructuredLoggerEntry)
+	entry, _ := middleware.GetLogEntry(r).(*StructuredLoggerEntry)
 
 	if entry == nil {
 		logger, err := NewLogger()
