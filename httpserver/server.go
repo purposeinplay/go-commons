@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"github.com/purposeinplay/go-commons/logs"
 	"net"
 	"net/http"
 	"sync"
@@ -62,16 +61,6 @@ func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
 	}
 
 	return server
-}
-
-func NewDefault(ctx context.Context, h http.Handler) *Server {
-	logger := logs.NewLogger()
-
-	return New(
-		logger,
-		h,
-		WithBaseContext(ctx, true),
-	)
 }
 
 // Shutdown is a wrapper over http.Server.Shutdown() that also closes the
