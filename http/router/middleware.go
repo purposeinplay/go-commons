@@ -30,16 +30,20 @@ func Recoverer() Middleware {
 	return MiddlewareFunc(func(w http.ResponseWriter, r *http.Request, next http.Handler) {
 		defer func() {
 			if rvr := recover(); rvr != nil {
-				logEntry := logs.GetLogEntry(r)
+				logEntry, err := logs.GetLogEntry(r)
 
-				if logEntry != nil {
-					logEntry.Sugar().Panic(rvr, debug.Stack())
-				} else {
-					fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
-					debug.PrintStack()
+				switch {
+					case err != nil:
+						logEntry.Sugar().Panic(rvr, debug.Stack())
+					case logEntry == nil:
+						fallthrough
+					default:
+						fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
+						debug.PrintStack()
 				}
 
-				err := &commonshttp.HTTPError{
+
+				err = &commonshttp.HTTPError{
 					Code:    http.StatusInternalServerError,
 					Message: http.StatusText(http.StatusInternalServerError),
 				}

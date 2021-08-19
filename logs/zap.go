@@ -8,10 +8,14 @@ import (
 	"time"
 )
 
-func NewLogger() *zap.Logger {
-	logger, _ := zap.NewProduction()
+func NewLogger() (*zap.Logger, error) {
+	logger, err := zap.NewProduction()
+
+	if err != nil {
+		return nil, err
+	}
 	defer logger.Sync() // flushes buffer, if any
-	return logger
+	return logger, nil
 }
 
 type StructuredLoggerEntry struct {
@@ -45,13 +49,16 @@ func (l *StructuredLoggerEntry) Panic(v interface{}, stack []byte) {
 // This is a useful pattern to use to set state on the entry as it
 // passes through the handler chain, which at any point can be logged
 // with a call to .Print(), .Info(), etc.
-func GetLogEntry(r *http.Request) *zap.Logger {
+func GetLogEntry(r *http.Request) (*zap.Logger, error) {
 	entry, _ := cmiddleware.GetLogEntry(r).(*StructuredLoggerEntry)
 
 	if entry == nil {
-		logger := NewLogger()
-		return logger
+		logger, err := NewLogger()
+		if err != nil {
+			return nil, err
+		}
+		return logger, nil
 	}
 
-	return entry.Logger
+	return entry.Logger, nil
 }
