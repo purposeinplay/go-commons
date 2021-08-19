@@ -21,7 +21,7 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@v2
         with:
-          working-directory: ./server/
+          working-directory: ./httpserver/
 
       - name: Run tests
         run: make test -C ./server
