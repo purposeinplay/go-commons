@@ -120,12 +120,6 @@ func (s *Server) ListenAndServe() error {
 	return nil
 }
 
-func (s *Server) SetRouter(r http.Handler) *Server {
-	s.httpServer.Handler = r
-
-	return s
-}
-
 func (s *Server) handleShutdown(err error) error {
 	// log that the server shutdown
 	s.log.Debug("listener shutdown, waiting for connections to drain")
