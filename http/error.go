@@ -8,7 +8,6 @@ import (
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"net/http"
-	"reflect"
 )
 
 var oauthErrorMap = map[int]string{
@@ -130,7 +129,7 @@ type ErrorCause interface {
 }
 
 func HandleError(err error, w http.ResponseWriter, r *http.Request) {
-	if err == nil || reflect.ValueOf(err).IsNil() {
+	if err == nil {
 		return
 	}
 
