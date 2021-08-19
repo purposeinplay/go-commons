@@ -7,6 +7,7 @@ import (
 	"github.com/purposeinplay/go-commons/http/render"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
+	"log"
 	"net/http"
 )
 
@@ -133,7 +134,11 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log := logs.GetLogEntry(r)
+	logger, err := logs.GetLogEntry(r)
+	if err != nil {
+		log.Panicf("could not get logger %+v", err)
+	}
+
 	errorID := middleware.GetReqID(r.Context())
 
 	var e *HTTPError
@@ -142,20 +147,20 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		if e.Code >= http.StatusInternalServerError {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
-			log.With(zap.Error(e.Cause())).Error(e.Error())
+			logger.With(zap.Error(e.Cause())).Error(e.Error())
 		}
 
-		log.With(zap.Error(e.Cause())).Warn(e.Error())
+		logger.With(zap.Error(e.Cause())).Warn(e.Error())
 		if jsonErr := render.SendJSON(w, e.Code, e); jsonErr != nil {
 			HandleError(jsonErr, w, r)
 		}
 	default:
-		log.With(zap.Error(e)).Error(e.Error())
+		logger.With(zap.Error(e)).Error(e.Error())
 
 		// hide real error details from response to prevent info leaks
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, writeErr := w.Write([]byte(`{"code":500,"msg":"Internal server error","error_id":"` + errorID + `"}`)); writeErr != nil {
-			log.With(zap.Error(writeErr)).Error(e.Error())
+			logger.With(zap.Error(writeErr)).Error(e.Error())
 		}
 	}
 }
