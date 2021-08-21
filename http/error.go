@@ -129,8 +129,8 @@ type ErrorCause interface {
 	Cause() error
 }
 
-func HandleError(err error, w http.ResponseWriter, r *http.Request) {
-	if err == nil {
+func HandleError(httpErr error, w http.ResponseWriter, r *http.Request) {
+	if httpErr == nil {
 		return
 	}
 
@@ -143,7 +143,7 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 
 	var e *HTTPError
 	switch {
-	case errors.As(err, &e):
+	case errors.As(httpErr, &e):
 		if e.Code >= http.StatusInternalServerError {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
@@ -151,7 +151,6 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		}else{
 			logger.With(zap.Error(e.Cause())).Warn(e.Error())
 		}
-
 
 		if err := render.SendJSON(w, e.Code, e); err != nil {
 			HandleError(err, w, r)

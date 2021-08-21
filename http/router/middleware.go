@@ -42,7 +42,6 @@ func Recoverer() Middleware {
 						debug.PrintStack()
 				}
 
-
 				err = &commonshttp.HTTPError{
 					Code:    http.StatusInternalServerError,
 					Message: http.StatusText(http.StatusInternalServerError),
@@ -50,7 +49,6 @@ func Recoverer() Middleware {
 				commonshttp.HandleError(err, w, r)
 			}
 		}()
-
 
 		next.ServeHTTP(w, r)
 	})
