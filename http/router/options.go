@@ -4,6 +4,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type Option func(r *chiRouter)
@@ -23,7 +24,7 @@ func WithCors(options cors.Options) Option {
 	}
 }
 
-func WithHealthcheck(path string, handler ErrorHandler) Option {
+func WithHealthcheck(path string, handler http.HandlerFunc) Option {
 	return func(r *chiRouter) {
 		if handler == nil {
 			handler = Healthcheck()
