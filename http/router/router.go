@@ -139,8 +139,6 @@ func (r *chiRouter) Group(fn func(r Router)) {
 
 type HandlerErrorFunc func(w http.ResponseWriter, r *http.Request) error
 
-// type http.HandlerFunc func(w http.ResponseWriter, r *http.Request) error
-
 func (fn HandlerErrorFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := fn(w, r)
 	if err != nil {
@@ -149,14 +147,6 @@ func (fn HandlerErrorFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-// func http.HandlerFuncFunc(fn http.HandlerFunc) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		if err := fn(w, r); err != nil {
-// 			commonshttp.HandleError(err, w, r)
-// 		}
-// 	}
-// }
 
 func Healthcheck() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
