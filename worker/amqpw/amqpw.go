@@ -34,7 +34,7 @@ var ErrInvalidConnection = errors.New("invalid connection")
 var _ worker.Events = &Adapter{}
 
 // New creates a new AMQP adapter
-func New(opts Options) *Adapter {
+func New(opts Options) (*Adapter, error) {
 	ctx := context.Background()
 
 	if opts.Name == "" {
@@ -46,7 +46,10 @@ func New(opts Options) *Adapter {
 	}
 
 	if opts.Logger == nil {
-		l := logs.NewLogger()
+		l, err := logs.NewLogger()
+		if err != nil {
+			return nil, err
+		}
 		opts.Logger = l
 	}
 
@@ -56,7 +59,7 @@ func New(opts Options) *Adapter {
 		consumerName:   opts.Name,
 		maxConcurrency: opts.MaxConcurrency,
 		ctx:            ctx,
-	}
+	}, nil
 }
 
 // Adapter implements the buffalo.Worker interface.
