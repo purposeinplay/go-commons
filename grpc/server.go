@@ -171,9 +171,9 @@ func NewServer(opt ...ServerOption) *Server {
 	}()
 
 	// Register and start GRPC Gateway server.
-	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port-1)
+	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port)
 	if opts.address != "" {
-		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port-1)
+		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port)
 	}
 	opts.logger.Info("Starting gRPC gateway for HTTP requests", zap.String("gRPC gateway", dialAddr))
 	go func() {
