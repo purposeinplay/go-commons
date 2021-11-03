@@ -8,7 +8,7 @@ import (
 	"github.com/purposeinplay/go-commons/worker"
 	"go.uber.org/zap"
 
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/streadway/amqp"
 )
 
@@ -85,7 +85,7 @@ func (q *Adapter) exchangeDeclare(exchanges []string) error {
 		)
 
 		if err != nil {
-			return errors.WithMessage(err, "unable to declare exchange")
+			return fmt.Errorf("unable to declare exchange: %w", err)
 		}
 	}
 
@@ -111,12 +111,15 @@ func (q *Adapter) Start(ctx context.Context) error {
 	c, err := q.Connection.Channel()
 	if err != nil {
 		fmt.Println(err)
-		return errors.WithStack(err)
+		return fmt.Errorf("could not start a new broker channel: %w", err)
 	}
 
 	q.Channel = c
 
-	q.exchangeDeclare([]string{"win.users", "win.payments", "win.cashout"})
+	err = q.exchangeDeclare([]string{"win.users", "win.payments", "win.cashout"})
+	if err != nil {
+		return fmt.Errorf("could not perform exchangeDeclare: %w", err)
+	}
 
 	return nil
 }
@@ -152,7 +155,8 @@ func (q Adapter) Emit(job worker.Job) error {
 	if err != nil {
 		q.Logger.Error("error enqueuing job", zap.Any("job", job))
 
-		return errors.WithStack(err)
+		return fmt.Errorf("error enqueuing job: %w", err)
 	}
+
 	return nil
 }

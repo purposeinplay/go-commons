@@ -1,8 +1,8 @@
 package amqpw
 
 import (
+	"fmt"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
@@ -14,7 +14,7 @@ func Dial(cfg *Config) (*amqp.Connection, error) {
 		rabbit = conn
 
 		if err != nil {
-			return errors.Wrap(err, "opening rabbitmq connection")
+			return fmt.Errorf("could not establish rabbitmq connection: %w", err)
 		}
 
 		return nil
