@@ -1,6 +1,9 @@
 package worker
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Handler function that will be run by the worker and given
 // a slice of arguments
@@ -15,4 +18,8 @@ type Worker interface {
 	Perform(job Job) error
 	// Register a Handler
 	Register(string, Handler) error
+	// PerformAt performs a job at a particular time
+	PerformAt(Job, time.Time) error
+	// PerformIn performs a job after waiting for a specified amount of time
+	PerformIn(Job, time.Duration) error
 }
