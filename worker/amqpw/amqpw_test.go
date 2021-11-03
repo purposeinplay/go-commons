@@ -113,3 +113,39 @@ func Test_PerformMultiple(t *testing.T) {
 	r.True(hitPerform1)
 	r.True(hitPerform2)
 }
+
+func Test_PerformAt(t *testing.T) {
+	r := require.New(t)
+
+	var hit bool
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	q.Register("perform_at", func(args worker.Args) error {
+		hit = true
+		wg.Done()
+		return nil
+	})
+	q.PerformAt(worker.Job{
+		Handler: "perform_at",
+	}, time.Now().Add(5*time.Nanosecond))
+	wg.Wait()
+	r.True(hit)
+}
+
+func Test_PerformIn(t *testing.T) {
+	r := require.New(t)
+
+	var hit bool
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	q.Register("perform_in", func(worker.Args) error {
+		hit = true
+		wg.Done()
+		return nil
+	})
+	q.PerformIn(worker.Job{
+		Handler: "perform_in",
+	}, 5*time.Nanosecond)
+	wg.Wait()
+	r.True(hit)
+}

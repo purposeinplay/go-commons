@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/purposeinplay/go-commons/rand"
+	"time"
 
 	"github.com/purposeinplay/go-commons/logs"
 	"github.com/purposeinplay/go-commons/worker"
@@ -217,4 +218,54 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 	}()
 
 	return nil
+}
+
+// PerformIn performs a job delayed by the given duration.
+func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
+	q.Logger.Info("enqueuing job", zap.Any("job", job))
+	d := int64(t / time.Second)
+
+	// Trick broker using x-dead-letter feature:
+	// the message will be pushed in a temp queue with the given duration as TTL.
+	// When the TTL expires, the message is forwarded to the original queue.
+	dq, err := q.Channel.QueueDeclare(
+		fmt.Sprintf("%s_delayed_%d", job.Handler, d),
+		true, // Save on disk
+		true, // Auto-deletion
+		false,
+		true,
+		amqp.Table{
+			"x-message-ttl":             d,
+			"x-dead-letter-exchange":    "",
+			"x-dead-letter-routing-key": job.Handler,
+		},
+	)
+
+	if err != nil {
+		q.Logger.Info("error creating delayed temp queue for job %w", zap.Any("job", job.Handler))
+		return err
+	}
+
+	err = q.Channel.Publish(
+		q.exchange, // exchange
+		dq.Name,    // publish to temp delayed queue
+		true,       // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Body:         []byte(job.Args.String()),
+		},
+	)
+
+	if err != nil {
+		q.Logger.Info("error enqueuing job %w", zap.Any("job", job.Handler))
+		return err
+	}
+	return nil
+}
+
+// PerformAt performs a job at the given time.
+func (q Adapter) PerformAt(job worker.Job, t time.Time) error {
+	return q.PerformIn(job, t.Sub(time.Now()))
 }
