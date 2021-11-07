@@ -12,14 +12,14 @@ var _ pubsublite.Publisher = &Publisher{}
 type Publisher struct {
 	exchange string
 
-	amqpConnection *amqp.Connection
-	amqpChannel    *amqp.Channel
+	connection  *Connection
+	amqpChannel *amqp.Channel
 
 	config AmqpConfig
 }
 
-func NewPublisher(conn *amqp.Connection, opts ...AmqpConfigOption) (*Publisher, error) {
-	amqpChannel, err := conn.Channel()
+func NewPublisher(conn *Connection, opts ...AmqpConfigOption) (*Publisher, error) {
+	amqpChannel, err := conn.amqpConnection.Channel()
 	if err != nil {
 		return nil, fmt.Errorf("could not start a new broker channel: %w", err)
 	}
@@ -47,9 +47,9 @@ func NewPublisher(conn *amqp.Connection, opts ...AmqpConfigOption) (*Publisher, 
 	}
 
 	return &Publisher{
-		amqpConnection: conn,
-		amqpChannel:    amqpChannel,
-		config:         cfg,
+		connection:  conn,
+		amqpChannel: amqpChannel,
+		config:      cfg,
 	}, nil
 }
 
@@ -73,7 +73,7 @@ func (p *Publisher) Publish(topic string, event *pubsublite.Event) error {
 }
 
 func (p *Publisher) Close() error {
-	p.amqpConnection.Close()
+	p.connection.Close()
 	//if err := p.amqpChannel.Close(); err != nil {
 	//	return err
 	//}

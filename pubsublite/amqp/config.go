@@ -1,6 +1,10 @@
 package amqp
 
-import "github.com/streadway/amqp"
+import (
+	"crypto/tls"
+
+	"github.com/streadway/amqp"
+)
 
 type ExchangeConfig struct {
 	name       string
@@ -58,15 +62,28 @@ type PublishConfig struct {
 	immediate bool
 }
 
+type ConnectionConfig struct {
+	url        string
+	tlsConfig  *tls.Config
+	amqpConfig *amqp.Config
+}
+
 type AmqpConfig struct {
-	exchange  ExchangeConfig
-	queue     QueueConfig
-	queueBind QueueBindConfig
-	consume   ConsumeConfig
-	publish   PublishConfig
+	connection ConnectionConfig
+	exchange   ExchangeConfig
+	queue      QueueConfig
+	queueBind  QueueBindConfig
+	consume    ConsumeConfig
+	publish    PublishConfig
 }
 
 type AmqpConfigOption func(config *AmqpConfig)
+
+func WithConnection(cfg ConnectionConfig) AmqpConfigOption {
+	return func(c *AmqpConfig) {
+		c.connection = cfg
+	}
+}
 
 func WithExchangeName(name string) AmqpConfigOption {
 	return func(c *AmqpConfig) {

@@ -12,7 +12,7 @@ import (
 var _ pubsublite.Subscriber = &Subscriber{}
 
 type Subscriber struct {
-	amqpConnection *amqp.Connection
+	connection *Connection
 	// subscription name
 	name string
 	// name of the exchange
@@ -26,8 +26,8 @@ type Subscriber struct {
 	closing chan struct{}
 }
 
-func NewSubscription(conn *amqp.Connection, opts ...AmqpConfigOption) (*Subscriber, error) {
-	amqpChannel, err := conn.Channel()
+func NewSubscription(conn *Connection, opts ...AmqpConfigOption) (*Subscriber, error) {
+	amqpChannel, err := conn.amqpConnection.Channel()
 	if err != nil {
 		return nil, fmt.Errorf("could not start a new broker channel: %w", err)
 	}
@@ -58,10 +58,10 @@ func NewSubscription(conn *amqp.Connection, opts ...AmqpConfigOption) (*Subscrib
 	}
 
 	return &Subscriber{
-		amqpConnection: conn,
-		amqpChannel:    amqpChannel,
-		cfg:            cfg,
-		closing:        closing,
+		connection:  conn,
+		amqpChannel: amqpChannel,
+		cfg:         cfg,
+		closing:     closing,
 	}, nil
 }
 

@@ -9,12 +9,13 @@ import (
 
 	"github.com/purposeinplay/go-commons/pubsublite"
 
-	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAmqp_PublishWithDefaultExchange(t *testing.T) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -26,7 +27,9 @@ func TestAmqp_PublishWithDefaultExchange(t *testing.T) {
 		Payload: nil,
 	})
 
-	conn2, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn2, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	var hit bool
@@ -53,7 +56,9 @@ func TestAmqp_PublishWithDefaultExchange(t *testing.T) {
 }
 
 func TestAmqp_PublishWithCustomExchange(t *testing.T) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -65,7 +70,9 @@ func TestAmqp_PublishWithCustomExchange(t *testing.T) {
 		Payload: nil,
 	})
 
-	conn2, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn2, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	var hit bool
@@ -93,7 +100,9 @@ func TestAmqp_PublishWithCustomExchange(t *testing.T) {
 }
 
 func TestAmqp_PublishWithExchangeWithQueuePrefix(t *testing.T) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -105,7 +114,9 @@ func TestAmqp_PublishWithExchangeWithQueuePrefix(t *testing.T) {
 		Payload: nil,
 	})
 
-	conn2, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn2, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	var hit bool
@@ -136,7 +147,9 @@ func TestAmqp_PublishWithExchangeWithQueuePrefix(t *testing.T) {
 }
 
 func TestAmqp_PublishWithExchangeMultipleSubscriptions(t *testing.T) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,10 +163,14 @@ func TestAmqp_PublishWithExchangeMultipleSubscriptions(t *testing.T) {
 		Payload: nil,
 	})
 
-	conn2, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn2, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
-	conn3, err := amqp.Dial("amqp://guest:guest@localhost:5672")
+	conn3, err := NewConnection(WithConnection(
+		ConnectionConfig{url: "amqp://guest:guest@localhost:5672"},
+	))
 	require.NoError(t, err)
 
 	var hit bool
