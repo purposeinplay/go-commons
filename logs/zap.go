@@ -2,15 +2,15 @@ package logs
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/middleware"
-	"go.uber.org/zap"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 )
 
 func NewLogger() (*zap.Logger, error) {
 	logger, err := zap.NewProduction()
-
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (l *StructuredLoggerEntry) Write(
 	header http.Header,
 	elapsed time.Duration,
 	extra interface{},
-	) {
+) {
 	l.Logger = l.Logger.With(
 		zap.Int("status", status),
 		zap.Int("bytes_length", bytes),

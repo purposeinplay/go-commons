@@ -2,15 +2,16 @@ package router
 
 import (
 	"fmt"
-	cmiddleware "github.com/go-chi/chi/middleware"
-	commonshttp "github.com/purposeinplay/go-commons/http"
-	"github.com/purposeinplay/go-commons/logs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"net/http"
 	"os"
 	"runtime/debug"
 	"time"
+
+	cmiddleware "github.com/go-chi/chi/v5/middleware"
+	commonshttp "github.com/purposeinplay/go-commons/http"
+	"github.com/purposeinplay/go-commons/logs"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -33,13 +34,13 @@ func Recoverer() Middleware {
 				logEntry, err := logs.GetLogEntry(r)
 
 				switch {
-					case err != nil:
-						logEntry.Sugar().Panic(rvr, debug.Stack())
-					case logEntry == nil:
-						fallthrough
-					default:
-						fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
-						debug.PrintStack()
+				case err != nil:
+					logEntry.Sugar().Panic(rvr, debug.Stack())
+				case logEntry == nil:
+					fallthrough
+				default:
+					fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
+					debug.PrintStack()
 				}
 
 				err = &commonshttp.HTTPError{
@@ -53,7 +54,6 @@ func Recoverer() Middleware {
 		next.ServeHTTP(w, r)
 	})
 }
-
 
 func NewLoggerMiddleware(logger *zap.Logger) func(next http.Handler) http.Handler {
 	return cmiddleware.RequestLogger(&structuredLogger{logger})

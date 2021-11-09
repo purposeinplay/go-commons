@@ -1,11 +1,12 @@
 package router
 
 import (
-	commonshttp "github.com/purposeinplay/go-commons/http"
-	"go.uber.org/zap"
 	"net/http"
 
-	"github.com/go-chi/chi"
+	commonshttp "github.com/purposeinplay/go-commons/http"
+	"go.uber.org/zap"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type chiRouter struct {

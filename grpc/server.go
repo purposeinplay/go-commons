@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/cors"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 
 	"go.uber.org/zap"
 
@@ -137,7 +137,6 @@ type Server struct {
 
 func NewServer(opt ...ServerOption) *Server {
 	opts, err := defaultServerOptions()
-
 	if err != nil {
 		opts.logger.Fatal("could not get server options", zap.Error(err))
 	}
@@ -186,7 +185,6 @@ func NewServer(opt ...ServerOption) *Server {
 		opts.registerGateway(grpcGatewayMux, dialOptions)
 
 		listener, err := net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port))
-
 		if err != nil {
 			opts.logger.Fatal("API server gateway listener failed to start", zap.Error(err))
 		}
