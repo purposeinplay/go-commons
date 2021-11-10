@@ -154,14 +154,18 @@ func NewServer(opt ...ServerOption) *Server {
 		o.apply(&opts)
 	}
 
-	exporter, err := stackdriver.NewExporter(stackdriver.Options{
-		ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
-	})
-	if err != nil {
-		opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
+	gcenabled := len(os.Getenv("GOOGLE_CLOUD_PROJECT")) > 1
+
+	if gcenabled {
+		exporter, err := stackdriver.NewExporter(stackdriver.Options{
+			ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
+		})
+		if err != nil {
+			opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
+		}
+		trace.RegisterExporter(exporter)
+		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 	}
-	trace.RegisterExporter(exporter)
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
 
@@ -198,9 +202,14 @@ func NewServer(opt ...ServerOption) *Server {
 			opts.muxOptions...,
 		)
 
-		openCensusHandler := &ochttp.Handler{
-			Handler:     grpcGatewayMux,
-			Propagation: &propagation.HTTPFormat{},
+		var handler http.Handler
+		if gcenabled {
+			handler = &ochttp.Handler{
+				Handler:     grpcGatewayMux,
+				Propagation: &propagation.HTTPFormat{},
+			}
+		} else {
+			handler = grpcGatewayMux
 		}
 
 		dialOptions := []grpc.DialOption{grpc.WithInsecure(), grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
@@ -223,7 +232,7 @@ func NewServer(opt ...ServerOption) *Server {
 		r.Use(opts.httpMiddleware...)
 		r.Use(corsHandler.Handler)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
-		r.Mount("/", openCensusHandler)
+		r.Mount("/", handler)
 
 		server.GrpcGatewayServer = &http.Server{
 			Handler: r,
