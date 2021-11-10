@@ -5,6 +5,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
+
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
+
+	"go.opencensus.io/plugin/ocgrpc"
 
 	"github.com/purposeinplay/go-commons/logs"
 
@@ -145,6 +154,15 @@ func NewServer(opt ...ServerOption) *Server {
 		o.apply(&opts)
 	}
 
+	exporter, err := stackdriver.NewExporter(stackdriver.Options{
+		ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
+	})
+	if err != nil {
+		opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
+	}
+	trace.RegisterExporter(exporter)
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
 
 	server := &Server{
@@ -180,7 +198,12 @@ func NewServer(opt ...ServerOption) *Server {
 			opts.muxOptions...,
 		)
 
-		dialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		openCensusHandler := &ochttp.Handler{
+			Handler:     grpcGatewayMux,
+			Propagation: &propagation.HTTPFormat{},
+		}
+
+		dialOptions := []grpc.DialOption{grpc.WithInsecure(), grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
 
 		opts.registerGateway(grpcGatewayMux, dialOptions)
 
@@ -200,7 +223,7 @@ func NewServer(opt ...ServerOption) *Server {
 		r.Use(opts.httpMiddleware...)
 		r.Use(corsHandler.Handler)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
-		r.Mount("/", grpcGatewayMux)
+		r.Mount("/", openCensusHandler)
 
 		server.GrpcGatewayServer = &http.Server{
 			Handler: r,
