@@ -155,16 +155,20 @@ func NewServer(opt ...ServerOption) *Server {
 	}
 
 	gcenabled := len(os.Getenv("GOOGLE_CLOUD_PROJECT")) > 1
-
+	fmt.Println(os.Getenv("GOOGLE_CLOUD_PROJECT"))
 	if gcenabled {
+		fmt.Println("IS_GOOGLE_CLOUD_PROJECT")
 		exporter, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
 		})
 		if err != nil {
 			opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
 		}
+		fmt.Println("~~~~~~~~~~~~~~")
 		trace.RegisterExporter(exporter)
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	} else {
+		fmt.Println("IS_NOT_GOOGLE_CLOUD_PROJECT")
 	}
 
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
