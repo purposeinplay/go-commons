@@ -47,6 +47,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type serverOptions struct {
+	tracing           bool
 	address           string
 	port              int
 	logger            *zap.Logger
@@ -60,6 +61,12 @@ type serverOptions struct {
 func Address(a string) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.address = a
+	})
+}
+
+func WithTracing(tracing bool) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.tracing = tracing
 	})
 }
 
@@ -112,6 +119,7 @@ func defaultServerOptions() (serverOptions, error) {
 	}
 
 	return serverOptions{
+		tracing:        false,
 		address:        "0.0.0.0",
 		port:           7350,
 		httpMiddleware: nil,
@@ -154,21 +162,15 @@ func NewServer(opt ...ServerOption) *Server {
 		o.apply(&opts)
 	}
 
-	gcenabled := len(os.Getenv("GOOGLE_CLOUD_PROJECT")) > 1
-	fmt.Println(os.Getenv("GOOGLE_CLOUD_PROJECT"))
-	if gcenabled {
-		fmt.Println("IS_GOOGLE_CLOUD_PROJECT")
+	if opts.tracing {
 		exporter, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
 		})
 		if err != nil {
 			opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
 		}
-		fmt.Println("~~~~~~~~~~~~~~")
 		trace.RegisterExporter(exporter)
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-	} else {
-		fmt.Println("IS_NOT_GOOGLE_CLOUD_PROJECT")
 	}
 
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
@@ -207,7 +209,7 @@ func NewServer(opt ...ServerOption) *Server {
 		)
 
 		var handler http.Handler
-		if gcenabled {
+		if opts.tracing {
 			handler = &ochttp.Handler{
 				Handler:     grpcGatewayMux,
 				Propagation: &propagation.HTTPFormat{},
