@@ -173,6 +173,10 @@ func NewServer(opt ...ServerOption) *Server {
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 	}
 
+	if opts.tracing {
+		opts.grpcServerOptions = append(opts.grpcServerOptions, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
+	}
+
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
 
 	server := &Server{
