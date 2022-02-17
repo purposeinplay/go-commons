@@ -72,12 +72,18 @@ func NewServer(opt ...ServerOption) *Server {
 	opts.logger.Info("Starting gRPC server", zap.Int("port", opts.port-1))
 
 	go func() {
-		listen, err := net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
-		if err != nil {
-			opts.logger.Fatal("gRPC server listener failed to start", zap.Error(err))
+		listener := opts.grpcListener
+
+		var err error
+
+		if listener == nil {
+			listener, err = net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
+			if err != nil {
+				opts.logger.Fatal("gRPC server listener failed to start", zap.Error(err))
+			}
 		}
 
-		err = grpcServer.Serve(listen)
+		err = grpcServer.Serve(listener)
 		if err != nil {
 			opts.logger.Fatal("gRPC server listener failed", zap.Error(err))
 		}
@@ -129,10 +135,6 @@ func NewServer(opt ...ServerOption) *Server {
 			opts.logger.Fatal("API server gateway listener failed to start", zap.Error(err))
 		}
 
-		if opts.listener != nil {
-			listener = opts.listener
-		}
-
 		corsHandler := cors.New(cors.Options{
 			AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
@@ -155,7 +157,7 @@ func NewServer(opt ...ServerOption) *Server {
 
 		err = server.GrpcGatewayServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			opts.logger.Fatal("API server gateway listener failed", zap.Error(err))
+			opts.logger.Fatal("API server gateway grpcListener failed", zap.Error(err))
 		}
 	}()
 
@@ -165,10 +167,10 @@ func NewServer(opt ...ServerOption) *Server {
 }
 
 func (s *Server) Stop() {
-	// 1. Stop GRPC Gateway server first as it sits above GRPC server. This also closes the underlying listener.
+	// 1. Stop GRPC Gateway server first as it sits above GRPC server. This also closes the underlying grpcListener.
 	if err := s.GrpcGatewayServer.Shutdown(context.Background()); err != nil {
-		s.opts.logger.Error("API server gateway listener shutdown failed", zap.Error(err))
+		s.opts.logger.Error("API server gateway grpcListener shutdown failed", zap.Error(err))
 	}
-	// 2. Stop GRPC server. This also closes the underlying listener.
+	// 2. Stop GRPC server. This also closes the underlying grpcListener.
 	s.grpcServer.GracefulStop()
 }

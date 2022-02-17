@@ -41,7 +41,7 @@ type serverOptions struct {
 	httpMiddleware    chi.Middlewares
 	registerServer    func(server *grpc.Server)
 	registerGateway   func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
-	listener          net.Listener
+	grpcListener      net.Listener
 }
 
 func WithAddress(a string) ServerOption {
@@ -92,9 +92,9 @@ func WithReplaceLogger(l *zap.Logger) ServerOption {
 	})
 }
 
-func WithListener(lis net.Listener) ServerOption {
+func WithGRPCListener(lis net.Listener) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.listener = lis
+		o.grpcListener = lis
 	})
 }
 
