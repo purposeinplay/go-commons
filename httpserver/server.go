@@ -49,12 +49,12 @@ func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
 	server := &Server{
 		httpServer: &http.Server{
 			Handler: handler,
-			Addr: defaultAddr,
+			Addr:    defaultAddr,
 		},
 		log:  log,
 		done: make(chan struct{}),
 	}
-	
+
 	for _, o := range options {
 		o.apply(server)
 	}

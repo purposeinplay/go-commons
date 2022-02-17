@@ -72,7 +72,7 @@ linters:
     - lll # Reports long lines
     - dupl # Detects code clones
     - funlen # Tool for detection of long functions
-    - golint # Makes code style recomandations
+#    - golint # Makes code style recomandations
     - gocyclo # Computes and checks the cyclomatic complexity of functions
 #    - gofmt # Applies standard formatting
     - gofumpt # Stricter gofmt
