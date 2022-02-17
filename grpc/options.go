@@ -33,6 +33,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 
 type serverOptions struct {
 	tracing           bool
+	gateway           bool
 	address           string
 	port              int
 	logger            *zap.Logger
@@ -104,6 +105,12 @@ func WithTracing(tracing bool) ServerOption {
 	})
 }
 
+func WithNoGateway() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.gateway = false
+	})
+}
+
 func defaultServerOptions() (serverOptions, error) {
 	logger, err := logs.NewLogger()
 	if err != nil {
@@ -112,6 +119,7 @@ func defaultServerOptions() (serverOptions, error) {
 
 	return serverOptions{
 		tracing:        false,
+		gateway:        true,
 		address:        "0.0.0.0",
 		port:           7350,
 		httpMiddleware: nil,

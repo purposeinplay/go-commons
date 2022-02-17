@@ -25,7 +25,10 @@ func TestBufnet(t *testing.T) {
 		i.NoErr(err)
 	})
 
-	s := commonsgrpc.NewServer(commonsgrpc.WithGRPCListener(lis))
+	s := commonsgrpc.NewServer(
+		commonsgrpc.WithGRPCListener(lis),
+		commonsgrpc.WithNoGateway(),
+	)
 
 	t.Cleanup(s.Stop)
 

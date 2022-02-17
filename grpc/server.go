@@ -71,23 +71,25 @@ func NewServer(opt ...ServerOption) *Server {
 	// Register and start GRPC server.
 	opts.logger.Info("Starting gRPC server", zap.Int("port", opts.port-1))
 
-	go func() {
-		listener := opts.grpcListener
+	listener := opts.grpcListener
 
-		var err error
-
-		if listener == nil {
-			listener, err = net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
-			if err != nil {
-				opts.logger.Fatal("gRPC server listener failed to start", zap.Error(err))
-			}
+	if listener == nil {
+		listener, err = net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
+		if err != nil {
+			opts.logger.Fatal("gRPC server listener failed to start", zap.Error(err))
 		}
+	}
 
+	go func() {
 		err = grpcServer.Serve(listener)
 		if err != nil {
 			opts.logger.Fatal("gRPC server listener failed", zap.Error(err))
 		}
 	}()
+
+	if !opts.gateway {
+		return server
+	}
 
 	// Register and start GRPC Gateway server.
 	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port)
@@ -168,9 +170,12 @@ func NewServer(opt ...ServerOption) *Server {
 
 func (s *Server) Stop() {
 	// 1. Stop GRPC Gateway server first as it sits above GRPC server. This also closes the underlying grpcListener.
-	if err := s.GrpcGatewayServer.Shutdown(context.Background()); err != nil {
-		s.opts.logger.Error("API server gateway grpcListener shutdown failed", zap.Error(err))
+	if s.GrpcGatewayServer != nil {
+		if err := s.GrpcGatewayServer.Shutdown(context.Background()); err != nil {
+			s.opts.logger.Error("API server gateway grpcListener shutdown failed", zap.Error(err))
+		}
 	}
+
 	// 2. Stop GRPC server. This also closes the underlying grpcListener.
 	s.grpcServer.GracefulStop()
 }
