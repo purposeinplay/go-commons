@@ -3,8 +3,12 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/rs/cors"
 
@@ -14,9 +18,10 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Server struct {
@@ -106,15 +111,20 @@ func NewServer(opt ...ServerOption) *Server {
 			handler = grpcGatewayMux
 		}
 
-		dialOptions := []grpc.DialOption{grpc.WithInsecure(), grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
-
 		if opts.registerGateway != nil {
-			dialOptions := []grpc.DialOption{grpc.WithInsecure()}
+			dialOptions := []grpc.DialOption{
+				grpc.WithInsecure(),
+				grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+			}
 
 			opts.registerGateway(grpcGatewayMux, dialOptions)
 		}
 
-		listener, err := net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port))
+		listener, err := net.Listen("tcp", fmt.Sprintf(
+			"%v:%v",
+			opts.address,
+			opts.port,
+		))
 		if err != nil {
 			opts.logger.Fatal("API server gateway listener failed to start", zap.Error(err))
 		}
@@ -133,12 +143,8 @@ func NewServer(opt ...ServerOption) *Server {
 		r := chi.NewRouter()
 
 		r.Use(opts.httpMiddleware...)
-
 		r.Use(corsHandler.Handler)
-
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
-
-		r.Mount("/", grpcGatewayMux)
 		r.Mount("/", handler)
 
 		server.GrpcGatewayServer = &http.Server{

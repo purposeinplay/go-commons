@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
@@ -32,6 +32,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type serverOptions struct {
+	tracing           bool
 	address           string
 	port              int
 	logger            *zap.Logger
@@ -97,6 +98,12 @@ func WithListener(lis net.Listener) ServerOption {
 	})
 }
 
+func WithTracing(tracing bool) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.tracing = tracing
+	})
+}
+
 func defaultServerOptions() (serverOptions, error) {
 	logger, err := logs.NewLogger()
 	if err != nil {
@@ -104,6 +111,7 @@ func defaultServerOptions() (serverOptions, error) {
 	}
 
 	return serverOptions{
+		tracing:        false,
 		address:        "0.0.0.0",
 		port:           7350,
 		httpMiddleware: nil,
