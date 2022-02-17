@@ -6,8 +6,6 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/purposeinplay/go-commons/logs"
-
 	"github.com/rs/cors"
 
 	"github.com/go-chi/chi"
@@ -18,116 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/encoding/protojson"
 )
-
-// funcServerOption wraps a function that modifies serverOptions into an
-// implementation of the ServerOption interface.
-type funcServerOption struct {
-	f func(*serverOptions)
-}
-
-func (fdo *funcServerOption) apply(do *serverOptions) {
-	fdo.f(do)
-}
-
-func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
-	return &funcServerOption{
-		f: f,
-	}
-}
-
-type serverOptions struct {
-	address           string
-	port              int
-	logger            *zap.Logger
-	grpcServerOptions []grpc.ServerOption
-	muxOptions        []runtime.ServeMuxOption
-	httpMiddleware    chi.Middlewares
-	registerServer    func(server *grpc.Server)
-	registerGateway   func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
-}
-
-func Address(a string) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.address = a
-	})
-}
-
-func WithPort(a int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.port = a
-	})
-}
-
-func WithGrpcServerOptions(opts []grpc.ServerOption) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.grpcServerOptions = opts
-	})
-}
-
-func WithMuxOptions(opts []runtime.ServeMuxOption) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.muxOptions = opts
-	})
-}
-
-func HttpMiddleware(mw chi.Middlewares) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.httpMiddleware = mw
-	})
-}
-
-func RegisterServer(f func(server *grpc.Server)) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.registerServer = f
-	})
-}
-
-func RegisterGateway(f func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.registerGateway = f
-	})
-}
-
-func ReplaceLogger(l *zap.Logger) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.logger = l
-	})
-}
-
-func defaultServerOptions() (serverOptions, error) {
-	logger, err := logs.NewLogger()
-	if err != nil {
-		return serverOptions{}, err
-	}
-
-	return serverOptions{
-		address:        "0.0.0.0",
-		port:           7350,
-		httpMiddleware: nil,
-		logger:         logger,
-		muxOptions: []runtime.ServeMuxOption{
-			runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.HTTPBodyMarshaler{
-				Marshaler: &runtime.JSONPb{
-					MarshalOptions: protojson.MarshalOptions{
-						UseProtoNames:   true,
-						UseEnumNumbers:  false,
-						EmitUnpopulated: true,
-					},
-					UnmarshalOptions: protojson.UnmarshalOptions{
-						DiscardUnknown: true,
-					},
-				},
-			}),
-		},
-	}, nil
-}
-
-// A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
-type ServerOption interface {
-	apply(*serverOptions)
-}
 
 type Server struct {
 	grpcServer        *grpc.Server
@@ -154,10 +43,14 @@ func NewServer(opt ...ServerOption) *Server {
 	}
 
 	reflection.Register(grpcServer)
-	opts.registerServer(grpcServer)
+
+	if opts.registerServer != nil {
+		opts.registerServer(grpcServer)
+	}
 
 	// Register and start GRPC server.
 	opts.logger.Info("Starting gRPC server", zap.Int("port", opts.port-1))
+
 	go func() {
 		listen, err := net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
 		if err != nil {
@@ -175,20 +68,32 @@ func NewServer(opt ...ServerOption) *Server {
 	if opts.address != "" {
 		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port-1)
 	}
-	opts.logger.Info("Starting gRPC gateway for HTTP requests", zap.String("gRPC gateway", dialAddr))
+
+	opts.logger.Info(
+		"Starting gRPC gateway for HTTP requests",
+		zap.String("gRPC gateway", dialAddr),
+	)
+
+	waitGatewayInit := make(chan struct{})
+
 	go func() {
 		grpcGatewayMux := runtime.NewServeMux(
 			opts.muxOptions...,
 		)
 
-		dialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		if opts.registerGateway != nil {
+			dialOptions := []grpc.DialOption{grpc.WithInsecure()}
 
-		opts.registerGateway(grpcGatewayMux, dialOptions)
+			opts.registerGateway(grpcGatewayMux, dialOptions)
+		}
 
 		listener, err := net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port))
-
 		if err != nil {
 			opts.logger.Fatal("API server gateway listener failed to start", zap.Error(err))
+		}
+
+		if opts.listener != nil {
+			listener = opts.listener
 		}
 
 		corsHandler := cors.New(cors.Options{
@@ -199,20 +104,28 @@ func NewServer(opt ...ServerOption) *Server {
 		})
 
 		r := chi.NewRouter()
+
 		r.Use(opts.httpMiddleware...)
+
 		r.Use(corsHandler.Handler)
+
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+
 		r.Mount("/", grpcGatewayMux)
 
 		server.GrpcGatewayServer = &http.Server{
 			Handler: r,
 		}
 
+		close(waitGatewayInit)
+
 		err = server.GrpcGatewayServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			opts.logger.Fatal("API server gateway listener failed", zap.Error(err))
 		}
 	}()
+
+	<-waitGatewayInit
 
 	return server
 }
