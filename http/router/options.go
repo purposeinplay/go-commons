@@ -1,10 +1,11 @@
 package router
 
 import (
-	"github.com/go-chi/chi/middleware"
+	"net/http"
+
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type Option func(r *chiRouter)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/cors"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 
 	"go.uber.org/zap"
 
@@ -16,6 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Server struct {
@@ -26,13 +27,27 @@ type Server struct {
 
 func NewServer(opt ...ServerOption) *Server {
 	opts, err := defaultServerOptions()
-
 	if err != nil {
 		opts.logger.Fatal("could not get server options", zap.Error(err))
 	}
 
 	for _, o := range opt {
 		o.apply(&opts)
+	}
+
+	if opts.tracing {
+		exporter, err := stackdriver.NewExporter(stackdriver.Options{
+			ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
+		})
+		if err != nil {
+			opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
+		}
+		trace.RegisterExporter(exporter)
+		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	}
+
+	if opts.tracing {
+		opts.grpcServerOptions = append(opts.grpcServerOptions, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 	}
 
 	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
@@ -64,9 +79,9 @@ func NewServer(opt ...ServerOption) *Server {
 	}()
 
 	// Register and start GRPC Gateway server.
-	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port-1)
+	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port)
 	if opts.address != "" {
-		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port-1)
+		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port)
 	}
 
 	opts.logger.Info(
@@ -80,6 +95,18 @@ func NewServer(opt ...ServerOption) *Server {
 		grpcGatewayMux := runtime.NewServeMux(
 			opts.muxOptions...,
 		)
+
+		var handler http.Handler
+		if opts.tracing {
+			handler = &ochttp.Handler{
+				Handler:     grpcGatewayMux,
+				Propagation: &propagation.HTTPFormat{},
+			}
+		} else {
+			handler = grpcGatewayMux
+		}
+
+		dialOptions := []grpc.DialOption{grpc.WithInsecure(), grpc.WithStatsHandler(&ocgrpc.ClientHandler{})}
 
 		if opts.registerGateway != nil {
 			dialOptions := []grpc.DialOption{grpc.WithInsecure()}
@@ -112,6 +139,7 @@ func NewServer(opt ...ServerOption) *Server {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
 
 		r.Mount("/", grpcGatewayMux)
+		r.Mount("/", handler)
 
 		server.GrpcGatewayServer = &http.Server{
 			Handler: r,

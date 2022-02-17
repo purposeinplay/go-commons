@@ -3,12 +3,13 @@ package http
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/middleware"
+	"log"
+	"net/http"
+
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/purposeinplay/go-commons/http/render"
 	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
 )
 
 var oauthErrorMap = map[int]string{
@@ -148,7 +149,7 @@ func HandleError(httpErr error, w http.ResponseWriter, r *http.Request) {
 			e.ErrorID = errorID
 			// this will get us the stack trace too
 			logger.With(zap.Error(e.Cause())).Error(e.Error())
-		}else{
+		} else {
 			logger.With(zap.Error(e.Cause())).Warn(e.Error())
 		}
 

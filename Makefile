@@ -1,0 +1,3 @@
+.PHONY: proto
+proto: ## Regen proto.
+	go generate -x ./...

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package gocommons.apigrpc;
+
+option go_package = "github.com/purposeinplay/go-commons/apigrpc";
+
+// Additional details about a particular error shared between services
+message ErrorDetails {
+  // A message type used to describe a single bad request field.
+  message FieldViolation {
+    // A path leading to a field in the request body. The value will be a
+    // sequence of dot-separated identifiers that identify a protocol buffer
+    // field. E.g., "field_violations.field" would identify this field.
+    string field = 1;
+
+    // A description of why the request element is bad.
+    string description = 2;
+  }
+
+  // Describes all violations in a client request.
+  repeated FieldViolation field_violations = 1;
+}
