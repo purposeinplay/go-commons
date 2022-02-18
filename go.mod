@@ -9,8 +9,10 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-chi/chi/v5 v5.0.5
 	github.com/go-chi/cors v1.2.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.3.0
 	github.com/matryer/is v1.4.0
+	github.com/oklog/run v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/streadway/amqp v1.0.0

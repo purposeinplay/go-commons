@@ -2,12 +2,15 @@ package grpc_test
 
 import (
 	"context"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-	"net"
-	"testing"
 )
 
 func TestBufnet(t *testing.T) {
@@ -20,19 +23,40 @@ func TestBufnet(t *testing.T) {
 		return lis.Dial()
 	}
 
-	t.Cleanup(func() {
-		err := lis.Close()
+	s, err := commonsgrpc.NewServer(
+		commonsgrpc.WithGRPCListener(lis),
+		commonsgrpc.WithDebug(),
+	)
+	i.NoErr(err)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		t.Log("listen and serve")
+		defer t.Log("listen and serve done")
+
+		err := s.ListenAndServe()
 		i.NoErr(err)
+	}()
+
+	time.Sleep(time.Second / 10)
+
+	t.Cleanup(func() {
+		t.Log("close")
+
+		err := s.Close()
+		i.NoErr(err)
+
+		t.Log("close called")
+
+		wg.Wait()
 	})
 
-	s := commonsgrpc.NewServer(
-		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithNoGateway(),
-	)
-
-	t.Cleanup(s.Stop)
-
-	_, err := grpc.Dial(
+	_, err = grpc.Dial(
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
