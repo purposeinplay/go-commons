@@ -14,8 +14,12 @@ func NewLogger() (*zap.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer logger.Sync() // flushes buffer, if any
+
 	return logger, nil
+}
+
+func NewExampleLogger() *zap.Logger {
+	return zap.NewExample()
 }
 
 type StructuredLoggerEntry struct {

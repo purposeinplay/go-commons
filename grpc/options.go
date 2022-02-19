@@ -1,21 +1,30 @@
 package grpc
 
 import (
+	"net"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/purposeinplay/go-commons/logs"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
-	"net"
 )
 
-// A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
+// A ServerOption sets options such as credentials,
+// codec and keepalive parameters, etc.
+//
+// The main purpose of Options in this package is to
+// wrap the most common grpc parameter used in the company
+// in order to provide the developers with a single point
+// of entry for configuring different projects grpc servers.
 type ServerOption interface {
 	apply(*serverOptions)
 }
 
-// funcServerOption wraps a function that modifies serverOptions into an
+// funcServerOption wraps a function that
+// modifies serverOptions into an
 // implementation of the ServerOption interface.
 type funcServerOption struct {
 	f func(*serverOptions)
@@ -32,111 +41,148 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type serverOptions struct {
-	tracing           bool
-	gateway           bool
-	address           string
-	port              int
-	logger            *zap.Logger
-	grpcServerOptions []grpc.ServerOption
-	muxOptions        []runtime.ServeMuxOption
-	httpMiddleware    chi.Middlewares
-	registerServer    func(server *grpc.Server)
-	registerGateway   func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)
-	grpcListener      net.Listener
+	tracing                 bool
+	gateway                 bool
+	debug                   bool
+	address                 string
+	grpcServerOptions       []grpc.ServerOption
+	muxOptions              []runtime.ServeMuxOption
+	httpMiddlewares         chi.Middlewares
+	registerServer          registerServerFunc
+	registerGateway         registerGatewayFunc
+	grpcListener            net.Listener
+	unaryServerInterceptors []grpc.UnaryServerInterceptor
 }
 
+// WithAddress configures the Server to listen to the given address
+// in case of the Gateway server. And in case of the grpc server
+// it uses the same address but port-1.
 func WithAddress(a string) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.address = a
 	})
 }
 
-func WithPort(a int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.port = a
-	})
-}
-
+// WithGRPCServerOptions configures the grpc server to use the given
+// grpc server options.
 func WithGRPCServerOptions(opts []grpc.ServerOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.grpcServerOptions = opts
 	})
 }
 
+// WithMuxOptions configures the underlying runtime.ServeMux of the Gateway
+// Server. The ServeMux as a handler for the http server.
 func WithMuxOptions(opts []runtime.ServeMuxOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.muxOptions = opts
 	})
 }
 
-func WithHttpMiddleware(mw chi.Middlewares) ServerOption {
+// WithHTTPMiddlewares configures the Gateway Server http handler
+// to use the provided middlewares.
+func WithHTTPMiddlewares(mw chi.Middlewares) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.httpMiddleware = mw
+		o.httpMiddlewares = mw
 	})
 }
 
-func WithRegisterServer(f func(server *grpc.Server)) ServerOption {
+// WithRegisterServer registers a GRPC service to the
+// GRPC server.
+func WithRegisterServer(f registerServerFunc) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.registerServer = f
 	})
 }
 
-func WithRegisterGateway(f func(mux *runtime.ServeMux, dialOptions []grpc.DialOption)) ServerOption {
+// WithRegisterGateway registers a GRPC service to the
+// Gateway server.
+func WithRegisterGateway(f registerGatewayFunc) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.registerGateway = f
 	})
 }
 
-func WithReplaceLogger(l *zap.Logger) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
-		o.logger = l
-	})
-}
-
+// WithGRPCListener configures the GRPC server to use the given
+// net.Listener instead of configuring an address.
+// ! Prefer to use this only in testing.
 func WithGRPCListener(lis net.Listener) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.grpcListener = lis
+		o.gateway = false
 	})
 }
 
-func WithTracing(tracing bool) ServerOption {
+// WithTracing enables tracing for both servers.
+func WithTracing() ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.tracing = tracing
+		o.tracing = true
 	})
 }
 
+// WithNoGateway disables the gateway server.
+// ! Prefer to use this only in testing.
 func WithNoGateway() ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.gateway = false
 	})
 }
 
-func defaultServerOptions() (serverOptions, error) {
-	logger, err := logs.NewLogger()
-	if err != nil {
-		return serverOptions{}, err
-	}
+// WithDebug enables debug logging for the servers.
+func WithDebug() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.debug = true
+	})
+}
 
+// WithUnaryServerInterceptorLogger adds an interceptor to the GRPC server
+// that adds the given zap.Logger to the context.
+func WithUnaryServerInterceptorLogger(logger *zap.Logger) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			grpc_zap.UnaryServerInterceptor(logger),
+		)
+	})
+}
+
+// WithUnaryServerInterceptorCodeGen adds an interceptor to the GRPC server
+// that exports log fields from requests.
+func WithUnaryServerInterceptorCodeGen() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			grpc_ctxtags.UnaryServerInterceptor(
+				grpc_ctxtags.WithFieldExtractor(
+					grpc_ctxtags.CodeGenRequestFieldExtractor,
+				),
+			),
+		)
+	})
+}
+
+func defaultServerOptions() serverOptions {
 	return serverOptions{
-		tracing:        false,
-		gateway:        true,
-		address:        "0.0.0.0",
-		port:           7350,
-		httpMiddleware: nil,
-		logger:         logger,
+		tracing:         false,
+		gateway:         true,
+		address:         "0.0.0.0",
+		httpMiddlewares: nil,
 		muxOptions: []runtime.ServeMuxOption{
-			runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.HTTPBodyMarshaler{
-				Marshaler: &runtime.JSONPb{
-					MarshalOptions: protojson.MarshalOptions{
-						UseProtoNames:   true,
-						UseEnumNumbers:  false,
-						EmitUnpopulated: true,
-					},
-					UnmarshalOptions: protojson.UnmarshalOptions{
-						DiscardUnknown: true,
+			runtime.WithMarshalerOption(
+				runtime.MIMEWildcard,
+				&runtime.HTTPBodyMarshaler{
+					Marshaler: &runtime.JSONPb{
+						MarshalOptions: protojson.MarshalOptions{
+							UseProtoNames:   true,
+							UseEnumNumbers:  false,
+							EmitUnpopulated: true,
+						},
+						UnmarshalOptions: protojson.UnmarshalOptions{
+							DiscardUnknown: true,
+						},
 					},
 				},
-			}),
+			),
 		},
-	}, nil
+	}
 }

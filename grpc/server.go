@@ -1,181 +1,280 @@
 package grpc
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/trace"
+	"io"
 	"net"
-	"net/http"
-	"os"
-
-	"github.com/rs/cors"
-
-	"github.com/go-chi/chi/v5"
-
-	"go.uber.org/zap"
+	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-
-	"contrib.go.opencensus.io/exporter/stackdriver"
-	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
+	"github.com/oklog/run"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
-type Server struct {
-	grpcServer        *grpc.Server
-	GrpcGatewayServer *http.Server
-	opts              serverOptions
+// ErrServerClosed indicates that the operation is now illegal because of
+// the server has been closed.
+var ErrServerClosed = errors.New("go-commons.grpc: server closed")
+
+type (
+	// the server interface defines basic methods for starting
+	// and stopping a server.
+	server interface {
+		io.Closer
+		Serve(listener net.Listener) error
+	}
+
+	// serverWithListener represents an implemented server
+	// that can be started and stopped.
+	serverWithListener struct {
+		server       server
+		listener     net.Listener
+		running      bool
+		runningMutex sync.Mutex
+	}
+
+	// registerServerFunc defines how we can register
+	// a grpc service to a grpc server.
+	registerServerFunc func(server *grpc.Server)
+
+	// registerGatewayFunc defines how we can register
+	// a grpc service to a gateway server.
+	registerGatewayFunc func(
+		mux *runtime.ServeMux,
+		dialOptions []grpc.DialOption,
+	)
+)
+
+// ListenAndServe accepts incoming connections on the listener
+// available in the struct.
+func (s *serverWithListener) ListenAndServe() error {
+	s.runningMutex.Lock()
+
+	s.running = true
+
+	s.runningMutex.Unlock()
+
+	return s.server.Serve(s.listener)
 }
 
-func NewServer(opt ...ServerOption) *Server {
-	opts, err := defaultServerOptions()
-	if err != nil {
-		opts.logger.Fatal("could not get server options", zap.Error(err))
+// Close stops the seerver gracefully.
+func (s *serverWithListener) Close() error {
+	s.runningMutex.Lock()
+	defer s.runningMutex.Unlock()
+
+	if !s.running {
+		return nil
 	}
+
+	err := s.server.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type debugLogger interface {
+	Debug(msg string, fields ...zap.Field)
+}
+
+// Server holds the grpc and gateway underlying servers.
+// It starts and stops both of them together.
+// In case one of the server fails the other one is closed.
+type Server struct {
+	grpcServerWithListener        *serverWithListener
+	grpcGatewayServerWithListener *serverWithListener
+
+	debug  bool
+	logger debugLogger
+
+	mu     sync.Mutex
+	closed bool
+}
+
+// NewServer creates Server with both the grpc server and,
+// if it's the case, the gateway server.
+//
+// The servers have not started to accept requests yet.
+func NewServer(opt ...ServerOption) (*Server, error) {
+	opts := defaultServerOptions()
 
 	for _, o := range opt {
 		o.apply(&opts)
 	}
 
-	if opts.tracing {
-		exporter, err := stackdriver.NewExporter(stackdriver.Options{
-			ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
-		})
-		if err != nil {
-			opts.logger.Fatal("could not instantiate exporter", zap.Error(err))
-		}
-		trace.RegisterExporter(exporter)
-		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-	}
+	aggregatorServer := new(Server)
 
-	if opts.tracing {
-		opts.grpcServerOptions = append(opts.grpcServerOptions, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
-	}
-
-	grpcServer := grpc.NewServer(opts.grpcServerOptions...)
-
-	server := &Server{
-		opts:       opts,
-		grpcServer: grpcServer,
-	}
-
-	reflection.Register(grpcServer)
-
-	if opts.registerServer != nil {
-		opts.registerServer(grpcServer)
-	}
-
-	// Register and start GRPC server.
-	opts.logger.Info("Starting gRPC server", zap.Int("port", opts.port-1))
-
-	listener := opts.grpcListener
-
-	if listener == nil {
-		listener, err = net.Listen("tcp", fmt.Sprintf("%v:%v", opts.address, opts.port-1))
-		if err != nil {
-			opts.logger.Fatal("gRPC server listener failed to start", zap.Error(err))
-		}
-	}
-
-	go func() {
-		err = grpcServer.Serve(listener)
-		if err != nil {
-			opts.logger.Fatal("gRPC server listener failed", zap.Error(err))
-		}
-	}()
-
-	if !opts.gateway {
-		return server
-	}
-
-	// Register and start GRPC Gateway server.
-	dialAddr := fmt.Sprintf("127.0.0.1:%d", opts.port)
-	if opts.address != "" {
-		dialAddr = fmt.Sprintf("%v:%d", opts.address, opts.port)
-	}
-
-	opts.logger.Info(
-		"Starting gRPC gateway for HTTP requests",
-		zap.String("gRPC gateway", dialAddr),
+	err := setDebug(
+		opts.debug,
+		aggregatorServer,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("set debug: %w", err)
+	}
 
-	waitGatewayInit := make(chan struct{})
+	grpcServerWithListener, err := newGRPCServerWithListener(
+		opts.grpcListener,
+		opts.address,
+		opts.tracing,
+		opts.grpcServerOptions,
+		opts.unaryServerInterceptors,
+		opts.registerServer,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("new gRPC server: %w", err)
+	}
 
-	go func() {
-		grpcGatewayMux := runtime.NewServeMux(
-			opts.muxOptions...,
-		)
+	aggregatorServer.grpcServerWithListener = grpcServerWithListener
 
-		var handler http.Handler
-		if opts.tracing {
-			handler = &ochttp.Handler{
-				Handler:     grpcGatewayMux,
-				Propagation: &propagation.HTTPFormat{},
-			}
-		} else {
-			handler = grpcGatewayMux
-		}
+	// return here if a gateway server is not wanted
+	if !opts.gateway {
+		return aggregatorServer, nil
+	}
 
-		if opts.registerGateway != nil {
-			dialOptions := []grpc.DialOption{
-				grpc.WithInsecure(),
-				grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
-			}
+	grpcGatewayServer, err := newGatewayServerWithListener(
+		opts.muxOptions,
+		opts.tracing,
+		opts.registerGateway,
+		opts.address,
+		opts.httpMiddlewares,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("new gRPC gateway server: %w", err)
+	}
 
-			opts.registerGateway(grpcGatewayMux, dialOptions)
-		}
+	aggregatorServer.grpcGatewayServerWithListener = grpcGatewayServer
 
-		listener, err := net.Listen("tcp", fmt.Sprintf(
-			"%v:%v",
-			opts.address,
-			opts.port,
-		))
-		if err != nil {
-			opts.logger.Fatal("API server gateway listener failed to start", zap.Error(err))
-		}
-
-		corsHandler := cors.New(cors.Options{
-			AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE"},
-			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-			ExposedHeaders:   []string{"Link", "X-Total-Count"},
-			AllowCredentials: true,
-		})
-
-		r := chi.NewRouter()
-
-		r.Use(opts.httpMiddleware...)
-		r.Use(corsHandler.Handler)
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
-		r.Mount("/", handler)
-
-		server.GrpcGatewayServer = &http.Server{
-			Handler: r,
-		}
-
-		close(waitGatewayInit)
-
-		err = server.GrpcGatewayServer.Serve(listener)
-		if err != nil && err != http.ErrServerClosed {
-			opts.logger.Fatal("API server gateway grpcListener failed", zap.Error(err))
-		}
-	}()
-
-	<-waitGatewayInit
-
-	return server
+	return aggregatorServer, nil
 }
 
-func (s *Server) Stop() {
-	// 1. Stop GRPC Gateway server first as it sits above GRPC server. This also closes the underlying grpcListener.
-	if s.GrpcGatewayServer != nil {
-		if err := s.GrpcGatewayServer.Shutdown(context.Background()); err != nil {
-			s.opts.logger.Error("API server gateway grpcListener shutdown failed", zap.Error(err))
+// nolint: revive // false-positive, it reports tracing as a control flag.
+func setDebug(debug bool, server *Server) error {
+	if !debug {
+		return nil
+	}
+
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		return fmt.Errorf("new logger: %w", err)
+	}
+
+	server.debug = true
+	server.logger = logger
+
+	return nil
+}
+
+// ListenAndServe starts accepting incoming connections
+// on both servers.
+// If one of the servers encounters an error, both are stopped.
+func (s *Server) ListenAndServe() error {
+	s.mu.Lock()
+
+	if s.closed {
+		return ErrServerClosed
+	}
+
+	var g run.Group
+
+	g.Add(
+		s.runGRPCServer,
+		func(err error) {
+			_ = s.grpcServerWithListener.Close()
+		},
+	)
+
+	// start gateway server.
+	if s.grpcGatewayServerWithListener != nil {
+		g.Add(
+			s.runGatewayServer,
+			func(err error) {
+				_ = s.grpcGatewayServerWithListener.Close()
+			},
+		)
+	}
+
+	s.mu.Unlock()
+
+	err := g.Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) runGRPCServer() error {
+	s.logDebug(
+		"starting gRPC server",
+		zap.String(
+			"address",
+			s.grpcServerWithListener.listener.Addr().String(),
+		),
+	)
+
+	return s.grpcServerWithListener.ListenAndServe()
+}
+
+func (s *Server) closeGRPCServer() error {
+	s.logDebug("close grpc server")
+	defer s.logDebug("grpc server done")
+
+	return s.grpcServerWithListener.Close()
+}
+
+func (s *Server) runGatewayServer() error {
+	s.logDebug(
+		"starting gRPC gateway server for HTTP requests",
+		zap.String(
+			"address",
+			s.grpcGatewayServerWithListener.listener.Addr().String(),
+		),
+	)
+
+	return s.grpcGatewayServerWithListener.ListenAndServe()
+}
+
+func (s *Server) closeGatewayServer() error {
+	s.logDebug("close gateway server")
+	defer s.logDebug("gateway server done")
+
+	return s.grpcGatewayServerWithListener.Close()
+}
+
+// Close closes both underlying servers.
+// Safe to use concurrently and can be called multiple times.
+func (s *Server) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// 1. Stop GRPC Gateway server first as it sits above GRPC server.
+	// This also closes the underlying grpcListener.
+	if s.grpcGatewayServerWithListener != nil {
+		err := s.closeGatewayServer()
+		if err != nil {
+			return fmt.Errorf("close gateway server: %w", err)
 		}
 	}
 
 	// 2. Stop GRPC server. This also closes the underlying grpcListener.
-	s.grpcServer.GracefulStop()
+	err := s.closeGRPCServer()
+	if err != nil {
+		return fmt.Errorf("close grpc server: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Server) logDebug(msg string, fields ...zap.Field) {
+	if !s.debug {
+		return
+	}
+
+	s.logger.Debug("[go-commons.grpc debug]: "+msg, fields...)
 }
