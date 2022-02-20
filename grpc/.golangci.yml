@@ -80,7 +80,7 @@ linters-settings:
       - name: error-naming
       - name: exported
       - name: increment-decrement
-      - name: package-comments
+#      - name: package-comments
       - name: range
       - name: receiver-naming
       - name: superfluous-else

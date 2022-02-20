@@ -34,7 +34,7 @@ func newGRPCServerWithListener(
 	listener net.Listener,
 	address string,
 	tracing bool,
-	grpcServerOptions []grpc.ServerOption,
+	defaultGRPCServerOptions []grpc.ServerOption,
 	unaryServerInterceptors []grpc.UnaryServerInterceptor,
 	registerServer registerServerFunc,
 ) (
@@ -46,7 +46,7 @@ func newGRPCServerWithListener(
 		return nil, fmt.Errorf("new grpc listener: %w", err)
 	}
 
-	grpcServerOptions, err = setGRPCTracing(tracing, grpcServerOptions)
+	grpcServerOptions, err := setGRPCTracing(tracing, defaultGRPCServerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("set grpc tracing tracing: %w", err)
 	}
@@ -99,9 +99,12 @@ func setGRPCTracing(
 	), nil
 }
 
-func newGRPCListener(listener net.Listener, addr string) (net.Listener, error) {
-	if listener != nil {
-		return listener, nil
+func newGRPCListener(
+	defaultListener net.Listener,
+	addr string,
+) (net.Listener, error) {
+	if defaultListener != nil {
+		return defaultListener, nil
 	}
 
 	hostString, portString, err := net.SplitHostPort(addr)
@@ -114,7 +117,7 @@ func newGRPCListener(listener net.Listener, addr string) (net.Listener, error) {
 		return nil, fmt.Errorf("parse port: %w", err)
 	}
 
-	listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", hostString, port-1))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", hostString, port-1))
 	if err != nil {
 		return nil, fmt.Errorf("new net listener: %w", err)
 	}
