@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/go-chi/chi/v5"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -157,6 +158,19 @@ func WithUnaryServerInterceptorCodeGen() ServerOption {
 					grpc_ctxtags.CodeGenRequestFieldExtractor,
 				),
 			),
+		)
+	})
+}
+
+// WithUnaryServerInterceptorAuthFunc adds an interceptor to the GRPC server
+// that executes a per-request auth.
+func WithUnaryServerInterceptorAuthFunc(
+	authFunc grpc_auth.AuthFunc,
+) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			grpc_auth.UnaryServerInterceptor(authFunc),
 		)
 	})
 }
