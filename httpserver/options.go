@@ -14,6 +14,7 @@ import (
 
 // An Option configures an App using the functional options paradigm
 // popularized by Rob Pike. If you're unfamiliar with this style, see
+// nolint: revive // line too long.
 // https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html
 // and
 // https://github.com/uber-go/guide/blob/master/style.md#functional-options
@@ -34,7 +35,7 @@ func (o addressOption) String() string {
 	return fmt.Sprintf("server.Address: %s", string(o))
 }
 
-// WithAddress will set the address field of the server
+// WithAddress will set the address field of the server.
 func WithAddress(address string) Option {
 	return addressOption(address)
 }
@@ -42,11 +43,14 @@ func WithAddress(address string) Option {
 type serverTimeoutsOption struct {
 	fmt.Stringer
 
-	// writeTimeout: the maximum duration before timing out writes of the response
+	// writeTimeout: the maximum duration before timing out
+	// writes of the response
 	writeTimeout,
-	// readTimeout: the maximum duration for reading the entire request, including the body
+	// readTimeout: the maximum duration for reading
+	// the entire request, including the body
 	readTimeout,
-	// idleTimeout: the maximum amount of time to wait for the next request when keep-alive is enabled
+	// idleTimeout: the maximum amount of time to wait for the next
+	// request when keep-alive is enabled
 	idleTimeout,
 	// readHeaderTimeout: the amount of time allowed to read request headers
 	readHeaderTimeout time.Duration
@@ -91,17 +95,19 @@ type baseContextOption struct {
 }
 
 func (o baseContextOption) apply(s *Server) {
+	var ctx context.Context
+
 	if o.ctx == nil {
 		if !o.cancelContextOnShutdown {
 			return
 		}
 
-		o.ctx = context.Background()
+		ctx = context.Background()
 	}
 
 	if o.cancelContextOnShutdown {
 		var cancel func()
-		o.ctx, cancel = context.WithCancel(o.ctx)
+		ctx, cancel = context.WithCancel(o.ctx)
 
 		s.httpServer.RegisterOnShutdown(func() {
 			cancel()
@@ -109,20 +115,26 @@ func (o baseContextOption) apply(s *Server) {
 	}
 
 	s.httpServer.BaseContext = func(_ net.Listener) context.Context {
-		return o.ctx
+		return ctx
 	}
 }
 
 func (o baseContextOption) String() string {
 	spew.Config.DisablePointerAddresses = true
 
-	return fmt.Sprintf("server.BaseContext: %s"+
-		"server.CancelContextOnShutdown: %t", spew.Sdump(o.ctx), o.cancelContextOnShutdown)
+	return fmt.Sprintf(
+		"server.BaseContext: %s"+
+			"server.CancelContextOnShutdown: %t",
+		spew.Sdump(o.ctx),
+		o.cancelContextOnShutdown,
+	)
 }
 
-// WithBaseContext sets a predefined base context for all incoming http requests.
+// WithBaseContext sets a predefined base context for all
+// incoming http requests.
 //
-// If cancelOnShutdown is set to true it will mark the baseContext as done(close the Done channel) whenever
+// If cancelOnShutdown is set to true it will mark the baseContext
+// as done(close the Done channel) whenever
 // the server.Shutdown() method is called.
 //
 // This is intended to use with long living tcp connections like
@@ -147,6 +159,8 @@ func (o shutdownSignalsOption) String() string {
 	return fmt.Sprintf("server.ShutdownSignals: %s", signals)
 }
 
+const shutdownTimeout = 30 * time.Second
+
 func (o shutdownSignalsOption) apply(s *Server) {
 	if len(o) == 0 {
 		return
@@ -157,21 +171,31 @@ func (o shutdownSignalsOption) apply(s *Server) {
 
 		signal.Notify(sigC, o...)
 
-		s.log.Debug("waiting for shutdown signals", zap.Stringer("signals", o))
+		s.log.Debug(
+			"waiting for shutdown signals",
+			zap.Stringer("signals", o),
+		)
 
 		sig := <-sigC
 
-		s.log.Info("received shut down signal", zap.String("signal", sig.String()))
+		s.log.Info(
+			"received shut down signal",
+			zap.String(
+				"signal",
+				sig.String(),
+			),
+		)
 
-		err := s.Shutdown(30 * time.Second)
+		err := s.Shutdown(shutdownTimeout)
 		if err != nil {
 			s.log.Error("failed to shutdown server in time", zap.Error(err))
 		}
 	}()
 }
 
-// WithShutdownSignalsOption will attempt to shutdown the server when one of the proved os signals
-// is sent to the application
+// WithShutdownSignalsOption will attempt to shutdown the server
+// when one of the proved os signals
+// is sent to the application.
 func WithShutdownSignalsOption(signals ...os.Signal) Option {
 	return shutdownSignalsOption(signals)
 }

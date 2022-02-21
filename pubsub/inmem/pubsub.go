@@ -75,7 +75,12 @@ func (ps *PubSub) Publish(event pubsub.Event, channels ...interface{}) error {
 var ErrNoChannel = errors.New("no channel given")
 
 // Subscribe creates a new subscription for the provided channels.
-func (ps *PubSub) Subscribe(channels ...interface{}) (pubsub.Subscription, error) {
+func (ps *PubSub) Subscribe(
+	channels ...interface{},
+) (
+	pubsub.Subscription,
+	error,
+) {
 	// Ensure at least one channel is provided.
 	if len(channels) == 0 {
 		return nil, ErrNoChannel

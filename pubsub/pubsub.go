@@ -1,8 +1,9 @@
 // Package pubsub provides basic interfaces that make up a PubSub system.
 // It also provides an Event type that is used to pass the actual information.
 //
-// The Event is sent to one or more channels using the Publish method. From where the underlying
-// implementation should dispatch the event to all the subscribers of those channels.
+// The Event is sent to one or more channels using the Publish method.
+// From where the underlying implementation should dispatch the event
+// to all the subscribers of those channels.
 //
 // Its primary job is to wrap implementations of such PubSub systems,
 package pubsub

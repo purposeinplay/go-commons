@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -17,13 +18,13 @@ const (
 // Info holds relevant information about the Server.
 // This can be used in the future to hold information about:
 // - number of requests received
-// - average response time
+// - average response time.
 type Info struct {
 	Addr string
 }
 
 // Server handles the setup and shutdown of the http server
-// for an http.Handler
+// for an http.Handler.
 type Server struct {
 	// underlying http server
 	httpServer *http.Server
@@ -44,7 +45,7 @@ type Server struct {
 // New will build a server with the defaults in place.
 // You can use Options to override the defaults.
 // Default list:
-// - Address: ":8080"
+// - Address: ":8080".
 func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
 	server := &Server{
 		httpServer: &http.Server{
@@ -73,7 +74,7 @@ func (s *Server) Shutdown(timeout time.Duration) error {
 	})
 
 	err := s.httpServer.Shutdown(ctx)
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
@@ -93,7 +94,8 @@ func (s *Server) Serve(ln net.Listener) error {
 	return nil
 }
 
-// ListenAndServe is a wrapper over http.Server.ListenAndServe() that logs basic information
+// ListenAndServe is a wrapper over http.Server.ListenAndServe()
+// that logs basic information
 // and blocks execution until the Server.Shutdown() method is called.
 func (s *Server) ListenAndServe() error {
 	s.log.Info("starting server", zap.String("address", s.httpServer.Addr))
@@ -117,14 +119,14 @@ func (s *Server) handleShutdown(err error) error {
 
 	s.log.Debug("server connections are drained")
 
-	if err != http.ErrServerClosed {
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
 	return nil
 }
 
-// Info returns the server.Info object
+// Info returns the server.Info object.
 func (s *Server) Info() Info {
 	return s.info
 }

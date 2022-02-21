@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/purposeinplay/go-commons/httpserver"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -41,10 +40,12 @@ func TestServer(t *testing.T) {
 
 	const (
 		_ exitStatus = iota
-		// exit status is set to 1 when the request handler returns due to context getting cancelled
+		// exit status is set to 1 when the request handler
+		// returns due to context getting cancelled
 		exitContext
 
-		// exit status is set to 2 when the request handler returns due to the timeout
+		// exit status is set to 2 when the request handler
+		// returns due to the timeout
 		exitTimeAfter
 	)
 
@@ -55,17 +56,22 @@ func TestServer(t *testing.T) {
 		// - go routine for the http request sender
 		wg sync.WaitGroup
 
-		// chan used to signal that the server received the request and can be shut down.
+		// chan used to signal that the server received
+		// the request and can be shut down.
 		shutdownServer chan struct{}
 
 		handlerExitStatus exitStatus
 
 		// the default handler used by the server
 		defaultHandler = func() http.Handler {
-			return http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			return http.HandlerFunc(func(
+				_ http.ResponseWriter,
+				r *http.Request,
+			) {
 				defer wg.Done()
 
-				// signal that the request is received and the server can be shut down.
+				// signal that the request is received and
+				// the server can be shut down.
 				close(shutdownServer)
 
 				// return either by receiving a context done or by a timeout
@@ -119,7 +125,8 @@ func TestServer(t *testing.T) {
 			expectedShutdownError:     nil,
 		},
 
-		// server will return on shutdown before the http request finishes due to the timeout
+		// server will return on shutdown before the http
+		// request finishes due to the timeout
 		"ShutdownDeadlineExceeded": {
 			serverOptions: serverOptions{
 				logger:  zap.NewExample(),
@@ -174,7 +181,8 @@ func TestServer(t *testing.T) {
 				test.serverOptions.handler,
 				test.serverOptions.options...)
 
-			// add 2 to the waitgroup for the http request and http server go routines.
+			// add 2 to the waitgroup for the http request and
+			// http server go routines.
 			// add extra counters given by the test
 			wg.Add(2 + test.extraWgCounter)
 
@@ -206,7 +214,8 @@ func TestServer(t *testing.T) {
 				t.Logf("request complete")
 			}()
 
-			// wait for the request to be handled and to send the shutdownServer signal
+			// wait for the request to be handled and
+			// to send the shutdownServer signal
 			<-shutdownServer
 
 			if len(test.shutdownSignals) > 0 {
@@ -230,7 +239,11 @@ func TestServer(t *testing.T) {
 			wg.Wait()
 
 			if test.serverOptions.handler != nil {
-				assert.Equal(t, test.expectedHandlerExitStatus, handlerExitStatus)
+				assert.Equal(
+					t,
+					test.expectedHandlerExitStatus,
+					handlerExitStatus,
+				)
 			}
 		})
 	}

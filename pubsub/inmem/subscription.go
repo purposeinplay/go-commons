@@ -10,7 +10,7 @@ import (
 var _ pubsub.Subscription = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to the channels
-// of this subscription
+// of this subscription.
 type Subscription struct {
 	// Channels this subscription is subscribed to.
 	channels []interface{}
