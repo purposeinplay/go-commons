@@ -25,6 +25,7 @@ func ExampleWithAddress() {
 	// Output: server.Address: :8080
 }
 
+// nolint: revive // line too long.
 func ExampleWithBaseContext() {
 	type key string
 
@@ -34,8 +35,7 @@ func ExampleWithBaseContext() {
 
 	fmt.Println(opt)
 	// Output:
-	// server.BaseContext: (*context.valueCtx)
-	// (context.Background.WithValue(type httpserver_test.key, val example))
+	// server.BaseContext: (*context.valueCtx)(context.Background.WithValue(type httpserver_test.key, val example))
 	// server.CancelContextOnShutdown: true
 }
 

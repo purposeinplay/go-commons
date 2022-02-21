@@ -200,11 +200,18 @@ func TestServer(t *testing.T) {
 				t.Logf("server complete")
 			}()
 
+			address := fmt.Sprintf(
+				"http://127.0.0.1:%d",
+				ln.Addr().(*net.TCPAddr).Port,
+			)
+
+			t.Logf("server listening on: %s", address)
+
 			go func() {
 				defer wg.Done()
 
 				// send a request to the server
-				resp, err := http.Get("http://127.0.0.1:8080")
+				resp, err := http.Get(address)
 				require.NoError(t, err)
 				require.Equal(t, http.StatusOK, resp.StatusCode)
 
