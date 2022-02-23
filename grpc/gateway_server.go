@@ -65,7 +65,10 @@ func newGatewayServerWithListener(
 			grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		}
 
-		registerGateway(grpcGatewayMux, dialOptions)
+		err := registerGateway(grpcGatewayMux, dialOptions)
+		if err != nil {
+			return nil, fmt.Errorf("register gateway: %w", err)
+		}
 	}
 
 	listener, err := net.Listen("tcp", address)

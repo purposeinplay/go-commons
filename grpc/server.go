@@ -43,7 +43,7 @@ type (
 	registerGatewayFunc func(
 		mux *runtime.ServeMux,
 		dialOptions []grpc.DialOption,
-	)
+	) error
 )
 
 // ListenAndServe accepts incoming connections on the listener

@@ -88,17 +88,17 @@ func WithHTTPMiddlewares(mw chi.Middlewares) ServerOption {
 	})
 }
 
-// WithRegisterServer registers a GRPC service to the
+// WithRegisterServerFunc registers a GRPC service to the
 // GRPC server.
-func WithRegisterServer(f registerServerFunc) ServerOption {
+func WithRegisterServerFunc(f registerServerFunc) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.registerServer = f
 	})
 }
 
-// WithRegisterGateway registers a GRPC service to the
+// WithRegisterGatewayFunc registers a GRPC service to the
 // Gateway server.
-func WithRegisterGateway(f registerGatewayFunc) ServerOption {
+func WithRegisterGatewayFunc(f registerGatewayFunc) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.registerGateway = f
 	})
@@ -171,6 +171,18 @@ func WithUnaryServerInterceptorAuthFunc(
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
 			grpc_auth.UnaryServerInterceptor(authFunc),
+		)
+	})
+}
+
+// WithUnaryServerInterceptor adds an interceptor to the GRPC server.
+func WithUnaryServerInterceptor(
+	unaryInterceptor grpc.UnaryServerInterceptor,
+) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			unaryInterceptor,
 		)
 	})
 }
