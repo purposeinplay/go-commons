@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"net"
 
 	"github.com/go-chi/chi/v5"
@@ -172,6 +173,29 @@ func WithUnaryServerInterceptorAuthFunc(
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
 			grpc_auth.UnaryServerInterceptor(authFunc),
+		)
+	})
+}
+
+func WithUnaryServerInterceptorErrorHandling(
+	handleErr func(error) error,
+) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			func(
+				ctx context.Context,
+				req interface{},
+				_ *grpc.UnaryServerInfo,
+				handler grpc.UnaryHandler,
+			) (interface{}, error) {
+				resp, err := handler(ctx, req)
+				if err != nil {
+					return nil, handleErr(err)
+				}
+
+				return resp, nil
+			},
 		)
 	})
 }
