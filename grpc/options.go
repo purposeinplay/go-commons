@@ -177,7 +177,9 @@ func WithUnaryServerInterceptorAuthFunc(
 	})
 }
 
-func WithUnaryServerInterceptorErrorHandling(
+// WithUnaryServerInterceptorHandleErr adds an interceptor to the GRPC server
+// that intercepts and handles the error returned by the handler.
+func WithUnaryServerInterceptorHandleErr(
 	handleErr func(error) error,
 ) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
