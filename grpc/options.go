@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
@@ -171,6 +172,21 @@ func WithUnaryServerInterceptorAuthFunc(
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
 			grpc_auth.UnaryServerInterceptor(authFunc),
+		)
+	})
+}
+
+// WithUnaryServerInterceptorRecovery adds an interceptor to the GRPC server
+// that recovers from panics.
+func WithUnaryServerInterceptorRecovery(
+	recoveryHandler grpc_recovery.RecoveryHandlerFunc,
+) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			grpc_recovery.UnaryServerInterceptor(
+				grpc_recovery.WithRecoveryHandler(recoveryHandler),
+			),
 		)
 	})
 }
