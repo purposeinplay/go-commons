@@ -134,7 +134,7 @@ func WithNoGateway() ServerOption {
 // WithDebug enables debugLogger logging for the servers.
 func WithDebug(logger *zap.Logger) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.debugLogger = logger.Named("go-commons.grpc.server")
+		o.debugLogger = logger
 	})
 }
 
