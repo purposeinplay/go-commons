@@ -106,12 +106,12 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 
 	aggregatorServer := new(Server)
 
-	err := setDebug(
-		opts.debug,
+	err := setDebugLogger(
+		opts.debugLogger,
 		aggregatorServer,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("set debug: %w", err)
+		return nil, fmt.Errorf("set debugLogger: %w", err)
 	}
 
 	grpcServerWithListener, err := newGRPCServerWithListener(
@@ -149,19 +149,13 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 	return aggregatorServer, nil
 }
 
-// nolint: revive // false-positive, it reports tracing as a control flag.
-func setDebug(debug bool, server *Server) error {
-	if !debug {
+func setDebugLogger(debugLogger debugLogger, server *Server) error {
+	if debugLogger == nil {
 		return nil
 	}
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		return fmt.Errorf("new logger: %w", err)
-	}
-
 	server.debug = true
-	server.logger = logger
+	server.logger = debugLogger
 
 	return nil
 }
@@ -276,5 +270,5 @@ func (s *Server) logDebug(msg string, fields ...zap.Field) {
 		return
 	}
 
-	s.logger.Debug("[go-commons.grpc debug]: "+msg, fields...)
+	s.logger.Debug(msg, fields...)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -25,7 +26,7 @@ func TestBufnet(t *testing.T) {
 
 	s, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithDebug(),
+		commonsgrpc.WithDebug(zap.NewExample()),
 	)
 	i.NoErr(err)
 

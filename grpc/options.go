@@ -46,7 +46,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 type serverOptions struct {
 	tracing                 bool
 	gateway                 bool
-	debug                   bool
+	debugLogger             *zap.Logger
 	address                 string
 	grpcServerOptions       []grpc.ServerOption
 	muxOptions              []runtime.ServeMuxOption
@@ -131,10 +131,10 @@ func WithNoGateway() ServerOption {
 	})
 }
 
-// WithDebug enables debug logging for the servers.
-func WithDebug() ServerOption {
+// WithDebug enables debugLogger logging for the servers.
+func WithDebug(logger *zap.Logger) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.debug = true
+		o.debugLogger = logger.Named("go-commons.grpc.server")
 	})
 }
 
