@@ -18,6 +18,15 @@ func NewLogger() (*zap.Logger, error) {
 	return logger, nil
 }
 
+func NewDevelopmentLogger() (*zap.Logger, error) {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		return nil, err
+	}
+
+	return logger, nil
+}
+
 func NewExampleLogger() *zap.Logger {
 	return zap.NewExample()
 }
