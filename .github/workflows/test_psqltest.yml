@@ -1,0 +1,28 @@
+on:
+  # Trigger the workflow on push request if the files
+  # in ./psqltest package were modified
+  push:
+    paths:
+      - psqltest/**
+
+name: test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17'
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v2
+        with:
+          working-directory: ./psqltest/
+          args: -c=../.golangci.yml
+
+      - name: Run tests
+        run: make test -C ./psqltest
