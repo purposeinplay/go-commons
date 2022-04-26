@@ -1,0 +1,2 @@
+// Package amount
+package amount
