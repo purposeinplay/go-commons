@@ -132,6 +132,69 @@ func TestConstructors(t *testing.T) {
 			i.Equal("invalid value: nil bytes", err.Error())
 		})
 	})
+
+	t.Run("NewFromUnitStringAmount", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("Success", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			a, err := amount.NewFromUnitStringAmount(
+				"1234.56",
+				5,
+				t.Name(),
+			)
+			i.NoErr(err)
+
+			t.Logf("value: %s", a.Value())
+
+			i.True(a.Value().Cmp(big.NewInt(123456000)) == 0)
+		})
+	})
+
+	t.Run("Must", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("Success", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			defer func() {
+				err := recover()
+				i.True(err == nil)
+			}()
+
+			_ = amount.Must(amount.New(
+				big.NewInt(10),
+				3,
+				t.Name(),
+			))
+		})
+
+		t.Run("InvalidValue", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			defer func() {
+				err, ok := recover().(error)
+
+				i.True(ok)
+
+				i.True(errors.Is(err, amount.ErrInvalidValue))
+				i.Equal("invalid value: nil value", err.Error())
+			}()
+
+			_ = amount.Must(amount.New(
+				nil,
+				0,
+				"",
+			))
+		})
+	})
 }
 
 func TestAmountMethods(t *testing.T) {

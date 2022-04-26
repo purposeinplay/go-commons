@@ -1,12 +1,12 @@
-env:
-  PACKAGE: amount
-
 on:
   # Trigger the workflow on push request if the files
   # in ./amount package were modified
   push:
     paths:
-      - $PACAKGE/**
+      - amount/**
+
+env:
+  PACKAGE: amount
 
 name: test
 jobs:
