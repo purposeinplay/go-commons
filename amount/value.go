@@ -152,7 +152,7 @@ func (v *ValueSubunit) UnmarshalJSON(data []byte) error {
 
 // Value defines how the Int is stored in the database.
 func (v ValueSubunit) Value() (driver.Value, error) {
-	if v.bigInt != nil {
+	if v.IsValid() {
 		return v.bigInt.String(), nil
 	}
 

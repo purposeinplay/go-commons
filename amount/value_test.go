@@ -2,18 +2,12 @@ package amount_test
 
 import (
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/amount"
 )
-
-func TestCmp(t *testing.T) {
-	t.Parallel()
-
-	t.Run("NilValues", func(t *testing.T) {
-	})
-}
 
 func TestValue(t *testing.T) {
 	t.Parallel()
@@ -35,6 +29,16 @@ func TestValue(t *testing.T) {
 func TestScan(t *testing.T) {
 	t.Parallel()
 
+	const (
+		initialValueInt64 int64 = 100
+		updatedValueInt64 int64 = 200
+	)
+
+	var (
+		initialValueStr = strconv.FormatInt(initialValueInt64, 10)
+		updatedValueStr = strconv.FormatInt(updatedValueInt64, 10)
+	)
+
 	t.Run("NilScannedValue", func(t *testing.T) {
 		t.Parallel()
 
@@ -43,12 +47,10 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			const value int64 = 100
-
-			v := new(amount.ValueSubunit).SetBigInt(big.NewInt(value))
+			v := newValueFromInt64(initialValueInt64)
 			i.True(v != nil)
 
-			i.Equal("100", v.String())
+			i.Equal(initialValueStr, v.String())
 
 			err := v.Scan(nil)
 			i.NoErr(err)
@@ -99,18 +101,12 @@ func TestScan(t *testing.T) {
 	t.Run("ValidScannedValue", func(t *testing.T) {
 		t.Parallel()
 
-		const (
-			initialValue      int64  = 100
-			updatedValueStr   string = "200"
-			updatedValueInt64 int64  = 200
-		)
-
 		t.Run("NotNilBytesValue", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
 
-			v := new(amount.ValueSubunit).SetBigInt(big.NewInt(initialValue))
+			v := newValueFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan([]byte(updatedValueStr))
@@ -124,7 +120,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := new(amount.ValueSubunit).SetBigInt(big.NewInt(initialValue))
+			v := newValueFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan(updatedValueInt64)
@@ -169,6 +165,16 @@ func TestScan(t *testing.T) {
 func TestEncodingText(t *testing.T) {
 	t.Parallel()
 
+	const (
+		initialValueInt64 int64 = 100
+		updatedValueInt64 int64 = 200
+	)
+
+	var (
+		initialValueStr = strconv.FormatInt(initialValueInt64, 10)
+		updatedValueStr = strconv.FormatInt(updatedValueInt64, 10)
+	)
+
 	t.Run("Text", func(t *testing.T) {
 		t.Parallel()
 
@@ -198,17 +204,17 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := new(amount.ValueSubunit).SetBigInt(big.NewInt(100))
+				v := newValueFromInt64(initialValueInt64)
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
 
-				i.Equal("100", string(txt))
+				i.Equal(initialValueStr, string(txt))
 
 				json, err := v.MarshalJSON()
 				i.NoErr(err)
 
-				i.Equal("100", string(json))
+				i.Equal(initialValueStr, string(json))
 			})
 		})
 
@@ -222,17 +228,17 @@ func TestEncodingText(t *testing.T) {
 
 				v := new(amount.ValueSubunit)
 
-				err := v.UnmarshalText([]byte("100"))
+				err := v.UnmarshalText([]byte(initialValueStr))
 				i.NoErr(err)
 
-				i.Equal("100", v.String())
+				i.Equal(initialValueStr, v.String())
 
 				v = new(amount.ValueSubunit)
 
-				err = v.UnmarshalJSON([]byte("100"))
+				err = v.UnmarshalJSON([]byte(initialValueStr))
 				i.NoErr(err)
 
-				i.Equal("100", v.String())
+				i.Equal(initialValueStr, v.String())
 			})
 
 			t.Run("ValidInternalBigInteger", func(t *testing.T) {
@@ -240,20 +246,24 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := new(amount.ValueSubunit).SetBigInt(big.NewInt(100))
+				v := newValueFromInt64(initialValueInt64)
 
-				err := v.UnmarshalText([]byte("200"))
+				err := v.UnmarshalText([]byte(updatedValueStr))
 				i.NoErr(err)
 
-				i.Equal("200", v.String())
+				i.Equal(updatedValueStr, v.String())
 
-				v = new(amount.ValueSubunit).SetBigInt(big.NewInt(100))
+				v = newValueFromInt64(initialValueInt64)
 
-				err = v.UnmarshalJSON([]byte("200"))
+				err = v.UnmarshalJSON([]byte(updatedValueStr))
 				i.NoErr(err)
 
-				i.Equal("200", v.String())
+				i.Equal(updatedValueStr, v.String())
 			})
 		})
 	})
+}
+
+func newValueFromInt64(v int64) *amount.ValueSubunit {
+	return new(amount.ValueSubunit).SetBigInt(big.NewInt(v))
 }
