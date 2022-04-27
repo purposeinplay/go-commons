@@ -21,7 +21,7 @@ func TestConstructors(t *testing.T) {
 			i := is.New(t)
 
 			_, err := amount.New(
-				big.NewInt(100),
+				new(amount.ValueSubunit).SetBigInt(big.NewInt(100)),
 				3,
 				t.Name(),
 			)
@@ -103,7 +103,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			value := big.NewInt(1234)
+			value := new(amount.ValueSubunit).SetBigInt(big.NewInt(1234))
 
 			a, err := amount.NewFromBytesValue(
 				value.Bytes(),
@@ -114,7 +114,7 @@ func TestConstructors(t *testing.T) {
 
 			t.Logf("value: %s", a.Value())
 
-			i.True(a.Value().Cmp(value) == 0)
+			i.True(a.Value().IsEqual(value))
 		})
 
 		t.Run("NilValueBytes", func(t *testing.T) {
@@ -150,7 +150,11 @@ func TestConstructors(t *testing.T) {
 
 			t.Logf("value: %s", a.Value())
 
-			i.True(a.Value().Cmp(big.NewInt(123456000)) == 0)
+			i.True(
+				a.Value().
+					IsEqual(new(amount.ValueSubunit).
+						SetBigInt(big.NewInt(123456000))),
+			)
 		})
 	})
 
@@ -168,7 +172,7 @@ func TestConstructors(t *testing.T) {
 			}()
 
 			_ = amount.Must(amount.New(
-				big.NewInt(10),
+				new(amount.ValueSubunit).SetBigInt(big.NewInt(10)),
 				3,
 				t.Name(),
 			))
@@ -203,7 +207,7 @@ func TestAmountMethods(t *testing.T) {
 	i := is.New(t)
 
 	a, err := amount.New(
-		big.NewInt(123456789),
+		new(amount.ValueSubunit).SetBigInt(big.NewInt(123456789)),
 		3,
 		t.Name())
 	i.NoErr(err)

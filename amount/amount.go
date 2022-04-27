@@ -20,7 +20,7 @@ import (
 type Amount struct {
 	// value of the amount, stored as an int, in the smallest
 	// denomination of the currency.
-	value *big.Int
+	value *ValueSubunit
 
 	// number of digits after the decimal point.
 	decimals uint
@@ -29,10 +29,18 @@ type Amount struct {
 	currencyCode string
 }
 
+// GRPCMessageAmountString defines an interface that is implemented by
+// GRPC messages carrying an amount.
+type GRPCMessageAmountString interface {
+	GetAmount() string
+	GetDecimals() uint32
+	GetCurrencyCode() string
+}
+
 // New creates a new amount from a *big.Int value.
 // The value must be not nil.
 func New(
-	value *big.Int,
+	value *ValueSubunit,
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
@@ -59,9 +67,7 @@ func NewFromStringValue(
 		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
 	}
 
-	const base = 10
-
-	value, ok := new(big.Int).SetString(valueStr, base)
+	value, ok := new(ValueSubunit).SetString(valueStr)
 	if !ok {
 		return nil, fmt.Errorf(
 			"%w: string value \"%s\"",
@@ -89,12 +95,15 @@ func NewFromBytesValue(
 	}
 
 	return &Amount{
-		value:        new(big.Int).SetBytes(valueBytes),
+		value:        new(ValueSubunit).SetBytes(valueBytes),
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
 }
 
+// NewFromUnitStringAmount creates a new Amount from a value that
+// is in its largest denomination.
+// The Amount value is calculated by multiplying unitValueStr * 10^decimals.
 func NewFromUnitStringAmount(
 	unitValueStr string,
 	decimals uint,
@@ -116,10 +125,27 @@ func NewFromUnitStringAmount(
 	value := fromUnits(valueUnits, decimals)
 
 	return &Amount{
-		value:        value,
+		value:        new(ValueSubunit).SetBigInt(value),
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
+}
+
+// NewFromGRPCMessageAmountString creates a new Amount from
+// an interface expected to be implemented by a GRPC message.
+func NewFromGRPCMessageAmountString(
+	m GRPCMessageAmountString,
+) (*Amount, error) {
+	a, err := NewFromStringValue(
+		m.GetAmount(),
+		uint(m.GetDecimals()),
+		m.GetCurrencyCode(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return a, nil
 }
 
 // Must returns Amount if err is nil and panics otherwise.
@@ -132,7 +158,7 @@ func Must(amount *Amount, err error) *Amount {
 }
 
 // Value returns the amount value in the *big.Int form.
-func (a Amount) Value() *big.Int {
+func (a Amount) Value() *ValueSubunit {
 	return a.value
 }
 
@@ -146,31 +172,10 @@ func (a Amount) CurrencyCode() string {
 	return a.currencyCode
 }
 
-// AddBigInt sets the value of a.value to the sum a.value + v.
-func (a *Amount) AddBigInt(v *big.Int) {
-	a.value.Add(a.value, v)
-}
-
-// SubBigInt sets the value of a.value to the difference a.value - v.
-func (a *Amount) SubBigInt(v *big.Int) {
-	a.value.Sub(a.value, v)
-}
-
-// MulBigInt sets the value of a.value to the product a.value * v.
-func (a *Amount) MulBigInt(v *big.Int) {
-	a.value.Mul(a.value, v)
-}
-
-// DivBigInt sets the value of a.value to the quotient a.value / v.
-// If v == 0, a division-by-zero run-time panic occurs.
-func (a *Amount) DivBigInt(v *big.Int) {
-	a.value.Div(a.value, v)
-}
-
 // ToUnits divides a.value / 10^decimals and returns a
 // new big float containing the result.
 func (a Amount) ToUnits() *big.Float {
-	return toUnits(a.value, a.decimals)
+	return toUnits(a.value.bigInt, a.decimals)
 }
 
 func toUnits(value *big.Int, decimals uint) *big.Float {
