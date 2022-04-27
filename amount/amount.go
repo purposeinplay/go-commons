@@ -178,6 +178,7 @@ func (a Amount) ToUnits() *big.Float {
 	return toUnits(a.value.bigInt, a.decimals)
 }
 
+// toUnits returns value / 10^decimals.
 func toUnits(value *big.Int, decimals uint) *big.Float {
 	return new(big.Float).Quo(
 		new(big.Float).SetInt(value),
@@ -185,6 +186,7 @@ func toUnits(value *big.Int, decimals uint) *big.Float {
 	)
 }
 
+// decimalsMultiplier returns 10^decimals.
 func decimalsMultiplier(decimals uint) *big.Int {
 	const ten = 10
 
@@ -195,6 +197,7 @@ func decimalsMultiplier(decimals uint) *big.Int {
 	)
 }
 
+// fromUnits returns value * 10^decimals
 func fromUnits(value *big.Float, decimals uint) *big.Int {
 	i, _ := value.Mul(
 		value,
