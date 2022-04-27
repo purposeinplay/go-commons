@@ -197,7 +197,7 @@ func decimalsMultiplier(decimals uint) *big.Int {
 	)
 }
 
-// fromUnits returns value * 10^decimals
+// fromUnits returns value * 10^decimals.
 func fromUnits(value *big.Float, decimals uint) *big.Int {
 	i, _ := value.Mul(
 		value,
