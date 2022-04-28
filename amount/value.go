@@ -33,6 +33,33 @@ type ValueSubunit struct {
 	bigInt *big.Int
 }
 
+// NewValueSubunitFromString returns a new ValueSubunit with the
+// internal big.Int parsed from a string.
+func NewValueSubunitFromString(s string) (*ValueSubunit, error) {
+	const base = 10
+
+	b, ok := new(big.Int).SetString(s, base)
+	if !ok {
+		return nil, fmt.Errorf(
+			"%w: string \"%s\" is not valid",
+			ErrInvalidValue,
+			s,
+		)
+	}
+
+	return &ValueSubunit{
+		bigInt: b,
+	}, nil
+}
+
+// NewValueSubunitFromInt64 returns a new ValueSubunit with the
+// internal big.Int set to v.
+func NewValueSubunitFromInt64(v int64) *ValueSubunit {
+	return &ValueSubunit{
+		bigInt: big.NewInt(v),
+	}
+}
+
 // IsValid returns true if the internal big.Int
 // value is not nil.
 func (v ValueSubunit) IsValid() bool {

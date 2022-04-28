@@ -1,7 +1,6 @@
 package amount_test
 
 import (
-	"math/big"
 	"strconv"
 	"testing"
 
@@ -47,7 +46,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := newValueFromInt64(initialValueInt64)
+			v := amount.NewValueSubunitFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			i.Equal(initialValueStr, v.String())
@@ -106,7 +105,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := newValueFromInt64(initialValueInt64)
+			v := amount.NewValueSubunitFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan([]byte(updatedValueStr))
@@ -120,7 +119,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := newValueFromInt64(initialValueInt64)
+			v := amount.NewValueSubunitFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan(updatedValueInt64)
@@ -204,7 +203,7 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := newValueFromInt64(initialValueInt64)
+				v := amount.NewValueSubunitFromInt64(initialValueInt64)
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
@@ -246,14 +245,14 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := newValueFromInt64(initialValueInt64)
+				v := amount.NewValueSubunitFromInt64(initialValueInt64)
 
 				err := v.UnmarshalText([]byte(updatedValueStr))
 				i.NoErr(err)
 
 				i.Equal(updatedValueStr, v.String())
 
-				v = newValueFromInt64(initialValueInt64)
+				v = amount.NewValueSubunitFromInt64(initialValueInt64)
 
 				err = v.UnmarshalJSON([]byte(updatedValueStr))
 				i.NoErr(err)
@@ -262,8 +261,4 @@ func TestEncodingText(t *testing.T) {
 			})
 		})
 	})
-}
-
-func newValueFromInt64(v int64) *amount.ValueSubunit {
-	return new(amount.ValueSubunit).SetBigInt(big.NewInt(v))
 }
