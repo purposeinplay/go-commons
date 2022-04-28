@@ -154,6 +154,18 @@ func (v *ValueSubunit) SetString(s string) (*ValueSubunit, bool) {
 	return v, ok
 }
 
+// Int64 it's a wrapper over (*big.Int).Int64.
+//
+// It returns the int64 representation of x.
+// If x cannot be represented in an int64, the result is undefined.
+func (v ValueSubunit) Int64() int64 {
+	if v.bigInt == nil {
+		return 0
+	}
+
+	return v.bigInt.Int64()
+}
+
 // String returns the decimal representation of
 // the internal big.Int.
 func (v ValueSubunit) String() string {
