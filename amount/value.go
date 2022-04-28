@@ -66,31 +66,58 @@ func (v ValueSubunit) IsValid() bool {
 	return v.bigInt != nil
 }
 
-// IsGreaterThan returns true if v > x.
-func (v ValueSubunit) IsGreaterThan(x *ValueSubunit) bool {
-	if v.bigInt == nil || x.bigInt == nil {
-		return false
-	}
+// IsGreaterThan compares v and x and returns:
+// 		-1 if values can't be compared
+// 		0 if v > x
+// 		1 if v <= x
+//
+func (v ValueSubunit) IsGreaterThan(x *ValueSubunit) int {
+	switch {
+	case v.bigInt == nil || x.bigInt == nil:
+		return -1
 
-	return v.bigInt.Cmp(x.bigInt) == 1
+	case v.bigInt.Cmp(x.bigInt) == 1:
+		return 0
+
+	default:
+		return 1
+	}
 }
 
-// IsEqual returns true if v = x.
-func (v ValueSubunit) IsEqual(x *ValueSubunit) bool {
-	if v.bigInt == nil || x.bigInt == nil {
-		return false
-	}
+// IsEqual compares v and x and returns:
+// 		-1 if values can't be compared
+// 		0 if v == x
+// 		1 if v != x
+//
+func (v ValueSubunit) IsEqual(x *ValueSubunit) int {
+	switch {
+	case v.bigInt == nil || x.bigInt == nil:
+		return -1
 
-	return v.bigInt.Cmp(x.bigInt) == 0
+	case v.bigInt.Cmp(x.bigInt) == 0:
+		return 0
+
+	default:
+		return 1
+	}
 }
 
-// IsLesserThan returns true if v < x.
-func (v ValueSubunit) IsLesserThan(x *ValueSubunit) bool {
-	if v.bigInt == nil || x.bigInt == nil {
-		return false
-	}
+// IsLesserThan compares v and x and returns:
+// 		-1 if values can't be compared
+// 		0 if v < x
+// 		1 if v >= x
+//
+func (v ValueSubunit) IsLesserThan(x *ValueSubunit) int {
+	switch {
+	case v.bigInt == nil || x.bigInt == nil:
+		return -1
 
-	return v.bigInt.Cmp(x.bigInt) == -1
+	case v.bigInt.Cmp(x.bigInt) == -1:
+		return 0
+
+	default:
+		return 1
+	}
 }
 
 // SetBigInt is a wrapper over (*big.Int).Set..

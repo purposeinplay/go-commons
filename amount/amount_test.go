@@ -114,7 +114,7 @@ func TestConstructors(t *testing.T) {
 
 			t.Logf("value: %s", a.Value())
 
-			i.True(a.Value().IsEqual(value))
+			i.True(a.Value().IsEqual(value) == 0)
 		})
 
 		t.Run("NilValueBytes", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestConstructors(t *testing.T) {
 			i.True(
 				a.Value().
 					IsEqual(new(amount.ValueSubunit).
-						SetBigInt(big.NewInt(123456000))),
+						SetBigInt(big.NewInt(123456000))) == 0,
 			)
 		})
 	})
@@ -221,5 +221,101 @@ func TestAmountMethods(t *testing.T) {
 			"123456.789",
 			a.ToUnits().String(),
 		)
+	})
+}
+
+func TestComparisons(t *testing.T) {
+	t.Parallel()
+
+	var (
+		one               = amount.NewValueSubunitFromInt64(1)
+		two               = amount.NewValueSubunitFromInt64(2)
+		nilInternalBigInt = new(amount.ValueSubunit)
+	)
+
+	t.Run("GreaterThan", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("Incomparable", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(-1, one.IsGreaterThan(nilInternalBigInt))
+		})
+
+		t.Run("True", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(0, two.IsGreaterThan(one))
+		})
+
+		t.Run("LesserOrEqual", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(1, one.IsGreaterThan(two))
+			i.Equal(1, one.IsGreaterThan(one))
+		})
+	})
+
+	t.Run("LesserThan", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("Incomparable", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(-1, one.IsLesserThan(nilInternalBigInt))
+		})
+
+		t.Run("True", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(0, one.IsLesserThan(two))
+		})
+
+		t.Run("GreaterOrEqual", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(1, two.IsLesserThan(one))
+			i.Equal(1, two.IsLesserThan(two))
+		})
+	})
+
+	t.Run("Equal", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("Incomparable", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(-1, one.IsEqual(nilInternalBigInt))
+		})
+
+		t.Run("True", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(0, one.IsEqual(one))
+		})
+
+		t.Run("NotEqual", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			i.Equal(1, two.IsEqual(one))
+		})
 	})
 }
