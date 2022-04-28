@@ -60,6 +60,14 @@ func NewValueSubunitFromInt64(v int64) *ValueSubunit {
 	}
 }
 
+// NewValueSubunitFromBytes sets the internal bigInt type
+// to the interpreted value of b.
+func NewValueSubunitFromBytes(b []byte) *ValueSubunit {
+	return &ValueSubunit{
+		bigInt: new(big.Int).SetBytes(b),
+	}
+}
+
 // IsValid returns true if the internal big.Int
 // value is not nil.
 func (v ValueSubunit) IsValid() bool {
