@@ -154,6 +154,11 @@ func (v *ValueSubunit) SetString(s string) (*ValueSubunit, bool) {
 	return v, ok
 }
 
+// BigInt returns the internal big.Int type.
+func (v ValueSubunit) BigInt() *big.Int {
+	return v.bigInt
+}
+
 // Int64 it's a wrapper over (*big.Int).Int64.
 //
 // It returns the int64 representation of x.
