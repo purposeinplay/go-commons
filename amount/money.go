@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-// Amount represents a type storing information
+// Money represents a type storing information
 // about a currency amount.
 //
 // ! The value is stored in its smallest denomination of the currency.
@@ -17,7 +17,7 @@ import (
 // - dollars decimals = 2 (smallest denomination: cents)
 // - bitcoin decimals = 18 (smallest denomination: satoshi)
 // - ethereum decimals = 18 (smallest denomination: wei).
-type Amount struct {
+type Money struct {
 	// value of the amount, stored as an int, in the smallest
 	// denomination of the currency.
 	value *ValueSubunit
@@ -37,78 +37,77 @@ type GRPCMessageAmountString interface {
 	GetCurrencyCode() string
 }
 
-// New creates a new amount from a *big.Int value.
+// NewMoney creates a new money amount from a *ValueSubunit value.
 // The value must be not nil.
-func New(
+func NewMoney(
 	value *ValueSubunit,
 	decimals uint,
 	currencyCode string,
-) (*Amount, error) {
+) (*Money, error) {
 	if value == nil {
 		return nil, fmt.Errorf("%w: nil value", ErrInvalidValue)
 	}
 
-	return &Amount{
+	return &Money{
 		value:        value,
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
 }
 
-// NewFromStringValue creates a new amount from a string value.
+// NewMoneyFromStringValue creates a new amount from a string value.
 // The value must be not empty.
 // The value must be a valid int.
-func NewFromStringValue(
+func NewMoneyFromStringValue(
 	valueStr string,
 	decimals uint,
 	currencyCode string,
-) (*Amount, error) {
+) (*Money, error) {
 	if valueStr == "" {
 		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
 	}
 
-	value, ok := new(ValueSubunit).SetString(valueStr)
-	if !ok {
+	value, err := NewValueSubunitFromString(valueStr)
+	if err != nil {
 		return nil, fmt.Errorf(
-			"%w: string value \"%s\"",
-			ErrInvalidValue,
-			valueStr,
+			"new value from string: %w",
+			err,
 		)
 	}
 
-	return &Amount{
+	return &Money{
 		value:        value,
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
 }
 
-// NewFromBytesValue creates a new amount from a []byte value.
+// NewMoneyFromBytesValue creates a new amount from a []byte value.
 // The value must be not nil.
-func NewFromBytesValue(
+func NewMoneyFromBytesValue(
 	valueBytes []byte,
 	decimals uint,
 	currencyCode string,
-) (*Amount, error) {
+) (*Money, error) {
 	if valueBytes == nil {
 		return nil, fmt.Errorf("%w: nil bytes", ErrInvalidValue)
 	}
 
-	return &Amount{
-		value:        new(ValueSubunit).SetBytes(valueBytes),
+	return &Money{
+		value:        NewValueSubunitFromBytes(valueBytes),
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
 }
 
-// NewFromUnitStringAmount creates a new Amount from a value that
+// NewMoneyFromUnitStringAmount creates new Money entity from a value that
 // is in its largest denomination.
-// The Amount value is calculated by multiplying unitValueStr * 10^decimals.
-func NewFromUnitStringAmount(
+// The Money value is calculated by multiplying unitValueStr * 10^decimals.
+func NewMoneyFromUnitStringAmount(
 	unitValueStr string,
 	decimals uint,
 	currencyCode string,
-) (*Amount, error) {
+) (*Money, error) {
 	if unitValueStr == "" {
 		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
 	}
@@ -124,19 +123,19 @@ func NewFromUnitStringAmount(
 
 	value := fromUnits(valueUnits, decimals)
 
-	return &Amount{
-		value:        new(ValueSubunit).SetBigInt(value),
+	return &Money{
+		value:        NewValueSubunitFromBigInt(value),
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
 }
 
-// NewFromGRPCMessageAmountString creates a new Amount from
+// NewMoneyFromGRPCMessageAmountString creates a new Money from
 // an interface expected to be implemented by a GRPC message.
-func NewFromGRPCMessageAmountString(
+func NewMoneyFromGRPCMessageAmountString(
 	m GRPCMessageAmountString,
-) (*Amount, error) {
-	a, err := NewFromStringValue(
+) (*Money, error) {
+	a, err := NewMoneyFromStringValue(
 		m.GetAmount(),
 		uint(m.GetDecimals()),
 		m.GetCurrencyCode(),
@@ -148,8 +147,8 @@ func NewFromGRPCMessageAmountString(
 	return a, nil
 }
 
-// Must returns Amount if err is nil and panics otherwise.
-func Must(amount *Amount, err error) *Amount {
+// MustNewMoney returns Money if err is nil and panics otherwise.
+func MustNewMoney(amount *Money, err error) *Money {
 	if err != nil {
 		panic(err)
 	}
@@ -158,23 +157,23 @@ func Must(amount *Amount, err error) *Amount {
 }
 
 // Value returns the amount value in the *big.Int form.
-func (a Amount) Value() *ValueSubunit {
+func (a Money) Value() *ValueSubunit {
 	return a.value
 }
 
 // Decimals returns the number of decimals for the amount.
-func (a Amount) Decimals() uint {
+func (a Money) Decimals() uint {
 	return a.decimals
 }
 
-// CurrencyCode returns the shorthand for the Currency Code of the Amount.
-func (a Amount) CurrencyCode() string {
+// CurrencyCode returns the shorthand for the Currency Code of the Money.
+func (a Money) CurrencyCode() string {
 	return a.currencyCode
 }
 
 // ToUnits divides a.value / 10^decimals and returns a
 // new big float containing the result.
-func (a Amount) ToUnits() *big.Float {
+func (a Money) ToUnits() *big.Float {
 	return toUnits(a.value.bigInt, a.decimals)
 }
 

@@ -5,5 +5,5 @@ import (
 )
 
 // ErrInvalidValue is returned when an unexpected value
-// is given to an Amount constructor.
+// is given to a NewMoney constructor.
 var ErrInvalidValue = errors.New("invalid value")

@@ -12,7 +12,7 @@ import (
 func TestConstructors(t *testing.T) {
 	t.Parallel()
 
-	t.Run("New", func(t *testing.T) {
+	t.Run("NewMoney", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -20,7 +20,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.New(
+			_, err := amount.NewMoney(
 				new(amount.ValueSubunit).SetBigInt(big.NewInt(100)),
 				3,
 				t.Name(),
@@ -33,7 +33,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.New(
+			_, err := amount.NewMoney(
 				nil,
 				0,
 				"",
@@ -45,7 +45,7 @@ func TestConstructors(t *testing.T) {
 		})
 	})
 
-	t.Run("NewFromStringValue", func(t *testing.T) {
+	t.Run("NewMoneyFromStringValue", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.NewFromStringValue(
+			_, err := amount.NewMoneyFromStringValue(
 				"123456",
 				3,
 				t.Name(),
@@ -67,7 +67,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.NewFromStringValue(
+			_, err := amount.NewMoneyFromStringValue(
 				"value",
 				3,
 				t.Name(),
@@ -75,7 +75,9 @@ func TestConstructors(t *testing.T) {
 
 			i.True(errors.Is(err, amount.ErrInvalidValue))
 
-			i.Equal("invalid value: string value \"value\"", err.Error())
+			i.Equal("new value from string: "+
+				"invalid value: string \"value\" is not valid",
+				err.Error())
 		})
 
 		t.Run("EmptyStringValue", func(t *testing.T) {
@@ -83,7 +85,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.NewFromStringValue(
+			_, err := amount.NewMoneyFromStringValue(
 				"",
 				3,
 				t.Name(),
@@ -95,7 +97,7 @@ func TestConstructors(t *testing.T) {
 		})
 	})
 
-	t.Run("NewFromBytesValue", func(t *testing.T) {
+	t.Run("NewMoneyFromBytesValue", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -105,7 +107,7 @@ func TestConstructors(t *testing.T) {
 
 			value := new(amount.ValueSubunit).SetBigInt(big.NewInt(1234))
 
-			a, err := amount.NewFromBytesValue(
+			a, err := amount.NewMoneyFromBytesValue(
 				value.Bytes(),
 				3,
 				t.Name(),
@@ -122,7 +124,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := amount.NewFromBytesValue(
+			_, err := amount.NewMoneyFromBytesValue(
 				nil,
 				0,
 				"",
@@ -133,7 +135,7 @@ func TestConstructors(t *testing.T) {
 		})
 	})
 
-	t.Run("NewFromUnitStringAmount", func(t *testing.T) {
+	t.Run("NewMoneyFromUnitStringAmount", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -141,7 +143,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			a, err := amount.NewFromUnitStringAmount(
+			a, err := amount.NewMoneyFromUnitStringAmount(
 				"1234.56",
 				5,
 				t.Name(),
@@ -158,7 +160,7 @@ func TestConstructors(t *testing.T) {
 		})
 	})
 
-	t.Run("Must", func(t *testing.T) {
+	t.Run("MustNewMoney", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -171,7 +173,7 @@ func TestConstructors(t *testing.T) {
 				i.True(err == nil)
 			}()
 
-			_ = amount.Must(amount.New(
+			_ = amount.MustNewMoney(amount.NewMoney(
 				new(amount.ValueSubunit).SetBigInt(big.NewInt(10)),
 				3,
 				t.Name(),
@@ -192,7 +194,7 @@ func TestConstructors(t *testing.T) {
 				i.Equal("invalid value: nil value", err.Error())
 			}()
 
-			_ = amount.Must(amount.New(
+			_ = amount.MustNewMoney(amount.NewMoney(
 				nil,
 				0,
 				"",
@@ -206,7 +208,7 @@ func TestAmountMethods(t *testing.T) {
 
 	i := is.New(t)
 
-	a, err := amount.New(
+	a, err := amount.NewMoney(
 		new(amount.ValueSubunit).SetBigInt(big.NewInt(123456789)),
 		3,
 		t.Name())

@@ -1,4 +1,4 @@
-// Package amount implements an Amount type used to represent
+// Package amount implements an Money type used to represent
 // a monetary amount defined by the following properties:
 //
 // - value, in the lowest denominator form, eg. cents for USD.
