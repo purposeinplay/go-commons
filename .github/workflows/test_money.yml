@@ -1,12 +1,12 @@
 on:
   # Trigger the workflow on push request if the files
-  # in ./amount package were modified
+  # in ./money package were modified
   push:
     paths:
-      - amount/**
+      - money/**
 
 env:
-  PACKAGE: amount
+  PACKAGE: money
 
 name: test
 jobs:
