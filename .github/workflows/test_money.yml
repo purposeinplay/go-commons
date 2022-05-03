@@ -2,8 +2,8 @@ on:
   # Trigger the workflow on push request if the files
   # in ./money package were modified
   push:
-    paths:
-      - value/money/**
+#    paths:
+#      - value/money/**
 
 env:
   PACKAGE: value/money
@@ -25,7 +25,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           working-directory: ./${{ env.PACKAGE }}/
-          args: -c=../../.golangci.yml
+          args: -c=$GITHUB_WORKSPACE/.golangci.yml
 
       - name: Run tests
-        run: pwd && make test -C ./${{ env.PACKAGE }}
+        run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}
