@@ -10,6 +10,6 @@
 // - currency code, the shorthand for
 // the currency, eg. USD for United States Dollar.
 //
-// The package is placed under the ./value package
-// as it imports from it.
+// The package is placed under the ./value package as
+// it imports from it.
 package money

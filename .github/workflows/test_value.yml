@@ -1,12 +1,12 @@
-env:
-  PACKAGE: value
-
 on:
   # Trigger the workflow on push request if the files
   # in ./money package were modified
   push:
     paths:
-      - ${{ env.PACKAGE }}/**
+      - value/**
+
+env:
+  PACKAGE: value
 
 name: test
 jobs:
