@@ -10,5 +10,5 @@
 // the currency, eg. USD for United States Dollar.
 //
 // The package is placed under the ./value package
-// because it imports the Int type from it.
+// as it imports from it.
 package money
