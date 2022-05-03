@@ -5,6 +5,9 @@ on:
     paths:
       - httpserver/**
 
+env:
+  PACKAGE: httpserver
+
 name: test
 jobs:
   test:
@@ -21,8 +24,8 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@v3
         with:
-          working-directory: ./httpserver/
-          args: -c=../.golangci.yml
+          working-directory: ./${{ env.PACKAGE }}/
+          args: -c=$GITHUB_WORKSPACE/.golangci.yml
 
       - name: Run tests
-        run: make test -C ./httpserver
+        run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}

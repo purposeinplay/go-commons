@@ -2,8 +2,8 @@ on:
   # Trigger the workflow on push request if the files
   # in ./money package were modified
   push:
-#    paths:
-#      - value/money/**
+    paths:
+      - value/money/**
 
 env:
   PACKAGE: value/money
