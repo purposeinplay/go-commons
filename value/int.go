@@ -1,4 +1,4 @@
-package money
+package value
 
 import (
 	"database/sql"
@@ -10,32 +10,34 @@ import (
 )
 
 var (
-	// ensure ValueSubunit implements valuer and scanner interface.
-	_ sql.Scanner   = (*ValueSubunit)(nil)
-	_ driver.Valuer = (*ValueSubunit)(nil)
+	// ensure Int implements valuer and scanner interface.
+	_ sql.Scanner   = (*Int)(nil)
+	_ driver.Valuer = (*Int)(nil)
 
-	// ensure ValueSubunit implements text marshaller and unmarshaler interface.
-	_ encoding.TextMarshaler   = (*ValueSubunit)(nil)
-	_ encoding.TextUnmarshaler = (*ValueSubunit)(nil)
+	// ensure Int implements text marshaller and unmarshaler interface.
+	_ encoding.TextMarshaler   = (*Int)(nil)
+	_ encoding.TextUnmarshaler = (*Int)(nil)
 
-	// ensure ValueSubunit implements json marshaller and unmarshaler interface.
-	_ json.Unmarshaler = (*ValueSubunit)(nil)
-	_ json.Marshaler   = (*ValueSubunit)(nil)
+	// ensure Int implements json marshaller and unmarshaler interface.
+	_ json.Unmarshaler = (*Int)(nil)
+	_ json.Marshaler   = (*Int)(nil)
 )
 
-// ValueSubunit represents a value stored in its
-// smallest denomination form.
-// Example: wei for ethereum, satoshi fot btc, cents for dollars.
+// Int represents an integer
 //
 // ! This is intended to be used for storage and representation
 // rather than for the big.Int behavior.
-type ValueSubunit struct {
+type Int struct {
 	bigInt *big.Int
 }
 
-// NewValueSubunitFromString returns a new ValueSubunit with the
+// NewIntFromString returns a new Int with the
 // internal big.Int parsed from a string.
-func NewValueSubunitFromString(s string) (*ValueSubunit, error) {
+func NewIntFromString(s string) (*Int, error) {
+	if s == "" {
+		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
+	}
+
 	const base = 10
 
 	b, ok := new(big.Int).SetString(s, base)
@@ -47,37 +49,41 @@ func NewValueSubunitFromString(s string) (*ValueSubunit, error) {
 		)
 	}
 
-	return &ValueSubunit{
+	return &Int{
 		bigInt: b,
 	}, nil
 }
 
-// NewValueSubunitFromInt64 returns a new ValueSubunit with the
+// NewIntFromInt64 returns a new Int with the
 // internal big.Int set to v.
-func NewValueSubunitFromInt64(v int64) *ValueSubunit {
-	return &ValueSubunit{
+func NewIntFromInt64(v int64) *Int {
+	return &Int{
 		bigInt: big.NewInt(v),
 	}
 }
 
-// NewValueSubunitFromBytes sets the internal bigInt type
+// NewIntFromBytes sets the internal bigInt type
 // to the interpreted value of b.
-func NewValueSubunitFromBytes(b []byte) *ValueSubunit {
-	return &ValueSubunit{
-		bigInt: new(big.Int).SetBytes(b),
+func NewIntFromBytes(b []byte) (*Int, error) {
+	if b == nil {
+		return nil, fmt.Errorf("%w: nil bytes", ErrInvalidValue)
 	}
+
+	return &Int{
+		bigInt: new(big.Int).SetBytes(b),
+	}, nil
 }
 
-// NewValueSubunitFromBigInt sets the internal bigInt type to i.
-func NewValueSubunitFromBigInt(i *big.Int) *ValueSubunit {
-	return &ValueSubunit{
+// NewIntFromBigInt sets the internal bigInt type to i.
+func NewIntFromBigInt(i *big.Int) *Int {
+	return &Int{
 		bigInt: i,
 	}
 }
 
 // IsValid returns true if the internal big.Int
 // value is not nil.
-func (v ValueSubunit) IsValid() bool {
+func (v Int) IsValid() bool {
 	return v.bigInt != nil
 }
 
@@ -86,7 +92,7 @@ func (v ValueSubunit) IsValid() bool {
 // 		0 if v > x
 // 		1 if v <= x
 //
-func (v ValueSubunit) IsGreaterThan(x *ValueSubunit) int {
+func (v Int) IsGreaterThan(x *Int) int {
 	switch {
 	case v.bigInt == nil || x.bigInt == nil:
 		return -1
@@ -104,7 +110,7 @@ func (v ValueSubunit) IsGreaterThan(x *ValueSubunit) int {
 // 		0 if v == x
 // 		1 if v != x
 //
-func (v ValueSubunit) IsEqual(x *ValueSubunit) int {
+func (v Int) IsEqual(x *Int) int {
 	switch {
 	case v.bigInt == nil || x.bigInt == nil:
 		return -1
@@ -122,7 +128,7 @@ func (v ValueSubunit) IsEqual(x *ValueSubunit) int {
 // 		0 if v < x
 // 		1 if v >= x
 //
-func (v ValueSubunit) IsLesserThan(x *ValueSubunit) int {
+func (v Int) IsLesserThan(x *Int) int {
 	switch {
 	case v.bigInt == nil || x.bigInt == nil:
 		return -1
@@ -137,7 +143,7 @@ func (v ValueSubunit) IsLesserThan(x *ValueSubunit) int {
 
 // SetBigInt is a wrapper over (*big.Int).Set..
 // It sets the internal big.Int value to i.
-func (v *ValueSubunit) SetBigInt(i *big.Int) *ValueSubunit {
+func (v *Int) SetBigInt(i *big.Int) *Int {
 	v.bigInt = new(big.Int).Set(i)
 
 	return v
@@ -147,7 +153,7 @@ func (v *ValueSubunit) SetBigInt(i *big.Int) *ValueSubunit {
 //
 // It interprets buf as the bytes of a big-endian unsigned
 // integer, sets v.bigInt to that value, and returns v.
-func (v *ValueSubunit) SetBytes(buf []byte) *ValueSubunit {
+func (v *Int) SetBytes(buf []byte) *Int {
 	v.bigInt = new(big.Int).SetBytes(buf)
 
 	return v
@@ -156,7 +162,7 @@ func (v *ValueSubunit) SetBytes(buf []byte) *ValueSubunit {
 // SetString is a wrapper over (*big.Int).SetString.
 // It interprets the s and returns a boolean indicating
 // the operation success.
-func (v *ValueSubunit) SetString(s string) (*ValueSubunit, bool) {
+func (v *Int) SetString(s string) (*Int, bool) {
 	const base = 10
 
 	bigInt, ok := new(big.Int).SetString(s, base)
@@ -170,7 +176,7 @@ func (v *ValueSubunit) SetString(s string) (*ValueSubunit, bool) {
 }
 
 // BigInt returns the internal big.Int type.
-func (v ValueSubunit) BigInt() *big.Int {
+func (v Int) BigInt() *big.Int {
 	return v.bigInt
 }
 
@@ -178,7 +184,7 @@ func (v ValueSubunit) BigInt() *big.Int {
 //
 // It returns the int64 representation of x.
 // If x cannot be represented in an int64, the result is undefined.
-func (v ValueSubunit) Int64() int64 {
+func (v Int) Int64() int64 {
 	if v.bigInt == nil {
 		return 0
 	}
@@ -188,23 +194,23 @@ func (v ValueSubunit) Int64() int64 {
 
 // String returns the decimal representation of
 // the internal big.Int.
-func (v ValueSubunit) String() string {
+func (v Int) String() string {
 	return v.bigInt.String()
 }
 
 // Bytes returns the absolute value of the internal big.Int
 // as a big-endian byte slice.
-func (v ValueSubunit) Bytes() []byte {
+func (v Int) Bytes() []byte {
 	return v.bigInt.Bytes()
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-func (v ValueSubunit) MarshalText() ([]byte, error) {
+func (v Int) MarshalText() ([]byte, error) {
 	return v.bigInt.MarshalText()
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-func (v *ValueSubunit) UnmarshalText(text []byte) error {
+func (v *Int) UnmarshalText(text []byte) error {
 	i := new(big.Int)
 
 	err := i.UnmarshalText(text)
@@ -218,12 +224,12 @@ func (v *ValueSubunit) UnmarshalText(text []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (v ValueSubunit) MarshalJSON() ([]byte, error) {
+func (v Int) MarshalJSON() ([]byte, error) {
 	return v.bigInt.MarshalJSON()
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-func (v *ValueSubunit) UnmarshalJSON(data []byte) error {
+func (v *Int) UnmarshalJSON(data []byte) error {
 	i := new(big.Int)
 
 	err := i.UnmarshalJSON(data)
@@ -237,7 +243,7 @@ func (v *ValueSubunit) UnmarshalJSON(data []byte) error {
 }
 
 // Value defines how the Int is stored in the database.
-func (v ValueSubunit) Value() (driver.Value, error) {
+func (v Int) Value() (driver.Value, error) {
 	if v.IsValid() {
 		return v.bigInt.String(), nil
 	}
@@ -246,7 +252,7 @@ func (v ValueSubunit) Value() (driver.Value, error) {
 }
 
 // Scan defines how the Int is read from the database.
-func (v *ValueSubunit) Scan(value interface{}) error {
+func (v *Int) Scan(value interface{}) error {
 	switch t := value.(type) {
 	case int64:
 		v.bigInt = new(big.Int).SetInt64(t)
@@ -277,4 +283,13 @@ func (v *ValueSubunit) Scan(value interface{}) error {
 	}
 
 	return nil
+}
+
+// MustNewInt returns Int if err is nil and panics otherwise.
+func MustNewInt(v *Int, err error) *Int {
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }

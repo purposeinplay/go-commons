@@ -3,6 +3,8 @@ package money
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/purposeinplay/go-commons/value"
 )
 
 // Amount represents a type storing information
@@ -20,7 +22,7 @@ import (
 type Amount struct {
 	// value of the amount, stored as an int, in the smallest
 	// denomination of the currency.
-	value *ValueSubunit
+	value *value.Int
 
 	// number of digits after the decimal point.
 	decimals uint
@@ -37,19 +39,19 @@ type GRPCMessageAmountString interface {
 	GetCurrencyCode() string
 }
 
-// NewAmount creates a new money amount from a *ValueSubunit value.
+// NewAmountFromValueInt creates a new money amount from a *Int value.
 // The value must be not nil.
-func NewAmount(
-	value *ValueSubunit,
+func NewAmountFromValueInt(
+	v *value.Int,
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	if value == nil {
-		return nil, fmt.Errorf("%w: nil value", ErrInvalidValue)
+	if v == nil {
+		return nil, fmt.Errorf("%w: nil value", value.ErrInvalidValue)
 	}
 
 	return &Amount{
-		value:        value,
+		value:        v,
 		decimals:     decimals,
 		currencyCode: currencyCode,
 	}, nil
@@ -63,11 +65,7 @@ func NewAmountFromStringValue(
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	if valueStr == "" {
-		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
-	}
-
-	value, err := NewValueSubunitFromString(valueStr)
+	v, err := value.NewIntFromString(valueStr)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"new value from string: %w",
@@ -75,11 +73,7 @@ func NewAmountFromStringValue(
 		)
 	}
 
-	return &Amount{
-		value:        value,
-		decimals:     decimals,
-		currencyCode: currencyCode,
-	}, nil
+	return NewAmountFromValueInt(v, decimals, currencyCode)
 }
 
 // NewAmountFromBytesValue creates a new amount from a []byte value.
@@ -89,15 +83,15 @@ func NewAmountFromBytesValue(
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	if valueBytes == nil {
-		return nil, fmt.Errorf("%w: nil bytes", ErrInvalidValue)
+	v, err := value.NewIntFromBytes(valueBytes)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"new value from bytes: %w",
+			err,
+		)
 	}
 
-	return &Amount{
-		value:        NewValueSubunitFromBytes(valueBytes),
-		decimals:     decimals,
-		currencyCode: currencyCode,
-	}, nil
+	return NewAmountFromValueInt(v, decimals, currencyCode)
 }
 
 // NewAmountFromUnitStringAmount creates new Amount entity from a value that
@@ -109,25 +103,21 @@ func NewAmountFromUnitStringAmount(
 	currencyCode string,
 ) (*Amount, error) {
 	if unitValueStr == "" {
-		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
+		return nil, fmt.Errorf("%w: empty string value", value.ErrInvalidValue)
 	}
 
 	valueUnits, ok := new(big.Float).SetString(unitValueStr)
 	if !ok {
 		return nil, fmt.Errorf(
 			"%w: string value \"%s\"",
-			ErrInvalidValue,
+			value.ErrInvalidValue,
 			unitValueStr,
 		)
 	}
 
-	value := fromUnits(valueUnits, decimals)
+	v := value.NewIntFromBigInt(fromUnits(valueUnits, decimals))
 
-	return &Amount{
-		value:        NewValueSubunitFromBigInt(value),
-		decimals:     decimals,
-		currencyCode: currencyCode,
-	}, nil
+	return NewAmountFromValueInt(v, decimals, currencyCode)
 }
 
 // NewAmountFromGRPCMessageAmountString creates a new Amount from
@@ -157,7 +147,7 @@ func MustNewAmount(amount *Amount, err error) *Amount {
 }
 
 // Value returns the amount value in the *big.Int form.
-func (a Amount) Value() *ValueSubunit {
+func (a Amount) Value() *value.Int {
 	return a.value
 }
 
@@ -174,19 +164,19 @@ func (a Amount) CurrencyCode() string {
 // ToUnits divides a.value / 10^decimals and returns a
 // new big float containing the result.
 func (a Amount) ToUnits() *big.Float {
-	return toUnits(a.value.bigInt, a.decimals)
+	return toUnits(a.value.BigInt(), a.decimals)
 }
 
 // ToUnitsString divides a.value / 10^decimals and returns a
 // new string formatted to the given precision prec.
 func (a Amount) ToUnitsString(prec uint8) string {
-	return toUnits(a.value.bigInt, a.decimals).Text('f', int(prec))
+	return toUnits(a.value.BigInt(), a.decimals).Text('f', int(prec))
 }
 
 // toUnits returns value / 10^decimals.
-func toUnits(value *big.Int, decimals uint) *big.Float {
+func toUnits(v *big.Int, decimals uint) *big.Float {
 	return new(big.Float).Quo(
-		new(big.Float).SetInt(value),
+		new(big.Float).SetInt(v),
 		new(big.Float).SetInt(decimalsMultiplier(decimals)),
 	)
 }
@@ -203,9 +193,9 @@ func decimalsMultiplier(decimals uint) *big.Int {
 }
 
 // fromUnits returns value * 10^decimals.
-func fromUnits(value *big.Float, decimals uint) *big.Int {
-	i, _ := value.Mul(
-		value,
+func fromUnits(v *big.Float, decimals uint) *big.Int {
+	i, _ := v.Mul(
+		v,
 		new(big.Float).SetInt(decimalsMultiplier(decimals)),
 	).Int(nil)
 

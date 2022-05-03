@@ -1,11 +1,11 @@
-package money_test
+package value_test
 
 import (
 	"strconv"
 	"testing"
 
 	"github.com/matryer/is"
-	"github.com/purposeinplay/go-commons/money"
+	"github.com/purposeinplay/go-commons/value"
 )
 
 func TestValue(t *testing.T) {
@@ -16,7 +16,7 @@ func TestValue(t *testing.T) {
 
 		i := is.New(t)
 
-		v := new(money.ValueSubunit)
+		v := new(value.Int)
 
 		vSql, err := v.Value()
 		i.NoErr(err)
@@ -46,7 +46,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := money.NewValueSubunitFromInt64(initialValueInt64)
+			v := value.NewIntFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			i.Equal(initialValueStr, v.String())
@@ -62,7 +62,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			var v *money.ValueSubunit
+			var v *value.Int
 
 			i.True(v == nil)
 
@@ -81,7 +81,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := new(money.ValueSubunit)
+			v := new(value.Int)
 
 			defer func() {
 				p := recover()
@@ -105,7 +105,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := money.NewValueSubunitFromInt64(initialValueInt64)
+			v := value.NewIntFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan([]byte(updatedValueStr))
@@ -119,7 +119,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := money.NewValueSubunitFromInt64(initialValueInt64)
+			v := value.NewIntFromInt64(initialValueInt64)
 			i.True(v != nil)
 
 			err := v.Scan(updatedValueInt64)
@@ -133,7 +133,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := new(money.ValueSubunit)
+			v := new(value.Int)
 			i.True(v != nil)
 
 			err := v.Scan(updatedValueInt64)
@@ -147,7 +147,7 @@ func TestScan(t *testing.T) {
 
 			i := is.New(t)
 
-			var v *money.ValueSubunit
+			var v *value.Int
 
 			defer func() {
 				p := recover()
@@ -185,7 +185,7 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := new(money.ValueSubunit)
+				v := new(value.Int)
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
@@ -203,7 +203,7 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := money.NewValueSubunitFromInt64(initialValueInt64)
+				v := value.NewIntFromInt64(initialValueInt64)
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
@@ -225,14 +225,14 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := new(money.ValueSubunit)
+				v := new(value.Int)
 
 				err := v.UnmarshalText([]byte(initialValueStr))
 				i.NoErr(err)
 
 				i.Equal(initialValueStr, v.String())
 
-				v = new(money.ValueSubunit)
+				v = new(value.Int)
 
 				err = v.UnmarshalJSON([]byte(initialValueStr))
 				i.NoErr(err)
@@ -245,14 +245,14 @@ func TestEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := money.NewValueSubunitFromInt64(initialValueInt64)
+				v := value.NewIntFromInt64(initialValueInt64)
 
 				err := v.UnmarshalText([]byte(updatedValueStr))
 				i.NoErr(err)
 
 				i.Equal(updatedValueStr, v.String())
 
-				v = money.NewValueSubunitFromInt64(initialValueInt64)
+				v = value.NewIntFromInt64(initialValueInt64)
 
 				err = v.UnmarshalJSON([]byte(updatedValueStr))
 				i.NoErr(err)

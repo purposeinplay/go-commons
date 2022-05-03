@@ -9,7 +9,6 @@
 // - currency code, the shorthand for
 // the currency, eg. USD for United States Dollar.
 //
-// It also implements a ValueSubunit type that is used to store,
-// persist and represent large monetary amounts in their
-// lowest denominator form.
+// The package is placed under the ./value package
+// because it imports the Int type from it.
 package money

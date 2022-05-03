@@ -6,13 +6,14 @@ import (
 
 	"github.com/matryer/is"
 	"github.com/pkg/errors"
-	"github.com/purposeinplay/go-commons/money"
+	"github.com/purposeinplay/go-commons/value"
+	"github.com/purposeinplay/go-commons/value/money"
 )
 
 func TestConstructors(t *testing.T) {
 	t.Parallel()
 
-	t.Run("NewAmount", func(t *testing.T) {
+	t.Run("NewAmountFromValueInt", func(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Success", func(t *testing.T) {
@@ -20,8 +21,8 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := money.NewAmount(
-				new(money.ValueSubunit).SetBigInt(big.NewInt(100)),
+			_, err := money.NewAmountFromValueInt(
+				new(value.Int).SetBigInt(big.NewInt(100)),
 				3,
 				t.Name(),
 			)
@@ -33,13 +34,13 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			_, err := money.NewAmount(
+			_, err := money.NewAmountFromValueInt(
 				nil,
 				0,
 				"",
 			)
 
-			i.True(errors.Is(err, money.ErrInvalidValue))
+			i.True(errors.Is(err, value.ErrInvalidValue))
 
 			i.Equal("invalid value: nil value", err.Error())
 		})
@@ -73,7 +74,7 @@ func TestConstructors(t *testing.T) {
 				t.Name(),
 			)
 
-			i.True(errors.Is(err, money.ErrInvalidValue))
+			i.True(errors.Is(err, value.ErrInvalidValue))
 
 			i.Equal("new value from string: "+
 				"invalid value: string \"value\" is not valid",
@@ -91,9 +92,12 @@ func TestConstructors(t *testing.T) {
 				t.Name(),
 			)
 
-			i.True(errors.Is(err, money.ErrInvalidValue))
+			i.True(errors.Is(err, value.ErrInvalidValue))
 
-			i.Equal("invalid value: empty string value", err.Error())
+			i.Equal(
+				"new value from string: invalid value: empty string value",
+				err.Error(),
+			)
 		})
 	})
 
@@ -105,18 +109,18 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			value := new(money.ValueSubunit).SetBigInt(big.NewInt(1234))
+			v := new(value.Int).SetBigInt(big.NewInt(1234))
 
 			a, err := money.NewAmountFromBytesValue(
-				value.Bytes(),
+				v.Bytes(),
 				3,
 				t.Name(),
 			)
 			i.NoErr(err)
 
-			t.Logf("value: %s", a.Value())
+			t.Logf("v: %s", a.Value())
 
-			i.True(a.Value().IsEqual(value) == 0)
+			i.True(a.Value().IsEqual(v) == 0)
 		})
 
 		t.Run("NilValueBytes", func(t *testing.T) {
@@ -129,9 +133,12 @@ func TestConstructors(t *testing.T) {
 				0,
 				"",
 			)
-			i.True(errors.Is(err, money.ErrInvalidValue))
+			i.True(errors.Is(err, value.ErrInvalidValue))
 
-			i.Equal("invalid value: nil bytes", err.Error())
+			i.Equal(
+				"new value from bytes: invalid value: nil bytes",
+				err.Error(),
+			)
 		})
 	})
 
@@ -154,7 +161,7 @@ func TestConstructors(t *testing.T) {
 
 			i.True(
 				a.Value().
-					IsEqual(new(money.ValueSubunit).
+					IsEqual(new(value.Int).
 						SetBigInt(big.NewInt(123456000))) == 0,
 			)
 		})
@@ -173,8 +180,8 @@ func TestConstructors(t *testing.T) {
 				i.True(err == nil)
 			}()
 
-			_ = money.MustNewAmount(money.NewAmount(
-				new(money.ValueSubunit).SetBigInt(big.NewInt(10)),
+			_ = money.MustNewAmount(money.NewAmountFromValueInt(
+				new(value.Int).SetBigInt(big.NewInt(10)),
 				3,
 				t.Name(),
 			))
@@ -190,11 +197,11 @@ func TestConstructors(t *testing.T) {
 
 				i.True(ok)
 
-				i.True(errors.Is(err, money.ErrInvalidValue))
+				i.True(errors.Is(err, value.ErrInvalidValue))
 				i.Equal("invalid value: nil value", err.Error())
 			}()
 
-			_ = money.MustNewAmount(money.NewAmount(
+			_ = money.MustNewAmount(money.NewAmountFromValueInt(
 				nil,
 				0,
 				"",
@@ -208,8 +215,8 @@ func TestAmountMethods(t *testing.T) {
 
 	i := is.New(t)
 
-	a, err := money.NewAmount(
-		new(money.ValueSubunit).SetBigInt(big.NewInt(123456789)),
+	a, err := money.NewAmountFromValueInt(
+		new(value.Int).SetBigInt(big.NewInt(123456789)),
 		3,
 		t.Name())
 	i.NoErr(err)
@@ -241,9 +248,9 @@ func TestComparisons(t *testing.T) {
 	t.Parallel()
 
 	var (
-		one               = money.NewValueSubunitFromInt64(1)
-		two               = money.NewValueSubunitFromInt64(2)
-		nilInternalBigInt = new(money.ValueSubunit)
+		one               = value.NewIntFromInt64(1)
+		two               = value.NewIntFromInt64(2)
+		nilInternalBigInt = new(value.Int)
 	)
 
 	t.Run("GreaterThan", func(t *testing.T) {

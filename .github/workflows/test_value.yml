@@ -1,12 +1,12 @@
+env:
+  PACKAGE: value
+
 on:
   # Trigger the workflow on push request if the files
   # in ./money package were modified
   push:
     paths:
-      - money/**
-
-env:
-  PACKAGE: money
+      - ./${{ env.PACKAGE }}//**
 
 name: test
 jobs:
@@ -24,8 +24,8 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@v2
         with:
-          working-directory: ./value/${{ env.PACKAGE }}/
+          working-directory: ./${{ env.PACKAGE }}/
           args: -c=../.golangci.yml
 
       - name: Run tests
-        run: make test -C ./value/${{ env.PACKAGE }}
+        run: make test -C ./${{ env.PACKAGE }}
