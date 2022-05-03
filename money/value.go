@@ -1,4 +1,4 @@
-package amount
+package money
 
 import (
 	"database/sql"
