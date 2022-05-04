@@ -120,7 +120,7 @@ func TestConstructors(t *testing.T) {
 
 			t.Logf("v: %s", a.Value())
 
-			i.True(a.Value().IsEqual(v) == 0)
+			i.True(a.Value().IsEqual(v) == 1)
 		})
 
 		t.Run("NilValueBytes", func(t *testing.T) {
@@ -162,7 +162,7 @@ func TestConstructors(t *testing.T) {
 			i.True(
 				a.Value().
 					IsEqual(new(value.Int).
-						SetBigInt(big.NewInt(123456000))) == 0,
+						SetBigInt(big.NewInt(123456000))) == 1,
 			)
 		})
 	})
@@ -269,7 +269,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, two.IsGreaterThan(one))
+			i.Equal(1, two.IsGreaterThan(one))
 		})
 
 		t.Run("LesserOrEqual", func(t *testing.T) {
@@ -277,8 +277,8 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, one.IsGreaterThan(two))
-			i.Equal(1, one.IsGreaterThan(one))
+			i.Equal(0, one.IsGreaterThan(two))
+			i.Equal(0, one.IsGreaterThan(one))
 		})
 	})
 
@@ -298,7 +298,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, one.IsLesserThan(two))
+			i.Equal(1, one.IsLesserThan(two))
 		})
 
 		t.Run("GreaterOrEqual", func(t *testing.T) {
@@ -306,8 +306,8 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, two.IsLesserThan(one))
-			i.Equal(1, two.IsLesserThan(two))
+			i.Equal(0, two.IsLesserThan(one))
+			i.Equal(0, two.IsLesserThan(two))
 		})
 	})
 
@@ -327,7 +327,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, one.IsEqual(one))
+			i.Equal(1, one.IsEqual(one))
 		})
 
 		t.Run("NotEqual", func(t *testing.T) {
@@ -335,7 +335,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, two.IsEqual(one))
+			i.Equal(0, two.IsEqual(one))
 		})
 	})
 }

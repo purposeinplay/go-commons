@@ -89,8 +89,8 @@ func (v Int) IsValid() bool {
 
 // IsGreaterThan compares v and x and returns:
 // 		-1 if values can't be compared
-// 		0 if v > x
-// 		1 if v <= x
+// 		0 if false => v <= x
+// 		1 if true  => v > x
 //
 func (v Int) IsGreaterThan(x *Int) int {
 	switch {
@@ -98,17 +98,17 @@ func (v Int) IsGreaterThan(x *Int) int {
 		return -1
 
 	case v.bigInt.Cmp(x.bigInt) == 1:
-		return 0
+		return 1
 
 	default:
-		return 1
+		return 0
 	}
 }
 
 // IsEqual compares v and x and returns:
 // 		-1 if values can't be compared
-// 		0 if v == x
-// 		1 if v != x
+// 		0 if false => v != x
+// 		1 if true => v == x
 //
 func (v Int) IsEqual(x *Int) int {
 	switch {
@@ -116,17 +116,17 @@ func (v Int) IsEqual(x *Int) int {
 		return -1
 
 	case v.bigInt.Cmp(x.bigInt) == 0:
-		return 0
+		return 1
 
 	default:
-		return 1
+		return 0
 	}
 }
 
 // IsLesserThan compares v and x and returns:
 // 		-1 if values can't be compared
-// 		0 if v < x
-// 		1 if v >= x
+// 		0 if false => v >= x
+// 		1 if true  => v < x
 //
 func (v Int) IsLesserThan(x *Int) int {
 	switch {
@@ -134,10 +134,10 @@ func (v Int) IsLesserThan(x *Int) int {
 		return -1
 
 	case v.bigInt.Cmp(x.bigInt) == -1:
-		return 0
+		return 1
 
 	default:
-		return 1
+		return 0
 	}
 }
 
