@@ -1,7 +1,6 @@
 package money_test
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/matryer/is"
@@ -22,7 +21,7 @@ func TestConstructors(t *testing.T) {
 			i := is.New(t)
 
 			_, err := money.NewAmountFromValueInt(
-				new(value.Int).SetBigInt(big.NewInt(100)),
+				value.NewIntFromInt64(100),
 				3,
 				t.Name(),
 			)
@@ -35,7 +34,7 @@ func TestConstructors(t *testing.T) {
 			i := is.New(t)
 
 			_, err := money.NewAmountFromValueInt(
-				nil,
+				value.NilInt,
 				0,
 				"",
 			)
@@ -109,7 +108,7 @@ func TestConstructors(t *testing.T) {
 
 			i := is.New(t)
 
-			v := new(value.Int).SetBigInt(big.NewInt(1234))
+			v := value.NewIntFromInt64(1234)
 
 			a, err := money.NewAmountFromBytesValue(
 				v.Bytes(),
@@ -120,7 +119,7 @@ func TestConstructors(t *testing.T) {
 
 			t.Logf("v: %s", a.Value())
 
-			i.True(a.Value().IsEqual(v) == 1)
+			i.True(a.Value().IsEqual(v))
 		})
 
 		t.Run("NilValueBytes", func(t *testing.T) {
@@ -133,12 +132,7 @@ func TestConstructors(t *testing.T) {
 				0,
 				"",
 			)
-			i.True(errors.Is(err, value.ErrInvalidValue))
-
-			i.Equal(
-				"new value from bytes: invalid value: nil bytes",
-				err.Error(),
-			)
+			i.NoErr(err)
 		})
 	})
 
@@ -161,8 +155,7 @@ func TestConstructors(t *testing.T) {
 
 			i.True(
 				a.Value().
-					IsEqual(new(value.Int).
-						SetBigInt(big.NewInt(123456000))) == 1,
+					IsEqual(value.NewIntFromInt64(123456000)),
 			)
 		})
 	})
@@ -181,7 +174,7 @@ func TestConstructors(t *testing.T) {
 			}()
 
 			_ = money.MustNewAmount(money.NewAmountFromValueInt(
-				new(value.Int).SetBigInt(big.NewInt(10)),
+				value.NewIntFromInt64(10),
 				3,
 				t.Name(),
 			))
@@ -202,7 +195,7 @@ func TestConstructors(t *testing.T) {
 			}()
 
 			_ = money.MustNewAmount(money.NewAmountFromValueInt(
-				nil,
+				value.NilInt,
 				0,
 				"",
 			))
@@ -216,7 +209,7 @@ func TestAmountMethods(t *testing.T) {
 	i := is.New(t)
 
 	a, err := money.NewAmountFromValueInt(
-		new(value.Int).SetBigInt(big.NewInt(123456789)),
+		value.NewIntFromInt64(123456789),
 		3,
 		t.Name())
 	i.NoErr(err)
@@ -248,9 +241,8 @@ func TestComparisons(t *testing.T) {
 	t.Parallel()
 
 	var (
-		one               = value.NewIntFromInt64(1)
-		two               = value.NewIntFromInt64(2)
-		nilInternalBigInt = new(value.Int)
+		one = value.NewIntFromInt64(1)
+		two = value.NewIntFromInt64(2)
 	)
 
 	t.Run("GreaterThan", func(t *testing.T) {
@@ -261,7 +253,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(-1, one.IsGreaterThan(nilInternalBigInt))
+			i.True(!one.IsGreaterThan(value.NilInt))
 		})
 
 		t.Run("True", func(t *testing.T) {
@@ -269,7 +261,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, two.IsGreaterThan(one))
+			i.True(two.IsGreaterThan(one))
 		})
 
 		t.Run("LesserOrEqual", func(t *testing.T) {
@@ -277,8 +269,8 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, one.IsGreaterThan(two))
-			i.Equal(0, one.IsGreaterThan(one))
+			i.True(!one.IsGreaterThan(two))
+			i.True(!one.IsGreaterThan(one))
 		})
 	})
 
@@ -290,7 +282,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(-1, one.IsLesserThan(nilInternalBigInt))
+			i.True(!one.IsLesserThan(value.NilInt))
 		})
 
 		t.Run("True", func(t *testing.T) {
@@ -298,7 +290,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, one.IsLesserThan(two))
+			i.True(one.IsLesserThan(two))
 		})
 
 		t.Run("GreaterOrEqual", func(t *testing.T) {
@@ -306,8 +298,8 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, two.IsLesserThan(one))
-			i.Equal(0, two.IsLesserThan(two))
+			i.True(!two.IsLesserThan(one))
+			i.True(!two.IsLesserThan(two))
 		})
 	})
 
@@ -319,7 +311,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(-1, one.IsEqual(nilInternalBigInt))
+			i.True(!one.IsEqual(value.NilInt))
 		})
 
 		t.Run("True", func(t *testing.T) {
@@ -327,7 +319,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(1, one.IsEqual(one))
+			i.True(one.IsEqual(one))
 		})
 
 		t.Run("NotEqual", func(t *testing.T) {
@@ -335,7 +327,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.Equal(0, two.IsEqual(one))
+			i.True(!two.IsEqual(one))
 		})
 	})
 }

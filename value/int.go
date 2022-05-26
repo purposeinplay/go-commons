@@ -23,128 +23,119 @@ var (
 	_ json.Marshaler   = (*Int)(nil)
 )
 
+// NilInt has the `valid` property set to false.
+var NilInt Int
+
 // Int represents an integer
 //
 // ! This is intended to be used for storage and representation
 // rather than for the big.Int behavior.
 type Int struct {
-	bigInt *big.Int
+	bigInt big.Int
+
+	valid bool
 }
 
 // NewIntFromString returns a new Int with the
 // internal big.Int parsed from a string.
-func NewIntFromString(s string) (*Int, error) {
+func NewIntFromString(s string) (Int, error) {
 	if s == "" {
-		return nil, fmt.Errorf("%w: empty string value", ErrInvalidValue)
+		return NilInt, fmt.Errorf("%w: empty string value", ErrInvalidValue)
 	}
 
 	const base = 10
 
 	b, ok := new(big.Int).SetString(s, base)
 	if !ok {
-		return nil, fmt.Errorf(
+		return NilInt, fmt.Errorf(
 			"%w: string \"%s\" is not valid",
 			ErrInvalidValue,
 			s,
 		)
 	}
 
-	return &Int{
-		bigInt: b,
+	return Int{
+		bigInt: *b,
+		valid:  true,
 	}, nil
 }
 
 // NewIntFromInt64 returns a new Int with the
 // internal big.Int set to v.
-func NewIntFromInt64(v int64) *Int {
-	return &Int{
-		bigInt: big.NewInt(v),
+func NewIntFromInt64(v int64) Int {
+	return Int{
+		bigInt: *big.NewInt(v),
+		valid:  true,
+	}
+}
+
+// NewIntFromUint64 returns a new Int with the
+// internal big.Int set to v.
+func NewIntFromUint64(v uint64) Int {
+	return Int{
+		bigInt: *new(big.Int).SetUint64(v),
+		valid:  true,
 	}
 }
 
 // NewIntFromBytes sets the internal bigInt type
 // to the interpreted value of b.
-func NewIntFromBytes(b []byte) (*Int, error) {
-	if b == nil {
-		return nil, fmt.Errorf("%w: nil bytes", ErrInvalidValue)
+func NewIntFromBytes(b []byte) Int {
+	return Int{
+		bigInt: *new(big.Int).SetBytes(b),
+		valid:  true,
 	}
-
-	return &Int{
-		bigInt: new(big.Int).SetBytes(b),
-	}, nil
 }
 
 // NewIntFromBigInt sets the internal bigInt type to i.
-func NewIntFromBigInt(i *big.Int) *Int {
-	return &Int{
-		bigInt: i,
+func NewIntFromBigInt(i *big.Int) Int {
+	return Int{
+		bigInt: *i,
+		valid:  true,
 	}
 }
 
 // IsValid returns true if the internal big.Int
 // value is not nil.
 func (v Int) IsValid() bool {
-	return v.bigInt != nil
+	return v.valid
 }
 
-// IsGreaterThan compares v and x and returns:
-// 		-1 if values can't be compared
-// 		0 if false => v <= x
-// 		1 if true  => v > x
-//
-func (v Int) IsGreaterThan(x *Int) int {
-	switch {
-	case v.bigInt == nil || x.bigInt == nil:
-		return -1
-
-	case v.bigInt.Cmp(x.bigInt) == 1:
-		return 1
-
-	default:
-		return 0
+// IsGreaterThan compares v and x and returns
+// true if v is greater than x.
+func (v Int) IsGreaterThan(x Int) bool {
+	if v.valid && x.valid {
+		return v.bigInt.Cmp(&x.bigInt) == 1
 	}
+
+	return false
 }
 
-// IsEqual compares v and x and returns:
-// 		-1 if values can't be compared
-// 		0 if false => v != x
-// 		1 if true => v == x
-//
-func (v Int) IsEqual(x *Int) int {
-	switch {
-	case v.bigInt == nil || x.bigInt == nil:
-		return -1
-
-	case v.bigInt.Cmp(x.bigInt) == 0:
-		return 1
-
-	default:
-		return 0
+// IsEqual compares v and x and returns
+// true if v is equal to x.
+func (v Int) IsEqual(x Int) bool {
+	if v.valid && x.valid {
+		return v.bigInt.Cmp(&x.bigInt) == 0
 	}
+
+	return v.valid == x.valid
 }
 
-// IsLesserThan compares v and x and returns:
-// 		-1 if values can't be compared
-// 		0 if false => v >= x
-// 		1 if true  => v < x
-//
-func (v Int) IsLesserThan(x *Int) int {
-	switch {
-	case v.bigInt == nil || x.bigInt == nil:
-		return -1
-
-	case v.bigInt.Cmp(x.bigInt) == -1:
-		return 1
-
-	default:
-		return 0
+// IsLesserThan compares v and x and returns
+// true if v is lesser than x.
+func (v Int) IsLesserThan(x Int) bool {
+	if v.valid && x.valid {
+		return v.bigInt.Cmp(&x.bigInt) == -1
 	}
+
+	return false
 }
 
 // SetBigInt is a wrapper over (*big.Int).Set..
 // It sets the internal big.Int value to i.
 func (v *Int) SetBigInt(i *big.Int) *Int {
-	v.bigInt = new(big.Int).Set(i)
+	v.bigInt = *new(big.Int).Set(i)
+	v.valid = true
 
 	return v
 }
@@ -154,7 +145,8 @@ func (v *Int) SetBigInt(i *big.Int) *Int {
 // It interprets buf as the bytes of a big-endian unsigned
 // integer, sets v.bigInt to that value, and returns v.
 func (v *Int) SetBytes(buf []byte) *Int {
-	v.bigInt = new(big.Int).SetBytes(buf)
+	v.bigInt = *new(big.Int).SetBytes(buf)
+	v.valid = true
 
 	return v
 }
@@ -170,14 +162,15 @@ func (v *Int) SetString(s string) (*Int, bool) {
 		return nil, false
 	}
 
-	v.bigInt = bigInt
+	v.bigInt = *bigInt
+	v.valid = true
 
 	return v, ok
 }
 
 // BigInt returns the internal big.Int type.
 func (v Int) BigInt() *big.Int {
-	return v.bigInt
+	return &v.bigInt
 }
 
 // Int64 it's a wrapper over (*big.Int).Int64.
@@ -185,10 +178,6 @@ func (v Int) BigInt() *big.Int {
 // It returns the int64 representation of x.
 // If x cannot be represented in an int64, the result is undefined.
 func (v Int) Int64() int64 {
-	if v.bigInt == nil {
-		return 0
-	}
-
 	return v.bigInt.Int64()
 }
 
@@ -218,7 +207,8 @@ func (v *Int) UnmarshalText(text []byte) error {
 		return err
 	}
 
-	v.bigInt = i
+	v.bigInt = *i
+	v.valid = true
 
 	return nil
 }
@@ -237,7 +227,8 @@ func (v *Int) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	v.bigInt = i
+	v.bigInt = *i
+	v.valid = true
 
 	return nil
 }
@@ -255,14 +246,13 @@ func (v Int) Value() (driver.Value, error) {
 func (v *Int) Scan(value interface{}) error {
 	switch t := value.(type) {
 	case int64:
-		v.bigInt = new(big.Int).SetInt64(t)
+		v.bigInt = *new(big.Int).SetInt64(t)
+		v.valid = true
 
 	case []uint8:
 		const base = 10
 
-		var ok bool
-
-		v.bigInt, ok = new(big.Int).SetString(string(t), base)
+		bigInt, ok := new(big.Int).SetString(string(t), base)
 		if !ok {
 			return fmt.Errorf(
 				"%w: failed to load value to []uint8: %bigInt",
@@ -271,8 +261,12 @@ func (v *Int) Scan(value interface{}) error {
 			)
 		}
 
+		v.bigInt = *bigInt
+		v.valid = true
+
 	case nil:
-		v.bigInt = nil
+		v.bigInt = big.Int{}
+		v.valid = false
 
 	default:
 		return fmt.Errorf(

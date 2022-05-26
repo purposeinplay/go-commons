@@ -11,12 +11,12 @@ import (
 func TestValue(t *testing.T) {
 	t.Parallel()
 
-	t.Run("NilInternalBigInt", func(t *testing.T) {
+	t.Run("DefaultValue", func(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
 
-		v := new(value.Int)
+		var v value.Int
 
 		vSql, err := v.Value()
 		i.NoErr(err)
@@ -47,53 +47,29 @@ func TestScan(t *testing.T) {
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v != nil)
+			i.True(v.IsValid())
 
 			i.Equal(initialValueStr, v.String())
 
 			err := v.Scan(nil)
 			i.NoErr(err)
 
-			i.Equal("<nil>", v.String())
+			i.Equal("0", v.String())
 		})
 
-		t.Run("NilValue", func(t *testing.T) {
+		t.Run("DefaultValue", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
 
-			var v *value.Int
+			var v value.Int
 
-			i.True(v == nil)
-
-			defer func() {
-				p := recover()
-
-				// panic
-				i.True(p != nil)
-			}()
-
-			_ = v.Scan(nil)
-		})
-
-		t.Run("NilInternalBigInt", func(t *testing.T) {
-			t.Parallel()
-
-			i := is.New(t)
-
-			v := new(value.Int)
-
-			defer func() {
-				p := recover()
-
-				// no panic
-				i.True(p == nil)
-			}()
+			i.True(!v.IsValid())
 
 			err := v.Scan(nil)
 			i.NoErr(err)
 
-			i.Equal("<nil>", v.String())
+			i.True(!v.IsValid())
 		})
 	})
 
@@ -106,7 +82,7 @@ func TestScan(t *testing.T) {
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v != nil)
+			i.True(v.IsValid())
 
 			err := v.Scan([]byte(updatedValueStr))
 			i.NoErr(err)
@@ -120,7 +96,7 @@ func TestScan(t *testing.T) {
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v != nil)
+			i.True(v.IsValid())
 
 			err := v.Scan(updatedValueInt64)
 			i.NoErr(err)
@@ -180,22 +156,22 @@ func TestEncodingText(t *testing.T) {
 		t.Run("Marshal", func(t *testing.T) {
 			t.Parallel()
 
-			t.Run("NilInternalBigInteger", func(t *testing.T) {
+			t.Run("DefaultValue", func(t *testing.T) {
 				t.Parallel()
 
 				i := is.New(t)
 
-				v := new(value.Int)
+				var v value.Int
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
 
-				i.Equal("<nil>", string(txt))
+				i.Equal("0", string(txt))
 
 				json, err := v.MarshalJSON()
 				i.NoErr(err)
 
-				i.Equal("<nil>", string(json))
+				i.Equal("0", string(json))
 			})
 
 			t.Run("ValidInternalBigInteger", func(t *testing.T) {

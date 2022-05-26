@@ -22,7 +22,7 @@ import (
 type Amount struct {
 	// value of the amount, stored as an int, in the smallest
 	// denomination of the currency.
-	value *value.Int
+	value value.Int
 
 	// number of digits after the decimal point.
 	decimals uint
@@ -42,11 +42,11 @@ type GRPCMessageAmountString interface {
 // NewAmountFromValueInt creates a new money amount from a *Int value.
 // The value must be not nil.
 func NewAmountFromValueInt(
-	v *value.Int,
+	v value.Int,
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	if v == nil {
+	if !v.IsValid() {
 		return nil, fmt.Errorf("%w: nil value", value.ErrInvalidValue)
 	}
 
@@ -83,13 +83,7 @@ func NewAmountFromBytesValue(
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	v, err := value.NewIntFromBytes(valueBytes)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"new value from bytes: %w",
-			err,
-		)
-	}
+	v := value.NewIntFromBytes(valueBytes)
 
 	return NewAmountFromValueInt(v, decimals, currencyCode)
 }
@@ -147,7 +141,7 @@ func MustNewAmount(amount *Amount, err error) *Amount {
 }
 
 // Value returns the amount value in the *big.Int form.
-func (a Amount) Value() *value.Int {
+func (a Amount) Value() value.Int {
 	return a.value
 }
 
