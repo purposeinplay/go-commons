@@ -18,10 +18,10 @@ func TestValue(t *testing.T) {
 
 		var v value.Int
 
-		vSql, err := v.Value()
+		vSQL, err := v.Value()
 		i.NoErr(err)
 
-		i.True(vSql == nil)
+		i.True(vSQL == nil)
 	})
 }
 

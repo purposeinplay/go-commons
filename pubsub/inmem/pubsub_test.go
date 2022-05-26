@@ -8,19 +8,27 @@ import (
 )
 
 func TestPubSub_SubscribeSuccess(t *testing.T) {
-	ps := NewPubSub(1)
+	const (
+		eventBufferSize = 1
 
-	subA, err := ps.Subscribe("a")
+		channelA = "a"
+		channelB = "b"
+		channelC = "c"
+	)
+
+	ps := NewPubSub(eventBufferSize)
+
+	subA, err := ps.Subscribe(channelA)
 	require.NoError(t, err)
 
-	subB, err := ps.Subscribe("a", "b")
+	subB, err := ps.Subscribe(channelA, channelB)
 	require.NoError(t, err)
 
-	subC, err := ps.Subscribe("c")
+	subC, err := ps.Subscribe(channelC)
 	require.NoError(t, err)
 
 	// Publish event for first 2 subscriptions.
-	ps.Publish(pubsub.Event{Type: "test"}, "a")
+	_ = ps.Publish(pubsub.Event{Type: "test"}, channelA)
 
 	select {
 	case <-subA.C():
@@ -43,12 +51,17 @@ func TestPubSub_SubscribeSuccess(t *testing.T) {
 }
 
 func TestPubSub_UnsubscribeSuccess(t *testing.T) {
-	ps := NewPubSub(1)
+	const (
+		eventBufferSize = 1
+		channelA        = "a"
+	)
 
-	s, err := ps.Subscribe("a")
+	ps := NewPubSub(eventBufferSize)
+
+	s, err := ps.Subscribe(channelA)
 	require.NoError(t, err)
 
-	err = ps.Publish(pubsub.Event{Type: "test"}, "a")
+	err = ps.Publish(pubsub.Event{Type: "test"}, channelA)
 	require.NoError(t, err)
 
 	err = s.Close()

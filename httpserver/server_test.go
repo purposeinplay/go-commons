@@ -231,7 +231,6 @@ func TestServer(t *testing.T) {
 				// send the shutdown signals
 				err := sendSignals(test.shutdownSignals...)
 				require.NoError(t, err)
-
 			} else {
 				t.Logf("calling server.Shutdown()")
 

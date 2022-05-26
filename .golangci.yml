@@ -65,49 +65,35 @@ linters-settings:
 
   revive:
     ignore-generated-header: true
+    enable-all-rules: true
+    confidence: 0.1
     rules:
-      - name: atomic
-      - name: line-length-limit
-        arguments: [ 80 ]
-      - name: context-keys-type
-      - name: time-naming
-      - name: var-declaration
-      - name: unexported-return
-      - name: errorf
-      - name: context-as-argument
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: increment-decrement
-#      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: superfluous-else
+      - name: nested-structs
+        disabled: true
       - name: function-result-limit
         arguments: [ 3 ]
-      - name: confusing-naming
-      - name: get-return
-      - name: modifies-parameter
-      - name: deep-exit
-      - name: flag-parameter
-      - name: modifies-value-receiver
-      - name: constant-logical-expr
-      - name: bool-literal-in-expr
-      - name: redefines-builtin-id
-      - name: range-val-in-closure
-      - name: range-val-address
-      - name: waitgroup-by-value
-      - name: atomic
-      - name: bare-return
-      - name: unused-receiver
-      - name: string-of-int
-      - name: early-return
-      - name: unconditional-recursion
-      - name: identical-branches
-      - name: defer
-      - name: unexported-naming
-      - name: nested-structs
+      - name: function-length
+        disabled: true
+      - name: banned-characters
+        disabled: true
+      - name: max-public-structs
+        disabled: true
+      - name: line-length-limit
+        arguments: [ 80 ]
+      - name: argument-limit
+        arguments: [ 8 ]
+      - name: cyclomatic
+        disabled: true
+      - name: file-header
+        disabled: true
+      - name: cognitive-complexity
+        disabled: true
+      - name: package-comments
+        disabled: true
+      - name: add-constant
+        disabled: true
+      - name: unhandled-error
+        disabled: true
 
 linters:
   disable-all: true
