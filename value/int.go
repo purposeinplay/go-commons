@@ -24,7 +24,7 @@ var (
 )
 
 // NilInt has the `valid` property set to false.
-var NilInt Int
+var NilInt = Int{valid: false}
 
 // Int represents an integer
 //
@@ -89,6 +89,10 @@ func NewIntFromBytes(b []byte) Int {
 
 // NewIntFromBigInt sets the internal bigInt type to i.
 func NewIntFromBigInt(i *big.Int) Int {
+	if i == nil {
+		return NilInt
+	}
+
 	return Int{
 		bigInt: *i,
 		valid:  true,
@@ -134,6 +138,11 @@ func (v Int) IsLesserThan(x Int) bool {
 // SetBigInt is a wrapper over (*big.Int).Set..
 // It sets the internal big.Int value to i.
 func (v *Int) SetBigInt(i *big.Int) *Int {
+	if i == nil {
+		v.valid = false
+		v.bigInt = big.Int{}
+	}
+
 	v.bigInt = *new(big.Int).Set(i)
 	v.valid = true
 
