@@ -294,7 +294,7 @@ func (v *Int) Scan(value interface{}) error {
 }
 
 // MustNewInt returns Int if err is nil and panics otherwise.
-func MustNewInt(v *Int, err error) *Int {
+func MustNewInt(v Int, err error) Int {
 	if err != nil {
 		panic(err)
 	}
