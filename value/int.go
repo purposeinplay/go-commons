@@ -23,8 +23,13 @@ var (
 	_ json.Marshaler   = (*Int)(nil)
 )
 
-// NilInt has the `valid` property set to false.
-var NilInt = Int{valid: false}
+var (
+	// NilInt has the `valid` property set to false.
+	NilInt = Int{valid: false}
+
+	// ZeroInt has the `valid` property set to true.
+	ZeroInt = Int{valid: true}
+)
 
 // Int represents an integer
 //

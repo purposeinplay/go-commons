@@ -238,3 +238,11 @@ func TestEncodingText(t *testing.T) {
 		})
 	})
 }
+
+func TestZeroInt(t *testing.T) {
+	t.Parallel()
+
+	i := is.New(t)
+
+	i.True(value.NewIntFromInt64(0).IsEqual(value.ZeroInt))
+}
