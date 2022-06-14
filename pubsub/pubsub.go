@@ -46,5 +46,5 @@ type Event struct {
 	Type string `json:"type"`
 
 	// The actual data from the event.
-	Payload interface{} `json:"payload"`
+	Payload []byte `json:"payload"`
 }
