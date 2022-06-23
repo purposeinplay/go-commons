@@ -1,4 +1,4 @@
-package grpc
+package grpcclient
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// NewClientConn creates a client connection to the given addr.
-func NewClientConn(
+// NewConn creates a client connection to the given addr.
+func NewConn(
 	addr string,
-	opt ...OptionClientConn,
+	opt ...OptionConn,
 ) (
 	_ *grpc.ClientConn,
 	_ error,
@@ -31,39 +31,39 @@ func NewClientConn(
 	return conn, nil
 }
 
-type clientConnOptions struct {
+type connOptions struct {
 	dialOptions []grpc.DialOption
 }
 
-func defaultClientConnOptions() *clientConnOptions {
-	return &clientConnOptions{
+func defaultClientConnOptions() *connOptions {
+	return &connOptions{
 		dialOptions: []grpc.DialOption{},
 	}
 }
 
-// OptionClientConn configures how we set up the connection.
-type OptionClientConn interface {
-	apply(*clientConnOptions)
+// OptionConn configures how we set up the connection.
+type OptionConn interface {
+	apply(*connOptions)
 }
 
-type funcClientConnOption struct {
-	f func(*clientConnOptions)
+type funcConnOption struct {
+	f func(*connOptions)
 }
 
-func (f *funcClientConnOption) apply(do *clientConnOptions) {
+func (f *funcConnOption) apply(do *connOptions) {
 	f.f(do)
 }
 
-func newFuncClientConnOption(f func(*clientConnOptions)) *funcClientConnOption {
-	return &funcClientConnOption{
+func newFuncConnOption(f func(*connOptions)) *funcConnOption {
+	return &funcConnOption{
 		f: f,
 	}
 }
 
 // WithNoTLS disables transport security for the client.
 // Replacement for grpc.WithInsecure().
-func WithNoTLS() OptionClientConn {
-	return newFuncClientConnOption(func(o *clientConnOptions) {
+func WithNoTLS() OptionConn {
+	return newFuncConnOption(func(o *connOptions) {
 		o.dialOptions = append(
 			o.dialOptions,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -74,8 +74,8 @@ func WithNoTLS() OptionClientConn {
 // WithContextDialer wraps the grpc.WithContextDialer option.
 func WithContextDialer(
 	d func(context.Context, string) (net.Conn, error),
-) OptionClientConn {
-	return newFuncClientConnOption(func(o *clientConnOptions) {
+) OptionConn {
+	return newFuncConnOption(func(o *connOptions) {
 		o.dialOptions = append(
 			o.dialOptions,
 			grpc.WithContextDialer(d),
