@@ -14,8 +14,8 @@ func NewConn(
 	addr string,
 	opt ...OptionConn,
 ) (
-	_ *grpc.ClientConn,
-	_ error,
+	*grpc.ClientConn,
+	error,
 ) {
 	opts := defaultClientConnOptions()
 

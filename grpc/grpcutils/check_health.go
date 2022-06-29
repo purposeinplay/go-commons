@@ -20,7 +20,7 @@ func CheckHealth(ctx context.Context, cc grpc.ClientConnInterface) error {
 		&grpc_health_v1.HealthCheckRequest{},
 	)
 	if err != nil {
-		return fmt.Errorf("check wallee service: %w", err)
+		return fmt.Errorf("check: %w", err)
 	}
 
 	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
