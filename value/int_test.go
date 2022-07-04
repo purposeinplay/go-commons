@@ -25,6 +25,74 @@ func TestValue(t *testing.T) {
 	})
 }
 
+func TestOperations(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Neg", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		v := value.NewIntFromInt64(10)
+
+		v = v.Neg()
+
+		i.Equal(int64(-10), v.Int64())
+
+		v = value.NewIntFromInt64(-10)
+
+		i.Equal(int64(10), v.Neg().Int64())
+	})
+
+	t.Run("Add", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		i.Equal(
+			int64(15),
+			value.NewIntFromInt64(10).
+				Add(value.NewIntFromInt64(5)).Int64(),
+		)
+	})
+
+	t.Run("Sub", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		i.Equal(
+			int64(5),
+			value.NewIntFromInt64(10).
+				Sub(value.NewIntFromInt64(5)).Int64(),
+		)
+	})
+
+	t.Run("Mul", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		i.Equal(
+			int64(50),
+			value.NewIntFromInt64(10).
+				Mul(value.NewIntFromInt64(5)).Int64(),
+		)
+	})
+
+	t.Run("Div", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		i.Equal(
+			int64(2),
+			value.NewIntFromInt64(10).
+				Div(value.NewIntFromInt64(5)).Int64(),
+		)
+	})
+}
+
 func TestScan(t *testing.T) {
 	t.Parallel()
 

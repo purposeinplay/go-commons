@@ -104,6 +104,46 @@ func NewIntFromBigInt(i *big.Int) Int {
 	}
 }
 
+// Neg sets v.bigInt to -v.bigInt.
+func (v Int) Neg() Int {
+	return Int{
+		bigInt: *v.BigInt().Neg(v.BigInt()),
+		valid:  true,
+	}
+}
+
+// Add returns the sum between v and x.
+func (v Int) Add(x Int) Int {
+	return Int{
+		bigInt: *v.BigInt().Add(v.BigInt(), x.BigInt()),
+		valid:  true,
+	}
+}
+
+// Sub returns the difference between v and x.
+func (v Int) Sub(x Int) Int {
+	return Int{
+		bigInt: *v.BigInt().Sub(v.BigInt(), x.BigInt()),
+		valid:  true,
+	}
+}
+
+// Mul returns the product between v and x.
+func (v Int) Mul(x Int) Int {
+	return Int{
+		bigInt: *v.BigInt().Mul(v.BigInt(), x.BigInt()),
+		valid:  true,
+	}
+}
+
+// Div returns the division between v and x.
+func (v Int) Div(x Int) Int {
+	return Int{
+		bigInt: *v.BigInt().Div(v.BigInt(), x.BigInt()),
+		valid:  true,
+	}
+}
+
 // IsValid returns true if the internal big.Int
 // value is not nil.
 func (v Int) IsValid() bool {
