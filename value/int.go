@@ -149,40 +149,40 @@ func (v Int) IsLesserThan(x Int) bool {
 
 // SetBigInt is a wrapper over (*big.Int).Set..
 // It sets the internal big.Int value to i.
-func (v *Int) SetBigInt(i *big.Int) *Int {
+func (v *Int) SetBigInt(i *big.Int) Int {
 	if i == nil {
 		v.bigInt = big.Int{}
 	}
 
 	v.bigInt = *new(big.Int).Set(i)
 
-	return v
+	return *v
 }
 
 // SetBytes is a wrapper over (*big.Int).SetBytes.
 //
 // It interprets buf as the bytes of a big-endian unsigned
 // integer, sets v.bigInt to that value, and returns v.
-func (v *Int) SetBytes(buf []byte) *Int {
+func (v *Int) SetBytes(buf []byte) Int {
 	v.bigInt = *new(big.Int).SetBytes(buf)
 
-	return v
+	return *v
 }
 
 // SetString is a wrapper over (*big.Int).SetString.
 // It interprets the s and returns a boolean indicating
 // the operation success.
-func (v *Int) SetString(s string) (*Int, bool) {
+func (v *Int) SetString(s string) (Int, bool) {
 	const base = 10
 
 	bigInt, ok := new(big.Int).SetString(s, base)
 	if !ok {
-		return nil, false
+		return ZeroInt, false
 	}
 
 	v.bigInt = *bigInt
 
-	return v, ok
+	return *v, ok
 }
 
 // BigInt returns the internal big.Int type.
