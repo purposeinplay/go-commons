@@ -177,7 +177,7 @@ func TestNullScan(t *testing.T) {
 
 			i := is.New(t)
 
-			v := new(value.Int)
+			v := new(value.NullInt)
 			i.True(v != nil)
 
 			err := v.Scan(updatedValueInt64)
@@ -191,7 +191,7 @@ func TestNullScan(t *testing.T) {
 
 			i := is.New(t)
 
-			var v *value.Int
+			var v *value.NullInt
 
 			defer func() {
 				p := recover()
@@ -205,6 +205,7 @@ func TestNullScan(t *testing.T) {
 	})
 }
 
+// nolint: dupl // allow duplicate code
 func TestNullEncodingText(t *testing.T) {
 	t.Parallel()
 
@@ -229,7 +230,7 @@ func TestNullEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				var v value.Int
+				var v value.NullInt
 
 				txt, err := v.MarshalText()
 				i.NoErr(err)
@@ -269,14 +270,14 @@ func TestNullEncodingText(t *testing.T) {
 
 				i := is.New(t)
 
-				v := new(value.Int)
+				v := new(value.NullInt)
 
 				err := v.UnmarshalText([]byte(initialValueStr))
 				i.NoErr(err)
 
 				i.Equal(initialValueStr, v.String())
 
-				v = new(value.Int)
+				v = new(value.NullInt)
 
 				err = v.UnmarshalJSON([]byte(initialValueStr))
 				i.NoErr(err)

@@ -289,8 +289,6 @@ func (v *NullInt) Scan(value interface{}) error {
 		v.valid = true
 
 	case []uint8:
-		const base = 10
-
 		i, err := NewIntFromString(string(t))
 		if err != nil {
 			return err

@@ -214,6 +214,7 @@ func TestScan(t *testing.T) {
 	})
 }
 
+// nolint: dupl // allow duplicate code in tests
 func TestEncodingText(t *testing.T) {
 	t.Parallel()
 
