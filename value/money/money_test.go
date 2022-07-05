@@ -28,20 +28,17 @@ func TestConstructors(t *testing.T) {
 			i.NoErr(err)
 		})
 
-		t.Run("NilValue", func(t *testing.T) {
+		t.Run("ZeroValue", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
 
 			_, err := money.NewAmountFromValueInt(
-				value.NilInt,
+				value.ZeroInt,
 				0,
 				"",
 			)
-
-			i.True(errors.Is(err, value.ErrInvalidValue))
-
-			i.Equal("invalid value: nil value", err.Error())
+			i.NoErr(err)
 		})
 	})
 
@@ -180,7 +177,7 @@ func TestConstructors(t *testing.T) {
 			))
 		})
 
-		t.Run("InvalidValue", func(t *testing.T) {
+		t.Run("ZeroValue", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
@@ -188,14 +185,12 @@ func TestConstructors(t *testing.T) {
 			defer func() {
 				err, ok := recover().(error)
 
-				i.True(ok)
-
-				i.True(errors.Is(err, value.ErrInvalidValue))
-				i.Equal("invalid value: nil value", err.Error())
+				i.True(!ok)
+				i.True(err == nil)
 			}()
 
 			_ = money.MustNewAmount(money.NewAmountFromValueInt(
-				value.NilInt,
+				value.ZeroInt,
 				0,
 				"",
 			))
@@ -248,12 +243,12 @@ func TestComparisons(t *testing.T) {
 	t.Run("GreaterThan", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("Incomparable", func(t *testing.T) {
+		t.Run("ZeroInt", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
 
-			i.True(!one.IsGreaterThan(value.NilInt))
+			i.True(one.IsGreaterThan(value.ZeroInt))
 		})
 
 		t.Run("True", func(t *testing.T) {
@@ -282,7 +277,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.True(!one.IsLesserThan(value.NilInt))
+			i.True(!one.IsLesserThan(value.ZeroInt))
 		})
 
 		t.Run("True", func(t *testing.T) {
@@ -311,7 +306,7 @@ func TestComparisons(t *testing.T) {
 
 			i := is.New(t)
 
-			i.True(!one.IsEqual(value.NilInt))
+			i.True(!one.IsEqual(value.ZeroInt))
 		})
 
 		t.Run("True", func(t *testing.T) {

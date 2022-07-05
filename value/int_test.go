@@ -21,7 +21,7 @@ func TestValue(t *testing.T) {
 		vSQL, err := v.Value()
 		i.NoErr(err)
 
-		i.True(vSQL == nil)
+		i.Equal("0", vSQL)
 	})
 }
 
@@ -54,6 +54,10 @@ func TestOperations(t *testing.T) {
 			value.NewIntFromInt64(10).
 				Add(value.NewIntFromInt64(5)).Int64(),
 		)
+
+		v := value.NewIntFromInt64(10)
+
+		i.Equal(int64(20), (&v).Add(value.NewIntFromInt64(10)).Int64())
 	})
 
 	t.Run("Sub", func(t *testing.T) {
@@ -115,7 +119,8 @@ func TestScan(t *testing.T) {
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v.IsValid())
+			i.True(v.IsEqual(
+				value.MustNewInt(value.NewIntFromString("100"))))
 
 			i.Equal(initialValueStr, v.String())
 
@@ -132,12 +137,12 @@ func TestScan(t *testing.T) {
 
 			var v value.Int
 
-			i.True(!v.IsValid())
+			i.True(v.IsEqual(value.ZeroInt))
 
 			err := v.Scan(nil)
 			i.NoErr(err)
 
-			i.True(!v.IsValid())
+			i.True(v.IsEqual(value.ZeroInt))
 		})
 	})
 
@@ -150,7 +155,9 @@ func TestScan(t *testing.T) {
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v.IsValid())
+
+			i.True(v.IsEqual(
+				value.MustNewInt(value.NewIntFromString("100"))))
 
 			err := v.Scan([]byte(updatedValueStr))
 			i.NoErr(err)
@@ -158,13 +165,15 @@ func TestScan(t *testing.T) {
 			i.Equal(updatedValueStr, v.String())
 		})
 
-		t.Run("NotNilInt64Value", func(t *testing.T) {
+		t.Run("NotZeroInt64Value", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
 
 			v := value.NewIntFromInt64(initialValueInt64)
-			i.True(v.IsValid())
+
+			i.True(v.IsEqual(
+				value.MustNewInt(value.NewIntFromString("100"))))
 
 			err := v.Scan(updatedValueInt64)
 			i.NoErr(err)
@@ -172,7 +181,7 @@ func TestScan(t *testing.T) {
 			i.Equal(updatedValueStr, v.String())
 		})
 
-		t.Run("NilInternalBigInt_NotNilInt64Value", func(t *testing.T) {
+		t.Run("ZeroInternalBigInt_NotZeroInt64Value", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
@@ -186,7 +195,7 @@ func TestScan(t *testing.T) {
 			i.Equal(updatedValueStr, v.String())
 		})
 
-		t.Run("NilValue_NotNilInt64Value", func(t *testing.T) {
+		t.Run("NilValue_NotZeroInt64Value", func(t *testing.T) {
 			t.Parallel()
 
 			i := is.New(t)
@@ -264,7 +273,7 @@ func TestEncodingText(t *testing.T) {
 		t.Run("Unmarshal", func(t *testing.T) {
 			t.Parallel()
 
-			t.Run("NilInternalBigInteger", func(t *testing.T) {
+			t.Run("ZeroInternalBigInteger", func(t *testing.T) {
 				t.Parallel()
 
 				i := is.New(t)

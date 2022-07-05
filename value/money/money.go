@@ -46,10 +46,6 @@ func NewAmountFromValueInt(
 	decimals uint,
 	currencyCode string,
 ) (*Amount, error) {
-	if !v.IsValid() {
-		return nil, fmt.Errorf("%w: nil value", value.ErrInvalidValue)
-	}
-
 	return &Amount{
 		value:        v,
 		decimals:     decimals,
