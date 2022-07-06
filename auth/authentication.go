@@ -29,9 +29,8 @@ func NewAuthInterceptor(logger *zap.Logger, jwtManager *JWTManager, authRoles ma
 	}
 }
 
-// Unary returns a server interceptor function to authenticate and authorize unary RPC
+// Unary returns a server interceptor function to authenticate and authorize unary RPC.
 func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
-
 	return func(
 		ctx context.Context,
 		req interface{},
@@ -64,14 +63,12 @@ func (i *AuthInterceptor) authorize(ctx context.Context, method string) (context
 	}
 
 	signature, err := ExtractTokenFromMetadata(md)
-
 	if err != nil {
 		i.logger.Error("ExtractTokenFromMetadata error", zap.Error(err))
 		return ctx, status.Errorf(codes.Unauthenticated, "auth token is invalid")
 	}
 
 	claims, err := i.jwtManager.Verify(signature)
-
 	if err != nil {
 		return ctx, status.Errorf(codes.Unauthenticated, "auth token is invalid")
 	}

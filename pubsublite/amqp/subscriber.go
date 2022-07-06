@@ -103,7 +103,7 @@ func (s *Subscriber) Subscribe(ctx context.Context, topic string) (<-chan *pubsu
 	return out, nil
 }
 
-func (s *Subscriber) setupQueue(routingKey string, queueName string, exchangeName string) error {
+func (s *Subscriber) setupQueue(routingKey, queueName, exchangeName string) error {
 	_, err := s.amqpChannel.QueueDeclare(
 		queueName,
 		s.cfg.queue.durable,

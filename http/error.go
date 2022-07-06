@@ -20,7 +20,7 @@ var oauthErrorMap = map[int]string{
 	http.StatusServiceUnavailable:  "temporarily_unavailable",
 }
 
-// OAuthError is the JSON handler for OAuth2 error responses
+// OAuthError is the JSON handler for OAuth2 error responses.
 type OAuthError struct {
 	Err             string `json:"error"`
 	Description     string `json:"error_description,omitempty"`
@@ -35,19 +35,19 @@ func (e *OAuthError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Err, e.Description)
 }
 
-// WithInternalError adds internal error information to the error
+// WithInternalError adds internal error information to the error.
 func (e *OAuthError) WithInternalError(err error) *OAuthError {
 	e.InternalError = err
 	return e
 }
 
-// WithInternalMessage adds internal message information to the error
+// WithInternalMessage adds internal message information to the error.
 func (e *OAuthError) WithInternalMessage(fmtString string, args ...interface{}) *OAuthError {
 	e.InternalMessage = fmt.Sprintf(fmtString, args...)
 	return e
 }
 
-// Cause returns the root cause error
+// Cause returns the root cause error.
 func (e *OAuthError) Cause() error {
 	if e.InternalError != nil {
 		return e.InternalError
@@ -55,7 +55,7 @@ func (e *OAuthError) Cause() error {
 	return e
 }
 
-func OauthError(err string, description string) *OAuthError {
+func OauthError(err, description string) *OAuthError {
 	return &OAuthError{Err: err, Description: description}
 }
 
@@ -99,7 +99,7 @@ func (e *HTTPError) Error() string {
 	return fmt.Sprintf("%d: %s", e.Code, e.Message)
 }
 
-// Cause returns the root cause error
+// Cause returns the root cause error.
 func (e *HTTPError) Cause() error {
 	if e.InternalError != nil {
 		return e.InternalError
@@ -107,13 +107,13 @@ func (e *HTTPError) Cause() error {
 	return e
 }
 
-// WithInternalError adds internal error information to the error
+// WithInternalError adds internal error information to the error.
 func (e *HTTPError) WithInternalError(err error) *HTTPError {
 	e.InternalError = err
 	return e
 }
 
-// WithInternalMessage adds internal message information to the error
+// WithInternalMessage adds internal message information to the error.
 func (e *HTTPError) WithInternalMessage(fmtString string, args ...interface{}) *HTTPError {
 	e.InternalMessage = fmt.Sprintf(fmtString, args...)
 	return e
