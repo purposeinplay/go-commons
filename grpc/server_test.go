@@ -11,6 +11,7 @@ import (
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -60,7 +61,7 @@ func TestBufnet(t *testing.T) {
 	_, err = grpc.Dial(
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	i.NoErr(err)
 }

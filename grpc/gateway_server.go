@@ -14,6 +14,7 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var _ server = (*gatewayServer)(nil)
@@ -61,7 +62,7 @@ func newGatewayServerWithListener(
 
 	if registerGateway != nil {
 		dialOptions := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		}
 

@@ -187,9 +187,9 @@ func (v *Int) SetString(s string) (Int, bool) {
 
 // BigInt returns the internal big.Int type.
 func (v Int) BigInt() *big.Int {
-	i := v.bigInt
+	i := new(big.Int).Set(&v.bigInt)
 
-	return &i
+	return i
 }
 
 // Int64 it's a wrapper over (*big.Int).Int64.
