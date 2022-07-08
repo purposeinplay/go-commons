@@ -77,11 +77,14 @@ func TestOperations(t *testing.T) {
 
 		i := is.New(t)
 
+		v := value.NewIntFromInt64(10)
+
 		i.Equal(
 			int64(50),
-			value.NewIntFromInt64(10).
-				Mul(value.NewIntFromInt64(5)).Int64(),
+			v.Mul(value.NewIntFromInt64(5)).Int64(),
 		)
+
+		i.Equal("10", v.String())
 	})
 
 	t.Run("Div", func(t *testing.T) {
