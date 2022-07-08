@@ -267,7 +267,7 @@ func (v *Int) Scan(value interface{}) error {
 		bigInt, ok := new(big.Int).SetString(t, base)
 		if !ok {
 			return fmt.Errorf(
-				"%w: failed to load value to []uint8: %bigInt",
+				"%w: failed to set string value %v",
 				ErrInvalidValue,
 				value,
 			)
@@ -281,7 +281,7 @@ func (v *Int) Scan(value interface{}) error {
 		bigInt, ok := new(big.Int).SetString(string(t), base)
 		if !ok {
 			return fmt.Errorf(
-				"%w: failed to load value to []uint8: %bigInt",
+				"%w: failed to set []uint8 value %v",
 				ErrInvalidValue,
 				value,
 			)
