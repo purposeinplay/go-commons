@@ -184,6 +184,22 @@ func TestScan(t *testing.T) {
 			i.Equal(updatedValueStr, v.String())
 		})
 
+		t.Run("String", func(t *testing.T) {
+			t.Parallel()
+
+			i := is.New(t)
+
+			v := value.NewIntFromInt64(initialValueInt64)
+
+			i.True(v.IsEqual(
+				value.MustNewInt(value.NewIntFromString("100"))))
+
+			err := v.Scan(updatedValueStr)
+			i.NoErr(err)
+
+			i.Equal(updatedValueStr, v.String())
+		})
+
 		t.Run("ZeroInternalBigInt_NotZeroInt64Value", func(t *testing.T) {
 			t.Parallel()
 

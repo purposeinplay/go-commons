@@ -261,6 +261,20 @@ func (v *Int) Scan(value interface{}) error {
 	case int64:
 		v.bigInt = *new(big.Int).SetInt64(t)
 
+	case string:
+		const base = 10
+
+		bigInt, ok := new(big.Int).SetString(t, base)
+		if !ok {
+			return fmt.Errorf(
+				"%w: failed to load value to []uint8: %bigInt",
+				ErrInvalidValue,
+				value,
+			)
+		}
+
+		v.bigInt = *bigInt
+
 	case []uint8:
 		const base = 10
 
