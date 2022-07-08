@@ -2,6 +2,7 @@ package amqpw
 
 import (
 	"fmt"
+
 	"github.com/cenkalti/backoff/v4"
 	"github.com/streadway/amqp"
 )
@@ -21,7 +22,6 @@ func Dial(cfg *Config) (*amqp.Connection, error) {
 	}
 
 	err := backoff.Retry(operation, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 5))
-
 	if err != nil {
 		return nil, err
 	}

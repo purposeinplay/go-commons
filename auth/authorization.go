@@ -40,7 +40,7 @@ func NewAuthorizerInterceptor(logger *zap.Logger, jwtManager *JWTManager, config
 	}
 }
 
-// Unary returns a server interceptor function to authenticate and authorize unary RPC
+// Unary returns a server interceptor function to authenticate and authorize unary RPC.
 func (i *AuthorizerInterceptor) Unary() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -48,7 +48,6 @@ func (i *AuthorizerInterceptor) Unary() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-
 		authorize, err := i.authorize(ctx, info.FullMethod)
 		if err != nil {
 			return nil, err
@@ -78,7 +77,6 @@ func (i *AuthorizerInterceptor) authorize(ctx context.Context, method string) (c
 	_, err := p.ParseWithClaims(signature[0], &claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(i.config.Secret), nil
 	})
-
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "you are not authorized to access this resource")
 	}

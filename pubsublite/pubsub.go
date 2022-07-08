@@ -27,7 +27,7 @@ type Subscriber interface {
 }
 
 // Subscriber is the interface that wraps the Subscribe method.
-//type Subscriber interface {
+// type Subscriber interface {
 //	// Subscribe creates a new subscription for the events published
 //	// in the specified channels.
 //	Subscribe(f func(Payload) error) error

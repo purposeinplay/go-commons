@@ -74,7 +74,7 @@ func (p *Publisher) Publish(topic string, event *pubsublite.Event) error {
 
 func (p *Publisher) Close() error {
 	p.connection.Close()
-	//if err := p.amqpChannel.Close(); err != nil {
+	// if err := p.amqpChannel.Close(); err != nil {
 	//	return err
 	//}
 

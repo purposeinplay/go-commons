@@ -1,12 +1,13 @@
 package router_test
 
 import (
-	commonhttp "github.com/purposeinplay/go-commons/http"
-	"github.com/purposeinplay/go-commons/http/router"
-	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	commonhttp "github.com/purposeinplay/go-commons/http"
+	"github.com/purposeinplay/go-commons/http/router"
+	"go.uber.org/zap"
 )
 
 func TestHandlerErrorFunc(t *testing.T) {

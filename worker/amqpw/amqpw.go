@@ -3,15 +3,16 @@ package amqpw
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/purposeinplay/go-commons/rand"
 	"time"
+
+	"github.com/purposeinplay/go-commons/rand"
 
 	"github.com/purposeinplay/go-commons/logs"
 	"github.com/purposeinplay/go-commons/worker"
 	"go.uber.org/zap"
 
-	"errors"
 	"github.com/streadway/amqp"
 )
 
@@ -39,7 +40,7 @@ var ErrInvalidConnection = errors.New("invalid connection")
 // Ensures Adapter implements the Worker interface.
 var _ worker.Worker = &Adapter{}
 
-// New creates a new AMQP adapter
+// New creates a new AMQP adapter.
 func New(opts Options) (*Adapter, error) {
 	ctx := context.Background()
 
@@ -82,10 +83,11 @@ type Adapter struct {
 // Start connects to the broker.
 func (q *Adapter) Start(ctx context.Context) error {
 	q.ctx = ctx
+
 	go func() {
 		select {
 		case <-ctx.Done():
-			q.Stop()
+			_ = q.Stop()
 		}
 	}()
 
@@ -126,12 +128,15 @@ func (q *Adapter) Start(ctx context.Context) error {
 // Stop closes the connection to the broker.
 func (q *Adapter) Stop() error {
 	q.Logger.Info("stopping AMQP worker")
+
 	if q.Channel == nil {
 		return nil
 	}
+
 	if err := q.Channel.Close(); err != nil {
 		return err
 	}
+
 	return q.Connection.Close()
 }
 
@@ -140,17 +145,16 @@ func (q Adapter) Perform(job worker.Job) error {
 	q.Logger.Info("enqueuing job", zap.Any("job", job))
 
 	err := q.Channel.Publish(
-		q.exchange, // exchange
-		job.Handler,  // routing key
+		q.exchange,  // exchange
+		job.Handler, // routing key
 		true,        // mandatory
-		false,        // immediate
+		false,       // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
 			Body:         []byte(job.Args.String()),
 		},
 	)
-
 	if err != nil {
 		q.Logger.Error("error enqueuing job", zap.Any("job", job))
 
@@ -160,7 +164,7 @@ func (q Adapter) Perform(job worker.Job) error {
 	return nil
 }
 
-// Register consumes a task, using the declared worker.Handler
+// Register consumes a task, using the declared worker.Handler.
 func (q *Adapter) Register(name string, h worker.Handler) error {
 	q.Logger.Info("register job", zap.Any("job", name))
 
@@ -172,7 +176,6 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 		false,
 		amqp.Table{},
 	)
-
 	if err != nil {
 		return fmt.Errorf("unable to create queue: %w", err)
 	}
@@ -186,7 +189,6 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 		false, // no-wait
 		nil,   // args
 	)
-
 	if err != nil {
 		return fmt.Errorf("could not consume queue: %w", err)
 	}
@@ -199,19 +201,23 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 			q.Logger.Info("received job", zap.Any("job", name), zap.Any("body", d.Body))
 
 			args := worker.Args{}
+
 			err := json.Unmarshal(d.Body, &args)
 			if err != nil {
 				q.Logger.Info("unable to retrieve job", zap.Any("job", name))
 				continue
 			}
+
 			if err := h(args); err != nil {
 				q.Logger.Info("unable to process job", zap.Any("job", name))
 				continue
 			}
+
 			if err := d.Ack(false); err != nil {
 				q.Logger.Info("unable to ack job", zap.Any("job", name))
 			}
 		}
+
 		for i := 0; i < cap(sem); i++ {
 			sem <- true
 		}
@@ -240,7 +246,6 @@ func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
 			"x-dead-letter-routing-key": job.Handler,
 		},
 	)
-
 	if err != nil {
 		q.Logger.Info("error creating delayed temp queue for job %w", zap.Any("job", job.Handler))
 		return err
@@ -267,5 +272,5 @@ func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
 
 // PerformAt performs a job at the given time.
 func (q Adapter) PerformAt(job worker.Job, t time.Time) error {
-	return q.PerformIn(job, t.Sub(time.Now()))
+	return q.PerformIn(job, time.Until(t))
 }

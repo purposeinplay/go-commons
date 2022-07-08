@@ -8,17 +8,17 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-// JWTManager is a JSON web token manager
+// JWTManager is a JSON web token manager.
 type JWTManager struct {
 	secretKey     string
 	tokenDuration time.Duration
 }
 
-// UserClaims is a custom JWT claims that contains some user's information
+// UserClaims is a custom JWT claims that contains some user's information.
 type UserClaims struct {
 	jwt.StandardClaims
-	Role string `json:"role,omitempty"`
-	Nid string `json:"nid,omitempty"`
+	Role     string `json:"role,omitempty"`
+	Nid      string `json:"nid,omitempty"`
 	Username string `json:"username,omitempty"`
 }
 
@@ -35,12 +35,12 @@ func GetUserFromContext(ctx context.Context) (*UserClaims, bool) {
 	return user, ok
 }
 
-// NewJWTManager returns a new JWT manager
+// NewJWTManager returns a new JWT manager.
 func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
 	return &JWTManager{secretKey, tokenDuration}
 }
 
-// Verify verifies the access token string and return a user claim if the token is valid
+// Verify verifies the access token string and return a user claim if the token is valid.
 func (m *JWTManager) Verify(accessToken string) (*UserClaims, error) {
 	token, err := jwt.ParseWithClaims(
 		accessToken,
@@ -54,7 +54,6 @@ func (m *JWTManager) Verify(accessToken string) (*UserClaims, error) {
 			return []byte(m.secretKey), nil
 		},
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
