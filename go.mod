@@ -8,7 +8,6 @@ require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.13
 	github.com/DATA-DOG/go-txdb v0.1.5
 	github.com/aws/aws-sdk-go v1.44.48 // indirect
-	github.com/bufbuild/buf v0.37.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
