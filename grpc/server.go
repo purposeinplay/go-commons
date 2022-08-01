@@ -1,14 +1,19 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"path"
+	"reflect"
 	"sync"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/oklog/run"
+	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -86,8 +91,7 @@ type Server struct {
 	grpcServerWithListener        *serverWithListener
 	grpcGatewayServerWithListener *serverWithListener
 
-	debug  bool
-	logger debugLogger
+	debugLogger debugLogger
 
 	mu     sync.Mutex
 	closed bool
@@ -106,13 +110,11 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 
 	aggregatorServer := new(Server)
 
-	err := setDebugLogger(
+	opts.unaryServerInterceptors = setupDebugLogging(
 		opts.debugLogger,
 		aggregatorServer,
+		opts.unaryServerInterceptors,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("set debugLogger: %w", err)
-	}
 
 	grpcServerWithListener, err := newGRPCServerWithListener(
 		opts.grpcListener,
@@ -150,15 +152,52 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 	return aggregatorServer, nil
 }
 
-func setDebugLogger(debugLogger *zap.Logger, server *Server) error {
+func setupDebugLogging(
+	debugLogger *zap.Logger,
+	server *Server,
+	interceptors []grpc.UnaryServerInterceptor,
+) []grpc.UnaryServerInterceptor {
 	if debugLogger == nil {
-		return nil
+		return interceptors
 	}
 
-	server.debug = true
-	server.logger = debugLogger
+	server.debugLogger = debugLogger
 
-	return nil
+	return prependServerOption(
+		func(
+			ctx context.Context,
+			req interface{},
+			info *grpc.UnaryServerInfo,
+			handler grpc.UnaryHandler,
+		) (resp interface{}, err error) {
+			requestID, err := grpcutils.GetRequestIDFromCtx(ctx)
+			if err != nil {
+				requestID = "00000000-0000-0000-0000-000000000000"
+			}
+
+			start := time.Now()
+
+			method := path.Base(info.FullMethod)
+
+			server.logDebug(
+				"request started",
+				zap.String("trace_id", requestID),
+				zap.String("method", method),
+			)
+
+			defer func() {
+				server.logDebug(
+					"request completed",
+					zap.String("trace_id", requestID),
+					zap.String("method", method),
+					zap.Duration("duration", time.Since(start)),
+				)
+			}()
+
+			return handler(ctx, req)
+		},
+		interceptors,
+	)
 }
 
 // ListenAndServe starts accepting incoming connections
@@ -267,9 +306,13 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) logDebug(msg string, fields ...zap.Field) {
-	if !s.debug {
+	if !s.debug() {
 		return
 	}
 
-	s.logger.Debug(msg, fields...)
+	s.debugLogger.Debug(msg, fields...)
+}
+
+func (s *Server) debug() bool {
+	return s.debugLogger != nil && !reflect.ValueOf(s.debugLogger).IsNil()
 }
