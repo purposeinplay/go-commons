@@ -22,13 +22,13 @@ func GetRequestIDFromCtx(ctx context.Context) (string, error) {
 		return "", ErrMetadataNotFound
 	}
 
-	token := md.Get(requestIDHeader)
+	requestID := md.Get(requestIDHeader)
 
-	if len(token) != 1 {
+	if len(requestID) != 1 {
 		return "", ErrRequestIDNotPresent
 	}
 
-	return token[0], nil
+	return requestID[0], nil
 }
 
 // AppendRequestIDCtx appends a random request id to the ctx.
@@ -39,5 +39,25 @@ func AppendRequestIDCtx(
 	return metadata.AppendToOutgoingContext(
 		ctx,
 		requestIDHeader, requestID,
+	)
+}
+
+// SetOutgoingRequestIDFromIncoming sets the outgoing request id to the
+// value present in the incoming key.
+func SetOutgoingRequestIDFromIncoming(ctx context.Context) context.Context {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ctx
+	}
+
+	requestID := md.Get(requestIDHeader)
+
+	if len(requestID) != 1 {
+		return ctx
+	}
+
+	return metadata.AppendToOutgoingContext(
+		ctx,
+		requestIDHeader, requestID[0],
 	)
 }

@@ -45,4 +45,16 @@ func TestRequestID(t *testing.T) {
 	i.NoErr(err)
 
 	i.Equal("test", id)
+
+	ctx = metadata.NewIncomingContext(
+		ctx,
+		metadata.New(map[string]string{"x-request-id": "hello"}),
+	)
+
+	ctx = grpcutils.SetOutgoingRequestIDFromIncoming(ctx)
+
+	id, err = grpcutils.GetRequestIDFromCtx(ctx)
+	i.NoErr(err)
+
+	i.Equal("hello", id)
 }
