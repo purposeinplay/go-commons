@@ -26,13 +26,15 @@ func TestRequestID(t *testing.T) {
 	_, err = grpcutils.GetRequestIDFromCtx(ctx)
 	errors.Is(err, grpcutils.ErrRequestIDNotPresent)
 
-	ctx = grpcutils.AppendRequestIDCtx(ctx)
+	ctx = grpcutils.AppendRequestIDCtx(ctx, "id")
 
 	md, ok := metadata.FromOutgoingContext(ctx)
 	i.True(ok)
 
 	token := md.Get("x-request-id")
 	i.True(len(token) == 1)
+
+	i.Equal("id", token[0])
 
 	ctx = metadata.NewIncomingContext(
 		ctx,
