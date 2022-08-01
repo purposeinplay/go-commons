@@ -1,15 +1,20 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"strconv"
+	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -37,6 +42,7 @@ func newGRPCServerWithListener(
 	defaultGRPCServerOptions []grpc.ServerOption,
 	unaryServerInterceptors []grpc.UnaryServerInterceptor,
 	registerServer registerServerFunc,
+	debugLogger debugLogger,
 ) (
 	*serverWithListener,
 	error,
@@ -49,6 +55,15 @@ func newGRPCServerWithListener(
 	grpcServerOptions, err := setGRPCTracing(tracing, defaultGRPCServerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("set grpc tracing tracing: %w", err)
+	}
+
+	if !isDebugLoggerNil(debugLogger) {
+		// nolint: revive // complains that this lines modifies
+		// an input parameter.
+		unaryServerInterceptors = prependDebugInterceptor(
+			unaryServerInterceptors,
+			debugLogger,
+		)
 	}
 
 	if len(unaryServerInterceptors) > 0 {
@@ -123,4 +138,49 @@ func newGRPCListener(
 	}
 
 	return listener, nil
+}
+
+func prependDebugInterceptor(
+	interceptors []grpc.UnaryServerInterceptor,
+	logger debugLogger,
+) []grpc.UnaryServerInterceptor {
+	return prependServerOption(
+		func(
+			ctx context.Context,
+			req interface{},
+			info *grpc.UnaryServerInfo,
+			handler grpc.UnaryHandler,
+		) (resp interface{}, err error) {
+			method := path.Base(info.FullMethod)
+
+			if method == "Check" || method == "Watch" {
+				return handler(ctx, req)
+			}
+
+			requestID, err := grpcutils.GetRequestIDFromCtx(ctx)
+			if err != nil {
+				requestID = "00000000-0000-0000-0000-000000000000"
+			}
+
+			start := time.Now()
+
+			logger.Debug(
+				"request started",
+				zap.String("trace_id", requestID),
+				zap.String("method", method),
+			)
+
+			defer func() {
+				logger.Debug(
+					"request completed",
+					zap.String("trace_id", requestID),
+					zap.String("method", method),
+					zap.Duration("duration", time.Since(start)),
+				)
+			}()
+
+			return handler(ctx, req)
+		},
+		interceptors,
+	)
 }
