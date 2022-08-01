@@ -8,6 +8,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pkg/errors"
 	"github.com/rs/cors"
@@ -43,6 +44,7 @@ func newGatewayServerWithListener(
 	registerGateway registerGatewayFunc,
 	address string,
 	middlewares chi.Middlewares,
+	debugStandardLibraryEndpoints bool,
 ) (
 	*serverWithListener,
 	error,
@@ -94,7 +96,12 @@ func newGatewayServerWithListener(
 			w.WriteHeader(http.StatusOK)
 		},
 	)
+
 	r.Mount("/", handler)
+
+	if debugStandardLibraryEndpoints {
+		r.Mount("/debug/", middleware.Profiler())
+	}
 
 	return &serverWithListener{
 			server: &gatewayServer{

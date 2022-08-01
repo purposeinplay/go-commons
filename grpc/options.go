@@ -44,17 +44,18 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type serverOptions struct {
-	tracing                 bool
-	gateway                 bool
-	debugLogger             *zap.Logger
-	address                 string
-	grpcServerOptions       []grpc.ServerOption
-	muxOptions              []runtime.ServeMuxOption
-	httpMiddlewares         chi.Middlewares
-	registerServer          registerServerFunc
-	registerGateway         registerGatewayFunc
-	grpcListener            net.Listener
-	unaryServerInterceptors []grpc.UnaryServerInterceptor
+	tracing                       bool
+	gateway                       bool
+	debugStandardLibraryEndpoints bool
+	debugLogger                   *zap.Logger
+	address                       string
+	grpcServerOptions             []grpc.ServerOption
+	muxOptions                    []runtime.ServeMuxOption
+	httpMiddlewares               chi.Middlewares
+	registerServer                registerServerFunc
+	registerGateway               registerGatewayFunc
+	grpcListener                  net.Listener
+	unaryServerInterceptors       []grpc.UnaryServerInterceptor
 }
 
 // WithAddress configures the Server to listen to the given address
@@ -229,12 +230,22 @@ func WithUnaryServerInterceptor(
 	})
 }
 
+// WithDebugStandardLibraryEndpoints registers the debug routes from
+// the standard library to the gateway.
+func WithDebugStandardLibraryEndpoints() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.debugStandardLibraryEndpoints = true
+	})
+}
+
 func defaultServerOptions() serverOptions {
 	return serverOptions{
-		tracing:         false,
-		gateway:         true,
-		address:         "0.0.0.0",
-		httpMiddlewares: nil,
+		tracing:                       false,
+		gateway:                       true,
+		debugStandardLibraryEndpoints: false,
+		debugLogger:                   nil,
+		address:                       "0.0.0.0:7350",
+		grpcServerOptions:             nil,
 		muxOptions: []runtime.ServeMuxOption{
 			runtime.WithMarshalerOption(
 				runtime.MIMEWildcard,
@@ -252,5 +263,10 @@ func defaultServerOptions() serverOptions {
 				},
 			),
 		},
+		httpMiddlewares:         nil,
+		registerServer:          nil,
+		registerGateway:         nil,
+		grpcListener:            nil,
+		unaryServerInterceptors: nil,
 	}
 }

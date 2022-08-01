@@ -139,6 +139,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		opts.registerGateway,
 		opts.address,
 		opts.httpMiddlewares,
+		opts.debugStandardLibraryEndpoints,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("new gRPC gateway server: %w", err)
@@ -149,7 +150,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 	return aggregatorServer, nil
 }
 
-func setDebugLogger(debugLogger debugLogger, server *Server) error {
+func setDebugLogger(debugLogger *zap.Logger, server *Server) error {
 	if debugLogger == nil {
 		return nil
 	}

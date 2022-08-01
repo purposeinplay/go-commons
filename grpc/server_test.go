@@ -3,6 +3,7 @@ package grpc_test
 import (
 	"context"
 	"net"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,48 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
+
+func Test(t *testing.T) {
+	i := is.New(t)
+
+	s, err := commonsgrpc.NewServer(
+		commonsgrpc.WithDebugStandardLibraryEndpoints(),
+	)
+	i.NoErr(err)
+
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	t.Cleanup(func() {
+		err := s.Close()
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	resp, err := http.Get("http://localhost:7350/debug/pprof")
+	i.NoErr(err)
+
+	err = resp.Body.Close()
+	i.NoErr(err)
+
+	i.Equal(http.StatusOK, resp.StatusCode)
+
+	resp, err = http.Get("http://localhost:7350/debug/pprof/allocs")
+	i.NoErr(err)
+
+	err = resp.Body.Close()
+	i.NoErr(err)
+
+	i.Equal(http.StatusOK, resp.StatusCode)
+
+	err = s.Close()
+	i.NoErr(err)
+}
 
 func TestBufnet(t *testing.T) {
 	i := is.New(t)
