@@ -100,6 +100,7 @@ func newGatewayServerWithListener(
 	r.Mount("/", handler)
 
 	if debugStandardLibraryEndpoints {
+		// Register all the standard library debug endpoints.
 		r.Mount("/debug/", middleware.Profiler())
 	}
 
