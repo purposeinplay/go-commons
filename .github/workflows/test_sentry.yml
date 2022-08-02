@@ -3,10 +3,10 @@ on:
   # in ./pubsub package were modified
   push:
     paths:
-      - grpc/**
+      - sentry/**
 
 env:
-  PACKAGE: grpc
+  PACKAGE: sentry
 
 name: test
 jobs:

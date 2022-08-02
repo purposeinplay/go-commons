@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 var _ server = (*grpcServer)(nil)
@@ -151,6 +152,8 @@ func prependDebugInterceptor(
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
 		) (resp interface{}, err error) {
+			start := time.Now()
+
 			method := path.Base(info.FullMethod)
 
 			if method == "Check" || method == "Watch" {
@@ -162,24 +165,38 @@ func prependDebugInterceptor(
 				requestID = "00000000-0000-0000-0000-000000000000"
 			}
 
-			start := time.Now()
-
 			logger.Debug(
 				"request started",
 				zap.String("trace_id", requestID),
 				zap.String("method", method),
 			)
 
-			defer func() {
+			request, err := handler(ctx, req)
+
+			code := status.Code(err)
+
+			if err != nil {
 				logger.Debug(
-					"request completed",
+					"request completed with error",
 					zap.String("trace_id", requestID),
 					zap.String("method", method),
+					zap.Error(err),
+					zap.String("code", code.String()),
 					zap.Duration("duration", time.Since(start)),
 				)
-			}()
 
-			return handler(ctx, req)
+				return request, err
+			}
+
+			logger.Debug(
+				"request completed successfully",
+				zap.String("trace_id", requestID),
+				zap.String("method", method),
+				zap.String("code", code.String()),
+				zap.Duration("duration", time.Since(start)),
+			)
+
+			return request, err
 		},
 		interceptors,
 	)

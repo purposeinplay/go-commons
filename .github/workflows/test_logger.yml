@@ -3,10 +3,10 @@ on:
   # in ./pubsub package were modified
   push:
     paths:
-      - grpc/**
+      - logger/**
 
 env:
-  PACKAGE: grpc
+  PACKAGE: logger
 
 name: test
 jobs:
@@ -27,6 +27,3 @@ jobs:
           version: v1.47.3
           working-directory: ./${{ env.PACKAGE }}/
           args: -c=$GITHUB_WORKSPACE/.golangci.yml
-
-      - name: Run tests
-        run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}

@@ -47,10 +47,29 @@ type Server struct {
 // Default list:
 // - Address: ":8080".
 func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
+	const (
+		handlerTimeout    = 10 * time.Second
+		readHeaderTimeout = 5 * time.Second
+		wiggleRoom        = 200 * time.Millisecond
+		readTimeout       = handlerTimeout + readHeaderTimeout + wiggleRoom
+		writeTimeout      = handlerTimeout + wiggleRoom
+
+		idleTimeout = 2 * time.Minute
+	)
+
 	server := &Server{
 		httpServer: &http.Server{
-			Handler: handler,
-			Addr:    defaultAddr,
+			Addr: defaultAddr,
+
+			Handler: http.TimeoutHandler(
+				handler,
+				handlerTimeout,
+				"",
+			),
+			ReadTimeout:       readTimeout,
+			ReadHeaderTimeout: readHeaderTimeout,
+			WriteTimeout:      writeTimeout,
+			IdleTimeout:       idleTimeout,
 		},
 		log:  log,
 		done: make(chan struct{}),

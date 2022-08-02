@@ -213,7 +213,16 @@ func TestServer(t *testing.T) {
 				// send a request to the server
 				resp, err := http.Get(address)
 				require.NoError(t, err)
-				require.Equal(t, http.StatusOK, resp.StatusCode)
+				switch handlerExitStatus {
+				case exitContext:
+					require.Equal(
+						t,
+						http.StatusServiceUnavailable,
+						resp.StatusCode,
+					)
+				default:
+					require.Equal(t, http.StatusOK, resp.StatusCode)
+				}
 
 				err = resp.Body.Close()
 				assert.NoError(t, err)

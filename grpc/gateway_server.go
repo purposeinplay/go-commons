@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
 	"github.com/go-chi/chi/v5"
@@ -104,10 +105,28 @@ func newGatewayServerWithListener(
 		r.Mount("/debug/", middleware.Profiler())
 	}
 
+	const (
+		handlerTimeout    = 10 * time.Second
+		readHeaderTimeout = 5 * time.Second
+		wiggleRoom        = 200 * time.Millisecond
+		readTimeout       = handlerTimeout + readHeaderTimeout + wiggleRoom
+		writeTimeout      = handlerTimeout + wiggleRoom
+
+		idleTimeout = 2 * time.Minute
+	)
+
 	return &serverWithListener{
 			server: &gatewayServer{
 				internalHTTPServer: &http.Server{
-					Handler: r,
+					Handler: http.TimeoutHandler(
+						r,
+						handlerTimeout,
+						"",
+					),
+					ReadTimeout:       readTimeout,
+					ReadHeaderTimeout: readHeaderTimeout,
+					WriteTimeout:      writeTimeout,
+					IdleTimeout:       idleTimeout,
 				},
 			},
 			listener: listener,

@@ -3,10 +3,10 @@ on:
   # in ./pubsub package were modified
   push:
     paths:
-      - grpc/**
+      - httpserver/**
 
 env:
-  PACKAGE: grpc
+  PACKAGE: httpserver
 
 name: test
 jobs:
