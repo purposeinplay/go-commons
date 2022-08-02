@@ -3,7 +3,6 @@ package httpserver_test
 import (
 	"context"
 	"fmt"
-	"go.uber.org/atomic"
 	"net"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/purposeinplay/go-commons/httpserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
