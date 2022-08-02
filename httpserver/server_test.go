@@ -3,6 +3,7 @@ package httpserver_test
 import (
 	"context"
 	"fmt"
+	"go.uber.org/atomic"
 	"net"
 	"net/http"
 	"os"
@@ -36,10 +37,8 @@ func TestServer_DoubleShutdown(t *testing.T) {
 
 func TestServer(t *testing.T) {
 	// exitStatus for the http request handler
-	type exitStatus uint8
-
 	const (
-		_ exitStatus = iota
+		_ uint32 = iota
 		// exit status is set to 1 when the request handler
 		// returns due to context getting cancelled
 		exitContext
@@ -60,7 +59,7 @@ func TestServer(t *testing.T) {
 		// the request and can be shut down.
 		shutdownServer chan struct{}
 
-		handlerExitStatus exitStatus
+		handlerExitStatus atomic.Uint32
 
 		// the default handler used by the server
 		defaultHandler = func() http.Handler {
@@ -77,10 +76,11 @@ func TestServer(t *testing.T) {
 				// return either by receiving a context done or by a timeout
 				select {
 				case <-r.Context().Done():
-					handlerExitStatus = exitContext
+					handlerExitStatus.Store(exitContext)
 
 				case <-time.After(2 * time.Second):
-					handlerExitStatus = exitTimeAfter
+					handlerExitStatus.Store(exitTimeAfter)
+
 				}
 			})
 		}
@@ -110,7 +110,7 @@ func TestServer(t *testing.T) {
 		// expected error returned from server.Shutdown()
 		expectedShutdownError error
 
-		expectedHandlerExitStatus exitStatus
+		expectedHandlerExitStatus uint32
 	}{
 		// server will shutdown after request finishes due to increased timeout
 		"ShutdownWithoutClosingLongLivedConnectionContext": {
@@ -213,13 +213,18 @@ func TestServer(t *testing.T) {
 				// send a request to the server
 				resp, err := http.Get(address)
 				require.NoError(t, err)
-				switch handlerExitStatus {
+
+				switch handlerExitStatus.Load() {
+				// due to http.TimeoutHandler 503 is returned when
+				// request's context is cancelled.
 				case exitContext:
 					require.Equal(
 						t,
 						http.StatusServiceUnavailable,
 						resp.StatusCode,
 					)
+				case exitTimeAfter:
+					require.Equal(t, http.StatusOK, resp.StatusCode)
 				default:
 					require.Equal(t, http.StatusOK, resp.StatusCode)
 				}
@@ -257,7 +262,7 @@ func TestServer(t *testing.T) {
 				assert.Equal(
 					t,
 					test.expectedHandlerExitStatus,
-					handlerExitStatus,
+					handlerExitStatus.Load(),
 				)
 			}
 		})

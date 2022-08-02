@@ -3,8 +3,8 @@ package grpcutils
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -63,6 +63,8 @@ func SetOutgoingRequestIDFromIncoming(ctx context.Context) context.Context {
 	)
 }
 
+// PassRequestIDUnaryInterceptor takes the incoming request-id and
+// sets it as the outgoing request id.
 func PassRequestIDUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
