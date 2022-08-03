@@ -8,4 +8,4 @@ require (
 	github.com/matryer/is v1.4.0
 )
 
-require golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+require golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect

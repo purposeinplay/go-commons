@@ -9,14 +9,15 @@ require (
 )
 
 require (
-	github.com/fatih/color v1.10.0 // indirect
-	github.com/go-redis/redis v6.14.0+incompatible // indirect
-	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
-	github.com/pkg/errors v0.8.0 // indirect
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/go-redis/redis v6.15.9+incompatible // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/romanyx/jwalk v1.0.0 // indirect
-	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
+	golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect
+	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
