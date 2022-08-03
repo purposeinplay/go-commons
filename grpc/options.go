@@ -181,7 +181,7 @@ func WithUnaryServerInterceptorAuthFunc(
 // WithUnaryServerInterceptorHandleErr adds an interceptor to the GRPC server
 // that intercepts and handles the error returned by the handler.
 func WithUnaryServerInterceptorHandleErr(
-	handleErr func(error) error,
+	handleErr func(context.Context, error) error,
 ) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
@@ -194,7 +194,7 @@ func WithUnaryServerInterceptorHandleErr(
 			) (interface{}, error) {
 				resp, err := handler(ctx, req)
 				if err != nil {
-					return nil, handleErr(err)
+					return nil, handleErr(ctx, err)
 				}
 
 				return resp, nil
