@@ -47,6 +47,7 @@ func TestClient(t *testing.T) {
 		i := is.New(t)
 
 		err = rep.ReportEvent(
+			ctx,
 			"test",
 		)
 		i.NoErr(err)

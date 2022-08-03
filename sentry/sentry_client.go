@@ -15,8 +15,8 @@ type Client struct{}
 
 // Errors returned by the Client's methods.
 var (
-	ErrNoClientOrHubAvailable = errors.New("no client or hub available")
-	ErrDidNotFullyFlush       = errors.New("not fully flushed")
+	ErrNoClientOrScopeAvailable = errors.New("no client or hub available")
+	ErrDidNotFullyFlush         = errors.New("not fully flushed")
 )
 
 // NewClient returns a new instance of Sentry ReporterService.
@@ -44,20 +44,20 @@ func NewClient(
 }
 
 // ReportError reports an error to Sentry.
-func (*Client) ReportError(err error) error {
-	eventID := sentry.CaptureException(err)
+func (*Client) ReportError(ctx context.Context, err error) error {
+	eventID := hubFromContext(ctx).CaptureException(err)
 	if eventID == nil {
-		return ErrNoClientOrHubAvailable
+		return ErrNoClientOrScopeAvailable
 	}
 
 	return nil
 }
 
 // ReportEvent reports an event to Sentry.
-func (*Client) ReportEvent(event string) error {
-	eventID := sentry.CaptureMessage(event)
+func (*Client) ReportEvent(ctx context.Context, event string) error {
+	eventID := hubFromContext(ctx).CaptureMessage(event)
 	if eventID == nil {
-		return ErrNoClientOrHubAvailable
+		return ErrNoClientOrScopeAvailable
 	}
 
 	return nil
@@ -70,14 +70,25 @@ func (*Client) MonitorOperation(
 	operation, itemName, traceID string,
 	doFunc func(context.Context),
 ) {
+	hub := sentry.GetHubFromContext(ctx)
+	if hub == nil {
+		hub = sentry.CurrentHub().Clone()
+		// nolint: revive // complains about modifying an input param.
+		ctx = sentry.SetHubOnContext(ctx, hub)
+	}
+
+	txName := fmt.Sprintf(
+		"%s: %s",
+		operation,
+		itemName,
+	)
+
+	hub.Scope().SetTransaction(txName)
+
 	span := sentry.StartSpan(
 		ctx,
 		operation,
-		sentry.TransactionName(fmt.Sprintf(
-			"%s: %s",
-			operation,
-			itemName,
-		)),
+		sentry.TransactionName(txName),
 	)
 
 	// using "00000000-0000-0000-0000-000000000000" if cannot parse
@@ -100,4 +111,14 @@ func (*Client) Close() error {
 	}
 
 	return nil
+}
+
+// hubFromContext returns either a hub stored in the context or the current hub.
+// The return value is guaranteed to be non-nil, unlike GetHubFromContext.
+func hubFromContext(ctx context.Context) *sentry.Hub {
+	if hub := sentry.GetHubFromContext(ctx); hub != nil {
+		return hub
+	}
+
+	return sentry.CurrentHub()
 }
