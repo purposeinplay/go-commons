@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: value/money
 
-name: test
+name: test-money
 jobs:
   test:
     runs-on: ubuntu-latest

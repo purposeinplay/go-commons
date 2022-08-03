@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: pubsub
 
-name: test
+name: test-pubsub
 jobs:
   test:
     runs-on: ubuntu-latest

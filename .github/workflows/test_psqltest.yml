@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: psqltest
 
-name: test
+name: test-psqltest
 jobs:
   test:
     runs-on: ubuntu-latest

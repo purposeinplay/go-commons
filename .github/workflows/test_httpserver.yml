@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: httpserver
 
-name: test
+name: test-httpserver
 jobs:
   test:
     runs-on: ubuntu-latest

@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: sentry
 
-name: test
+name: test-sentry
 jobs:
   test:
     runs-on: ubuntu-latest

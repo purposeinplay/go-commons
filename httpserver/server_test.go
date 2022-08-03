@@ -80,7 +80,6 @@ func TestServer(t *testing.T) {
 
 				case <-time.After(2 * time.Second):
 					handlerExitStatus.Store(exitTimeAfter)
-
 				}
 			})
 		}

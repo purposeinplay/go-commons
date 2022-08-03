@@ -1,2 +1,2 @@
 lint:
-	golangci-lint run -c=../.golangci.yml
+	golangci-lint run --fix -c=../.golangci.yml

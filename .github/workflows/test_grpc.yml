@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: grpc
 
-name: test
+name: test-grpc
 jobs:
   test:
     runs-on: ubuntu-latest

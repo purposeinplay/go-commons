@@ -8,7 +8,7 @@ on:
 env:
   PACKAGE: logger
 
-name: test
+name: test-logger
 jobs:
   test:
     runs-on: ubuntu-latest

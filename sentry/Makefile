@@ -1,4 +1,4 @@
 test:
 	go test -race ./...
 lint:
-	golangci-lint run -c=../.golangci.yml
+	golangci-lint --fix run -c=../.golangci.yml
