@@ -180,6 +180,7 @@ func prependDebugInterceptor(
 					"request completed with error",
 					zap.String("trace_id", requestID),
 					zap.String("method", method),
+					zap.Any("request", req),
 					zap.Error(err),
 					zap.String("code", code.String()),
 					zap.Duration("duration", time.Since(start)),
