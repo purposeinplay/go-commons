@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /httpserver
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /logger
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /grpc
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /psqltest
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /pubsub
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /sentry
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: gomod
+    directory: /value
+    schedule:
+      interval: weekly
+      day: "sunday"
+      time: "11:00" # 11am UTC
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
