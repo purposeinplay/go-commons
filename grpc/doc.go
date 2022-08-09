@@ -4,5 +4,4 @@
 //
 // It also wraps the most common grpc parameters used in the company
 // in the options.
-//
 package grpc

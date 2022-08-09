@@ -19,20 +19,20 @@ import (
 func Test(t *testing.T) {
 	i := is.New(t)
 
-	s, err := commonsgrpc.NewServer(
+	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithDebugStandardLibraryEndpoints(),
 	)
 	i.NoErr(err)
 
 	go func() {
-		err := s.ListenAndServe()
+		err := grpcServer.ListenAndServe()
 		if err != nil {
 			panic(err)
 		}
 	}()
 
 	t.Cleanup(func() {
-		err := s.Close()
+		err := grpcServer.Close()
 		if err != nil {
 			panic(err)
 		}
@@ -54,7 +54,7 @@ func Test(t *testing.T) {
 
 	i.Equal(http.StatusOK, resp.StatusCode)
 
-	err = s.Close()
+	err = grpcServer.Close()
 	i.NoErr(err)
 }
 
@@ -68,7 +68,7 @@ func TestBufnet(t *testing.T) {
 		return lis.Dial()
 	}
 
-	s, err := commonsgrpc.NewServer(
+	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis),
 		commonsgrpc.WithDebug(zap.NewExample()),
 	)
@@ -84,7 +84,7 @@ func TestBufnet(t *testing.T) {
 		t.Log("listen and serve")
 		defer t.Log("listen and serve done")
 
-		err := s.ListenAndServe()
+		err := grpcServer.ListenAndServe()
 		i.NoErr(err)
 	}()
 
@@ -93,7 +93,7 @@ func TestBufnet(t *testing.T) {
 	t.Cleanup(func() {
 		t.Log("close")
 
-		err := s.Close()
+		err := grpcServer.Close()
 		i.NoErr(err)
 
 		t.Log("close called")

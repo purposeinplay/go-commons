@@ -87,22 +87,22 @@ func newGatewayServerWithListener(
 		AllowCredentials: true,
 	})
 
-	r := chi.NewRouter()
+	router := chi.NewRouter()
 
-	r.Use(middlewares...)
-	r.Use(corsHandler.Handler)
-	r.Get(
+	router.Use(middlewares...)
+	router.Use(corsHandler.Handler)
+	router.Get(
 		"/",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		},
 	)
 
-	r.Mount("/", handler)
+	router.Mount("/", handler)
 
 	if debugStandardLibraryEndpoints {
 		// Register all the standard library debug endpoints.
-		r.Mount("/debug/", middleware.Profiler())
+		router.Mount("/debug/", middleware.Profiler())
 	}
 
 	const (
@@ -119,7 +119,7 @@ func newGatewayServerWithListener(
 			server: &gatewayServer{
 				internalHTTPServer: &http.Server{
 					Handler: http.TimeoutHandler(
-						r,
+						router,
 						handlerTimeout,
 						"",
 					),

@@ -257,14 +257,14 @@ func (v Int) Value() (driver.Value, error) {
 
 // Scan defines how the Int is read from the database.
 func (v *Int) Scan(value interface{}) error {
-	switch t := value.(type) {
+	switch castedValue := value.(type) {
 	case int64:
-		v.bigInt = *new(big.Int).SetInt64(t)
+		v.bigInt = *new(big.Int).SetInt64(castedValue)
 
 	case string:
 		const base = 10
 
-		bigInt, ok := new(big.Int).SetString(t, base)
+		bigInt, ok := new(big.Int).SetString(castedValue, base)
 		if !ok {
 			return fmt.Errorf(
 				"%w: failed to set string value %v",
@@ -278,7 +278,7 @@ func (v *Int) Scan(value interface{}) error {
 	case []uint8:
 		const base = 10
 
-		bigInt, ok := new(big.Int).SetString(string(t), base)
+		bigInt, ok := new(big.Int).SetString(string(castedValue), base)
 		if !ok {
 			return fmt.Errorf(
 				"%w: failed to set []uint8 value %v",
@@ -296,7 +296,7 @@ func (v *Int) Scan(value interface{}) error {
 		return fmt.Errorf(
 			"%w: could not scan type %T into BigInt",
 			ErrInvalidValue,
-			t,
+			castedValue,
 		)
 	}
 

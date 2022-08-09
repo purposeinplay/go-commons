@@ -203,7 +203,7 @@ func TestAmountMethods(t *testing.T) {
 
 	i := is.New(t)
 
-	a, err := money.NewAmountFromValueInt(
+	moneyAmount, err := money.NewAmountFromValueInt(
 		value.NewIntFromInt64(123456789),
 		3,
 		t.Name())
@@ -216,7 +216,7 @@ func TestAmountMethods(t *testing.T) {
 
 		i.Equal(
 			"123456.789",
-			a.ToUnits().String(),
+			moneyAmount.ToUnits().String(),
 		)
 	})
 
@@ -227,7 +227,7 @@ func TestAmountMethods(t *testing.T) {
 
 		i.Equal(
 			"123456.79",
-			a.ToUnitsString(2),
+			moneyAmount.ToUnitsString(2),
 		)
 	})
 }

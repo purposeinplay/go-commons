@@ -58,27 +58,27 @@ func TestPubSub_UnsubscribeSuccess(t *testing.T) {
 
 	ps := NewPubSub(eventBufferSize)
 
-	s, err := ps.Subscribe(channelA)
+	subscription, err := ps.Subscribe(channelA)
 	require.NoError(t, err)
 
 	err = ps.Publish(pubsub.Event{Type: "test"}, channelA)
 	require.NoError(t, err)
 
-	err = s.Close()
+	err = subscription.Close()
 	require.NoError(t, err)
 
 	// Verify event is still received.
 	select {
-	case <-s.C():
+	case <-subscription.C():
 	default:
 		t.Error("expected event")
 	}
 
 	// Ensure channel is closed.
-	_, open := <-s.C()
+	_, open := <-subscription.C()
 	require.False(t, open)
 
 	// Ensure unsubscribing twice is ok.
-	err = s.Close()
+	err = subscription.Close()
 	require.NoError(t, err)
 }

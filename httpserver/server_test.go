@@ -175,7 +175,7 @@ func TestServer(t *testing.T) {
 			shutdownServer = make(chan struct{})
 
 			// create new server
-			s := httpserver.New(
+			httpServer := httpserver.New(
 				test.serverOptions.logger,
 				test.serverOptions.handler,
 				test.serverOptions.options...)
@@ -186,14 +186,14 @@ func TestServer(t *testing.T) {
 			wg.Add(2 + test.extraWgCounter)
 
 			// create a new listener for the given addres
-			ln, err := net.Listen("tcp", s.Info().Addr)
+			ln, err := net.Listen("tcp", httpServer.Info().Addr)
 			require.NoError(t, err)
 
 			go func() {
 				defer wg.Done()
 
 				// start accepting requests
-				err := s.Serve(ln)
+				err := httpServer.Serve(ln)
 				require.NoError(t, err)
 
 				t.Logf("server complete")
@@ -215,7 +215,7 @@ func TestServer(t *testing.T) {
 
 				switch handlerExitStatus.Load() {
 				// due to http.TimeoutHandler 503 is returned when
-				// request's context is cancelled.
+				// request'httpServer context is cancelled.
 				case exitContext:
 					require.Equal(
 						t,
@@ -248,7 +248,7 @@ func TestServer(t *testing.T) {
 				t.Logf("calling server.Shutdown()")
 
 				// shutdown the server
-				err := s.Shutdown(test.shutdownTimeout)
+				err := httpServer.Shutdown(test.shutdownTimeout)
 				assert.ErrorIs(t, err, test.expectedShutdownError)
 			}
 

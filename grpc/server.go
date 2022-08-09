@@ -156,9 +156,9 @@ func (s *Server) ListenAndServe() error {
 		return ErrServerClosed
 	}
 
-	var g run.Group
+	var runGroup run.Group
 
-	g.Add(
+	runGroup.Add(
 		s.runGRPCServer,
 		func(err error) {
 			_ = s.grpcServerWithListener.Close()
@@ -167,7 +167,7 @@ func (s *Server) ListenAndServe() error {
 
 	// start gateway server.
 	if s.grpcGatewayServerWithListener != nil {
-		g.Add(
+		runGroup.Add(
 			s.runGatewayServer,
 			func(err error) {
 				_ = s.grpcGatewayServerWithListener.Close()
@@ -177,7 +177,7 @@ func (s *Server) ListenAndServe() error {
 
 	s.mu.Unlock()
 
-	err := g.Run()
+	err := runGroup.Run()
 	if err != nil {
 		return err
 	}

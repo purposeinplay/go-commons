@@ -89,12 +89,13 @@ func WithServerTimeouts(
 	}
 }
 
+// nolint: containedctx // allow struct containing ctx as it's an option.
 type baseContextOption struct {
 	ctx                     context.Context
 	cancelContextOnShutdown bool
 }
 
-func (o baseContextOption) apply(s *Server) {
+func (o baseContextOption) apply(server *Server) {
 	var ctx context.Context
 
 	if o.ctx == nil {
@@ -109,12 +110,12 @@ func (o baseContextOption) apply(s *Server) {
 		var cancel func()
 		ctx, cancel = context.WithCancel(o.ctx)
 
-		s.httpServer.RegisterOnShutdown(func() {
+		server.httpServer.RegisterOnShutdown(func() {
 			cancel()
 		})
 	}
 
-	s.httpServer.BaseContext = func(_ net.Listener) context.Context {
+	server.httpServer.BaseContext = func(_ net.Listener) context.Context {
 		return ctx
 	}
 }
@@ -161,7 +162,7 @@ func (o shutdownSignalsOption) String() string {
 
 const shutdownTimeout = 30 * time.Second
 
-func (o shutdownSignalsOption) apply(s *Server) {
+func (o shutdownSignalsOption) apply(server *Server) {
 	if len(o) == 0 {
 		return
 	}
@@ -171,14 +172,14 @@ func (o shutdownSignalsOption) apply(s *Server) {
 
 		signal.Notify(sigC, o...)
 
-		s.log.Debug(
+		server.log.Debug(
 			"waiting for shutdown signals",
 			zap.Stringer("signals", o),
 		)
 
 		sig := <-sigC
 
-		s.log.Info(
+		server.log.Info(
 			"received shut down signal",
 			zap.String(
 				"signal",
@@ -186,9 +187,12 @@ func (o shutdownSignalsOption) apply(s *Server) {
 			),
 		)
 
-		err := s.Shutdown(shutdownTimeout)
+		err := server.Shutdown(shutdownTimeout)
 		if err != nil {
-			s.log.Error("failed to shutdown server in time", zap.Error(err))
+			server.log.Error(
+				"failed to shutdown server in time",
+				zap.Error(err),
+			)
 		}
 	}()
 }
