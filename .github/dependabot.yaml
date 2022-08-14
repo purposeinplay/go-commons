@@ -6,6 +6,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "httpserver"
     reviewers:
       - "bradub"
 
@@ -15,6 +20,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "logger"
     reviewers:
       - "bradub"
 
@@ -24,6 +34,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "grpc"
     reviewers:
       - "bradub"
 
@@ -33,6 +48,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "psqltest"
     reviewers:
       - "bradub"
 
@@ -42,6 +62,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "pubsub"
     reviewers:
       - "bradub"
 
@@ -51,6 +76,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "sentry"
     reviewers:
       - "bradub"
 
@@ -60,6 +90,11 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "go"
+      - "value"
     reviewers:
       - "bradub"
 
@@ -69,5 +104,7 @@ updates:
       interval: weekly
       day: "monday"
       time: "06:00" # 9 am in romania
+    commit-message:
+      prefix: "build(deps)"
     reviewers:
       - "bradub"
