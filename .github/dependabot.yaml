@@ -4,52 +4,70 @@ updates:
     directory: /httpserver
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /logger
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /grpc
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /psqltest
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /pubsub
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /sentry
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: gomod
     directory: /value
     schedule:
       interval: weekly
-      day: "sunday"
-      time: "11:00" # 11am UTC
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: "monday"
+      time: "06:00" # 9 am in romania
+    reviewers:
+      - "bradub"
