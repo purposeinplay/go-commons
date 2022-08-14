@@ -6,7 +6,7 @@ package inmem
 import (
 	"sync"
 
-	"github.com/pkg/errors"
+	"errors"
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 

@@ -3,8 +3,8 @@ package money_test
 import (
 	"testing"
 
+	"errors"
 	"github.com/matryer/is"
-	"github.com/pkg/errors"
 	"github.com/purposeinplay/go-commons/value"
 	"github.com/purposeinplay/go-commons/value/money"
 )

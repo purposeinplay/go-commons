@@ -9,7 +9,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
 	github.com/matryer/is v1.4.0
 	github.com/oklog/run v1.1.0
-	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.8.2
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.22.0
