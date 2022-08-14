@@ -1,9 +1,9 @@
 package money_test
 
 import (
+	"errors"
 	"testing"
 
-	"errors"
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/value"
 	"github.com/purposeinplay/go-commons/value/money"

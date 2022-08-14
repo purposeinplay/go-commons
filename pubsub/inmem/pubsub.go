@@ -4,9 +4,9 @@
 package inmem
 
 import (
+	"errors"
 	"sync"
 
-	"errors"
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 

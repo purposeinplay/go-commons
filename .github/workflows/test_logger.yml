@@ -2,6 +2,8 @@ on:
   # Trigger the workflow on push request if the files
   # in ./pubsub package were modified
   push:
+    branches:
+      - main
     paths:
       - logger/**
 
