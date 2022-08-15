@@ -24,9 +24,9 @@ jobs:
           fail-build: false
           acs-report-enable: true
           severity-cutoff: medium
+
       - name: upload Anchore scan SARIF report
+        if: success() || failure()
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
-      - name: Inspect action SARIF report
-        run: cat ${{ steps.scan.outputs.sarif }}
