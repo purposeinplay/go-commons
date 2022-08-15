@@ -59,8 +59,8 @@ func newGRPCServerWithListener(
 	}
 
 	if !isDebugLoggerNil(debugLogger) {
-		// nolint: revive // complains that this lines modifies
-		// an input parameter.
+		// nolint: revive // complains that this lines
+		// modifies an input parameter.
 		unaryServerInterceptors = prependDebugInterceptor(
 			unaryServerInterceptors,
 			debugLogger,

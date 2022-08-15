@@ -1,0 +1,50 @@
+name: Lint & Test grpc
+
+on:
+  # Trigger the workflow on push request if the files
+  # in ./pubsub package were modified
+  push:
+    branches:
+      - main
+    paths:
+      - grpc/**
+
+env:
+  PACKAGE: grpc
+  GO_VERSION: 1.19
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        skip-go-installation: true
+        working-directory: ./${{ env.PACKAGE }}/
+        args: -c=$GITHUB_WORKSPACE/.golangci.yml
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}
