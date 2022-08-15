@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/google/uuid"
 )
 
 // Client is a Sentry API Client.
@@ -67,7 +66,8 @@ func (*Client) ReportEvent(ctx context.Context, event string) error {
 // and a done function to signal that the operation ended.
 func (*Client) MonitorOperation(
 	ctx context.Context,
-	operation, itemName, traceID string,
+	operation, itemName string,
+	traceID [16]byte,
 	doFunc func(context.Context),
 ) {
 	hub := sentry.GetHubFromContext(ctx)
@@ -91,11 +91,7 @@ func (*Client) MonitorOperation(
 		sentry.TransactionName(txName),
 	)
 
-	// using "00000000-0000-0000-0000-000000000000" if cannot parse
-	// trace id.
-	uuidTraceID, _ := uuid.Parse(traceID)
-
-	span.TraceID = sentry.TraceID(uuidTraceID)
+	span.TraceID = traceID
 
 	// nolint: contextcheck // allow this context
 	doFunc(span.Context())

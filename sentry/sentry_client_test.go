@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/sentry"
 )
@@ -60,7 +59,7 @@ func TestClient(t *testing.T) {
 			ctx,
 			"test_operation",
 			"test/monitor_op",
-			uuid.NewString(),
+			[16]byte{},
 			func(context.Context) {
 			},
 		)
