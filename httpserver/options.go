@@ -121,9 +121,9 @@ func (o baseContextOption) apply(server *Server) {
 
 func (o baseContextOption) String() string {
 	return fmt.Sprintf(
-		"server.BaseContext: %s"+
+		"server.BaseContext: %+v\n"+
 			"server.CancelContextOnShutdown: %t",
-		fmt.Sprintf("%+v", o.ctx),
+		o.ctx,
 		o.cancelContextOnShutdown,
 	)
 }
