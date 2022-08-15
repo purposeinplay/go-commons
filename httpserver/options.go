@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"go.uber.org/zap"
 )
 
@@ -121,12 +120,10 @@ func (o baseContextOption) apply(server *Server) {
 }
 
 func (o baseContextOption) String() string {
-	spew.Config.DisablePointerAddresses = true
-
 	return fmt.Sprintf(
 		"server.BaseContext: %s"+
 			"server.CancelContextOnShutdown: %t",
-		spew.Sdump(o.ctx),
+		fmt.Sprintf("%+v", o.ctx),
 		o.cancelContextOnShutdown,
 	)
 }

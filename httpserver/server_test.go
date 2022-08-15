@@ -11,28 +11,32 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/httpserver"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
 func TestServer_ShutdownWithoutCallingListenAndServe(t *testing.T) {
+	i := is.New(t)
+
 	s := httpserver.New(zap.NewExample(), nil)
 
 	err := s.Shutdown(0)
-	assert.NoError(t, err)
+	i.NoErr(err)
 }
 
 func TestServer_DoubleShutdown(t *testing.T) {
+	i := is.New(t)
+
 	s := httpserver.New(zap.NewExample(), nil)
 
 	err := s.Shutdown(0)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	err = s.Shutdown(0)
-	assert.NoError(t, err)
+	i.NoErr(err)
 }
 
 func TestServer(t *testing.T) {
@@ -171,6 +175,8 @@ func TestServer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			i := is.New(t)
+
 			// initialize the shutdown server chan everytime a test is run
 			shutdownServer = make(chan struct{})
 
@@ -187,14 +193,14 @@ func TestServer(t *testing.T) {
 
 			// create a new listener for the given addres
 			ln, err := net.Listen("tcp", httpServer.Info().Addr)
-			require.NoError(t, err)
+			i.NoErr(err)
 
 			go func() {
 				defer wg.Done()
 
 				// start accepting requests
 				err := httpServer.Serve(ln)
-				require.NoError(t, err)
+				i.NoErr(err)
 
 				t.Logf("server complete")
 			}()
@@ -211,25 +217,25 @@ func TestServer(t *testing.T) {
 
 				// send a request to the server
 				resp, err := http.Get(address)
-				require.NoError(t, err)
+				i.NoErr(err)
 
 				switch handlerExitStatus.Load() {
 				// due to http.TimeoutHandler 503 is returned when
 				// request'httpServer context is cancelled.
 				case exitContext:
-					require.Equal(
-						t,
+					i.Equal(
 						http.StatusServiceUnavailable,
 						resp.StatusCode,
 					)
+
 				case exitTimeAfter:
-					require.Equal(t, http.StatusOK, resp.StatusCode)
+					i.Equal(http.StatusOK, resp.StatusCode)
 				default:
-					require.Equal(t, http.StatusOK, resp.StatusCode)
+					i.Equal(http.StatusOK, resp.StatusCode)
 				}
 
 				err = resp.Body.Close()
-				assert.NoError(t, err)
+				i.NoErr(err)
 
 				t.Logf("request complete")
 			}()
@@ -243,13 +249,13 @@ func TestServer(t *testing.T) {
 
 				// send the shutdown signals
 				err := sendSignals(test.shutdownSignals...)
-				require.NoError(t, err)
+				i.NoErr(err)
 			} else {
 				t.Logf("calling server.Shutdown()")
 
 				// shutdown the server
 				err := httpServer.Shutdown(test.shutdownTimeout)
-				assert.ErrorIs(t, err, test.expectedShutdownError)
+				i.True(errors.Is(err, test.expectedShutdownError))
 			}
 
 			t.Logf("shutdown complete")
@@ -258,8 +264,7 @@ func TestServer(t *testing.T) {
 			wg.Wait()
 
 			if test.serverOptions.handler != nil {
-				assert.Equal(
-					t,
+				i.Equal(
 					test.expectedHandlerExitStatus,
 					handlerExitStatus.Load(),
 				)
