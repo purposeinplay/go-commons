@@ -3,11 +3,13 @@ package inmem
 import (
 	"testing"
 
+	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/pubsub"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPubSub_SubscribeSuccess(t *testing.T) {
+	i := is.New(t)
+
 	const (
 		eventBufferSize = 1
 
@@ -19,13 +21,13 @@ func TestPubSub_SubscribeSuccess(t *testing.T) {
 	ps := NewPubSub(eventBufferSize)
 
 	subA, err := ps.Subscribe(channelA)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	subB, err := ps.Subscribe(channelA, channelB)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	subC, err := ps.Subscribe(channelC)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	// Publish event for first 2 subscriptions.
 	_ = ps.Publish(pubsub.Event{Type: "test"}, channelA)
@@ -51,6 +53,8 @@ func TestPubSub_SubscribeSuccess(t *testing.T) {
 }
 
 func TestPubSub_UnsubscribeSuccess(t *testing.T) {
+	i := is.New(t)
+
 	const (
 		eventBufferSize = 1
 		channelA        = "a"
@@ -59,13 +63,13 @@ func TestPubSub_UnsubscribeSuccess(t *testing.T) {
 	ps := NewPubSub(eventBufferSize)
 
 	subscription, err := ps.Subscribe(channelA)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	err = ps.Publish(pubsub.Event{Type: "test"}, channelA)
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	err = subscription.Close()
-	require.NoError(t, err)
+	i.NoErr(err)
 
 	// Verify event is still received.
 	select {
@@ -76,9 +80,9 @@ func TestPubSub_UnsubscribeSuccess(t *testing.T) {
 
 	// Ensure channel is closed.
 	_, open := <-subscription.C()
-	require.False(t, open)
+	i.True(!open)
 
 	// Ensure unsubscribing twice is ok.
 	err = subscription.Close()
-	require.NoError(t, err)
+	i.NoErr(err)
 }
