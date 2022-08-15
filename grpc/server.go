@@ -146,8 +146,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 	return aggregatorServer, nil
 }
 
-// ListenAndServe starts accepting incoming connections
-// on both servers.
+// ListenAndServe starts accepting incoming connections on both servers.
 // If one of the servers encounters an error, both are stopped.
 func (s *Server) ListenAndServe() error {
 	s.mu.Lock()

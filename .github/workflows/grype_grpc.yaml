@@ -21,6 +21,7 @@ jobs:
         id: scan
         with:
           path: grpc
+          fail-build: false
           acs-report-enable: true
           severity-cutoff: medium
       - name: upload Anchore scan SARIF report
