@@ -19,5 +19,6 @@ jobs:
       - uses: actions/checkout@v3
       - uses: anchore/scan-action@v3
         with:
-          path: "./grpc"
+          path: grpc
           fail-build: true
+          severity-cutoff: high
