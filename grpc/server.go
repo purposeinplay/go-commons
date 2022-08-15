@@ -124,7 +124,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 
 	aggregatorServer.grpcServerWithListener = grpcServerWithListener
 
-	// return here if a gateway server is not wanted
+	// return here if a gateway server is not wanted.
 	if !opts.gateway {
 		return aggregatorServer, nil
 	}
