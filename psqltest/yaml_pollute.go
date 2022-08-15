@@ -2,8 +2,9 @@ package psqltest
 
 import (
 	"database/sql"
-	"github.com/romanyx/polluter"
 	"io"
+
+	"github.com/romanyx/polluter"
 )
 
 // YamlPollute is a function to insert data in a database based on a YAML.
