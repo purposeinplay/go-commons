@@ -2,6 +2,7 @@ package httpserver_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"errors"
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/httpserver"
 	"go.uber.org/atomic"
