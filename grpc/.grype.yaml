@@ -1,0 +1,9 @@
+ignore:
+  - vulnerability: CVE-2019-3826 # prometheus https://nvd.nist.gov/vuln/detail/CVE-2019-3826
+    fix-state: unknown
+
+  - vulnerability: CVE-2015-5237  # protobuf https://nvd.nist.gov/vuln/detail/CVE-2015-5237
+    fix-state: unknown
+
+  - vulnerability: CVE-2021-22570   # protobuf https://nvd.nist.gov/vuln/detail/CVE-2021-22570
+    fix-state: unknown
