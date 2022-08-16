@@ -1,4 +1,4 @@
-name: Grype logger
+name: grype logger
 
 on:
   push:

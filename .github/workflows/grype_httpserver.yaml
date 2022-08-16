@@ -1,4 +1,4 @@
-name: Grype httpserver
+name: grype httpserver
 
 on:
   push:

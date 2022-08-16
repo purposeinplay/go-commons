@@ -1,4 +1,4 @@
-name: Grype psqltest
+name: grype psqltest
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Grype sentry
+name: grype sentry
 
 on:
   push:

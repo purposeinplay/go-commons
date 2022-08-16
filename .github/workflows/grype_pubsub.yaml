@@ -1,4 +1,4 @@
-name: Grype pubsub
+name: grype pubsub
 
 on:
   push:

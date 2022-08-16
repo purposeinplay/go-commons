@@ -1,4 +1,4 @@
-name: Grype value
+name: grype value
 
 on:
   push:
