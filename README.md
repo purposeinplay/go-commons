@@ -1,4 +1,5 @@
 # go-commons
+[![gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue)](https://github.com/zricethezav/gitleaks-action)
 
 This is a core library that will add common features for our services.
 
