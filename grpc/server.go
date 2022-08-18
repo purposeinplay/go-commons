@@ -117,6 +117,8 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		opts.unaryServerInterceptors,
 		opts.registerServer,
 		aggregatorServer.debugLogger,
+		opts.errorHandler,
+		opts.panicHandler,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("new gRPC server: %w", err)

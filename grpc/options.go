@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"context"
 	"net"
 
 	"github.com/go-chi/chi/v5"
@@ -56,6 +55,8 @@ type serverOptions struct {
 	registerGateway               registerGatewayFunc
 	grpcListener                  net.Listener
 	unaryServerInterceptors       []grpc.UnaryServerInterceptor
+	errorHandler                  ErrorHandler
+	panicHandler                  PanicHandler
 }
 
 // WithAddress configures the Server to listen to the given address
@@ -178,28 +179,19 @@ func WithUnaryServerInterceptorAuthFunc(
 	})
 }
 
-// WithUnaryServerInterceptorHandleErr adds an interceptor to the GRPC server
-// that intercepts and handles the error returned by the handler.
-func WithUnaryServerInterceptorHandleErr(
-	handleErr func(context.Context, error) error,
-) ServerOption {
+// WithPanicHandler adds an interceptor to the GRPC server
+// that intercepts and handles panics.
+func WithPanicHandler(panicHandler PanicHandler) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.unaryServerInterceptors = append(
-			o.unaryServerInterceptors,
-			func(
-				ctx context.Context,
-				req interface{},
-				_ *grpc.UnaryServerInfo,
-				handler grpc.UnaryHandler,
-			) (interface{}, error) {
-				resp, err := handler(ctx, req)
-				if err != nil {
-					return nil, handleErr(ctx, err)
-				}
+		o.panicHandler = panicHandler
+	})
+}
 
-				return resp, nil
-			},
-		)
+// WithErrorHandler adds an interceptor to the GRPC server
+// that intercepts and handles the error returned by the handler.
+func WithErrorHandler(errorHandler ErrorHandler) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.errorHandler = errorHandler
 	})
 }
 
