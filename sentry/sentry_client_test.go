@@ -58,7 +58,6 @@ func TestClient(t *testing.T) {
 		rep.MonitorOperation(
 			ctx,
 			"test_operation",
-			"test/monitor_op",
 			[16]byte{},
 			func(context.Context) {
 			},

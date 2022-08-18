@@ -119,6 +119,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		aggregatorServer.debugLogger,
 		opts.errorHandler,
 		opts.panicHandler,
+		opts.monitorOperationer,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("new gRPC server: %w", err)

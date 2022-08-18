@@ -5,6 +5,7 @@ go 1.17
 require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.13
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
 	github.com/matryer/is v1.4.0

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"github.com/google/uuid"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/purposeinplay/go-commons/grpc/grpcutils"
@@ -39,6 +40,7 @@ func (s *grpcServer) Close() error {
 	return nil
 }
 
+// nolint: gocyclo // cyclomatic complexity is 9. FIXME
 func newGRPCServerWithListener(
 	listener net.Listener,
 	address string,
@@ -49,6 +51,7 @@ func newGRPCServerWithListener(
 	debugLogger debugLogger,
 	errorHandler ErrorHandler,
 	panicHandler PanicHandler,
+	monitorOperationer MonitorOperationer,
 ) (
 	*serverWithListener,
 	error,
@@ -87,6 +90,15 @@ func newGRPCServerWithListener(
 		unaryServerInterceptors = prependDebugInterceptor(
 			unaryServerInterceptors,
 			debugLogger,
+		)
+	}
+
+	if !isMonitorOperationerNil(monitorOperationer) {
+		// nolint: revive // complains that this lines modifies
+		// an input parameter.
+		unaryServerInterceptors = append(
+			unaryServerInterceptors,
+			newMonitorOperationUnaryInterceptor(monitorOperationer),
 		)
 	}
 
@@ -185,7 +197,7 @@ func prependDebugInterceptor(
 
 			requestID, err := grpcutils.GetRequestIDFromCtx(ctx)
 			if err != nil {
-				requestID = "00000000-0000-0000-0000-000000000000"
+				requestID = uuid.Nil.String()
 			}
 
 			logger.Debug(
@@ -387,4 +399,56 @@ func prependErrorHandler(
 		},
 		interceptors,
 	)
+}
+
+// MonitorOperationer defines.
+type MonitorOperationer interface {
+	MonitorOperation(
+		ctx context.Context,
+		name string,
+		traceID [16]byte,
+		operationFunc func(context.Context),
+	)
+}
+
+func newMonitorOperationUnaryInterceptor(
+	monitorOperationer MonitorOperationer,
+) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		if info.FullMethod == "/grpc.health.v1.Health/Check" {
+			return handler(ctx, req)
+		}
+
+		requestID, err := grpcutils.GetRequestIDFromCtx(ctx)
+		if err != nil {
+			requestID = uuid.Nil.String()
+		}
+
+		traceID, _ := uuid.Parse(requestID)
+
+		var (
+			resp       interface{}
+			handlerErr error
+		)
+
+		monitorOperationer.MonitorOperation(
+			ctx,
+			info.FullMethod,
+			traceID,
+			func(ctx context.Context) {
+				resp, handlerErr = handler(ctx, req)
+			},
+		)
+
+		if handlerErr != nil {
+			return nil, handlerErr
+		}
+
+		return resp, nil
+	}
 }

@@ -57,6 +57,7 @@ type serverOptions struct {
 	unaryServerInterceptors       []grpc.UnaryServerInterceptor
 	errorHandler                  ErrorHandler
 	panicHandler                  PanicHandler
+	monitorOperationer            MonitorOperationer
 }
 
 // WithAddress configures the Server to listen to the given address
@@ -176,6 +177,16 @@ func WithUnaryServerInterceptorAuthFunc(
 			o.unaryServerInterceptors,
 			grpc_auth.UnaryServerInterceptor(authFunc),
 		)
+	})
+}
+
+// WithMonitorOperationer adds an interceptor to the GRPC server
+// that instruments the grpc handler.
+func WithMonitorOperationer(
+	monitorOperationer MonitorOperationer,
+) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.monitorOperationer = monitorOperationer
 	})
 }
 

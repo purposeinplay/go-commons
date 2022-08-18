@@ -33,3 +33,8 @@ func isErrorHandlerNil(errorHandler ErrorHandler) bool {
 func isPanicHandlerNil(panicHandler PanicHandler) bool {
 	return panicHandler == nil || reflect.ValueOf(panicHandler).IsNil()
 }
+
+func isMonitorOperationerNil(monitorOperationer MonitorOperationer) bool {
+	return monitorOperationer == nil ||
+		reflect.ValueOf(monitorOperationer).IsNil()
+}

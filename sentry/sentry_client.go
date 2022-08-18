@@ -66,7 +66,7 @@ func (*Client) ReportEvent(ctx context.Context, event string) error {
 // and a done function to signal that the operation ended.
 func (*Client) MonitorOperation(
 	ctx context.Context,
-	operation, itemName string,
+	operation string,
 	traceID [16]byte,
 	doFunc func(context.Context),
 ) {
@@ -77,18 +77,9 @@ func (*Client) MonitorOperation(
 		ctx = sentry.SetHubOnContext(ctx, hub)
 	}
 
-	txName := fmt.Sprintf(
-		"%s: %s",
-		operation,
-		itemName,
-	)
-
-	hub.Scope().SetTransaction(txName)
-
 	span := sentry.StartSpan(
 		ctx,
 		operation,
-		sentry.TransactionName(txName),
 	)
 
 	span.TraceID = traceID
