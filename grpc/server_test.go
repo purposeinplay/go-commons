@@ -2,6 +2,8 @@ package grpc_test
 
 import (
 	"context"
+	"errors"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -10,13 +12,20 @@ import (
 
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
+	"github.com/purposeinplay/go-commons/grpc/grpcclient"
+	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
+	"github.com/purposeinplay/go-commons/grpc/test_data/mock"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
-func Test(t *testing.T) {
+func TestPort(t *testing.T) {
+	t.Parallel()
+
 	i := is.New(t)
 
 	grpcServer, err := commonsgrpc.NewServer(
@@ -59,6 +68,8 @@ func Test(t *testing.T) {
 }
 
 func TestBufnet(t *testing.T) {
+	t.Parallel()
+
 	i := is.New(t)
 
 	const bufSize = 1024 * 1024
@@ -107,4 +118,360 @@ func TestBufnet(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	i.NoErr(err)
+}
+
+func TestErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	appErr := errors.New("err")
+
+	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		errorHandler := &mock.ErrorHandlerMock{
+			ErrorToGRPCStatusFunc: func(
+				err error,
+			) (*status.Status, error) {
+				return status.New(codes.Internal, appErr.Error()), nil
+			},
+			IsApplicationErrorFunc: func(err error) bool {
+				return errors.Is(err, appErr)
+			},
+			LogErrorFunc: func(err error) {
+				log.Printf("log err: %s", err.Error())
+			},
+			ReportErrorFunc: func(
+				_ context.Context,
+				err error,
+			) error {
+				log.Printf("report err: %s", err.Error())
+				return nil
+			},
+		}
+
+		bufDialer := newBufnetServer(
+			t,
+			&greeterService{
+				greetFunc: func() error {
+					return appErr
+				},
+			},
+			errorHandler,
+			nil,
+			nil,
+		)
+
+		greetClient := newGreeterClient(t, bufDialer)
+
+		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "a",
+				LastName:  "b",
+			},
+		})
+
+		i.Equal(status.Error(codes.Internal, appErr.Error()), err)
+
+		i.True(resp == nil)
+
+		i.Equal(0, len(errorHandler.ReportErrorCalls()))
+
+		i.True(errors.Is(errorHandler.IsApplicationErrorCalls()[0].Err, appErr))
+		i.True(errors.Is(errorHandler.ErrorToGRPCStatusCalls()[0].Err, appErr))
+		i.True(errors.Is(errorHandler.LogErrorCalls()[0].Err, appErr))
+	})
+
+	t.Run("Panic", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		panicHandler := &mock.PanicHandlerMock{
+			LogErrorFunc: func(err error) {
+				log.Printf("log err: %s", err.Error())
+			},
+			LogPanicFunc: func(p interface{}) {
+				log.Printf("log panic: %s", p)
+			},
+			ReportPanicFunc: func(_ context.Context, p interface{}) error {
+				log.Printf("report panic: %s", p)
+				return nil
+			},
+		}
+
+		panicString := "test"
+
+		bufDialer := newBufnetServer(
+			t,
+			&greeterService{
+				greetFunc: func() error {
+					panic(panicString)
+				},
+			},
+			nil,
+			panicHandler,
+			nil,
+		)
+
+		greetClient := newGreeterClient(t, bufDialer)
+
+		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "a",
+				LastName:  "b",
+			},
+		})
+		i.Equal(status.Error(codes.Internal, "internal error."), err)
+
+		i.True(resp == nil)
+
+		i.Equal(panicString, panicHandler.LogPanicCalls()[0].IfaceVal)
+		i.Equal(panicString, panicHandler.ReportPanicCalls()[0].IfaceVal)
+	})
+
+	t.Run("ErrorAndPanic", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+
+		panicString := "panic"
+
+		errorHandler := &mock.ErrorHandlerMock{
+			IsApplicationErrorFunc: func(err error) bool {
+				panic(panicString)
+			},
+			LogErrorFunc: func(err error) {
+				log.Printf("log err: %s", err.Error())
+			},
+		}
+
+		panicHandler := &mock.PanicHandlerMock{
+			LogErrorFunc: func(err error) {
+				log.Printf("log err: %s", err.Error())
+			},
+			LogPanicFunc: func(p interface{}) {
+				log.Printf("log panic: %s", p)
+			},
+			ReportPanicFunc: func(_ context.Context, p interface{}) error {
+				log.Printf("report panic: %s", p)
+				return nil
+			},
+		}
+
+		bufDialer := newBufnetServer(
+			t,
+			&greeterService{
+				greetFunc: func() error {
+					return appErr
+				},
+			},
+			errorHandler,
+			panicHandler,
+			nil,
+		)
+
+		greetClient := newGreeterClient(t, bufDialer)
+
+		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "a",
+				LastName:  "b",
+			},
+		})
+		i.Equal(status.Error(codes.Internal, "internal error."), err)
+
+		i.True(resp == nil)
+
+		i.Equal(0, len(errorHandler.ReportErrorCalls()))
+		i.Equal(0, len(errorHandler.ErrorToGRPCStatusCalls()))
+
+		i.True(errors.Is(errorHandler.IsApplicationErrorCalls()[0].Err, appErr))
+		i.True(errors.Is(errorHandler.LogErrorCalls()[0].Err, appErr))
+		i.Equal(panicString, panicHandler.LogPanicCalls()[0].IfaceVal)
+		i.Equal(panicString, panicHandler.ReportPanicCalls()[0].IfaceVal)
+	})
+}
+
+func TestMonitorOperation(t *testing.T) {
+	t.Parallel()
+
+	i := is.New(t)
+
+	ctx := context.Background()
+
+	monitorOperationer := &mock.MonitorOperationerMock{
+		MonitorOperationFunc: func(
+			ctx context.Context,
+			_ string,
+			_ [16]byte,
+			f func(context.Context),
+		) {
+			f(ctx)
+		},
+	}
+
+	bufDialer := newBufnetServer(
+		t,
+		&greeterService{},
+		nil,
+		nil,
+		monitorOperationer,
+	)
+
+	greetClient := newGreeterClient(t, bufDialer)
+
+	resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
+		Greeting: &greetpb.Greeting{
+			FirstName: "a",
+			LastName:  "b",
+		},
+	})
+	i.NoErr(err)
+
+	i.Equal("ab", resp.Result)
+
+	i.Equal(1, len(monitorOperationer.MonitorOperationCalls()))
+}
+
+var _ greetpb.GreetServiceServer = (*greeterService)(nil)
+
+type greeterService struct {
+	greetpb.UnimplementedGreetServiceServer
+	greetFunc func() error
+}
+
+func (s *greeterService) Greet(
+	_ context.Context,
+	req *greetpb.GreetRequest,
+) (*greetpb.GreetResponse, error) {
+	if s.greetFunc != nil {
+		err := s.greetFunc()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &greetpb.GreetResponse{
+		Result: req.Greeting.FirstName + req.Greeting.LastName,
+	}, nil
+}
+
+func newBufnetServer(
+	t *testing.T,
+	greeter *greeterService,
+	errorHandler *mock.ErrorHandlerMock,
+	panicHandler *mock.PanicHandlerMock,
+	monitorOperationer *mock.MonitorOperationerMock,
+) func(context.Context, string) (net.Conn, error) {
+	t.Helper()
+
+	i := is.New(t)
+
+	const bufSize = 1024 * 1024
+
+	lis := bufconn.Listen(bufSize)
+
+	t.Cleanup(func() {
+		err := lis.Close()
+		if err != nil {
+			t.Logf("err while closing listener: %s", err)
+		}
+	})
+
+	bufDialer := func(context.Context, string) (net.Conn, error) {
+		return lis.Dial()
+	}
+
+	opts := []commonsgrpc.ServerOption{
+		commonsgrpc.WithGRPCListener(lis),
+		commonsgrpc.WithDebug(zap.NewExample()),
+	}
+
+	if greeter != nil {
+		opts = append(
+			opts,
+			commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+				greetpb.RegisterGreetServiceServer(server, greeter)
+			}))
+	}
+
+	if panicHandler != nil {
+		opts = append(
+			opts,
+			commonsgrpc.WithPanicHandler(panicHandler),
+		)
+	}
+
+	if errorHandler != nil {
+		opts = append(
+			opts,
+			commonsgrpc.WithErrorHandler(errorHandler),
+		)
+	}
+
+	if monitorOperationer != nil {
+		opts = append(
+			opts,
+			commonsgrpc.WithMonitorOperationer(monitorOperationer),
+		)
+	}
+
+	grpcServer, err := commonsgrpc.NewServer(opts...)
+	i.NoErr(err)
+
+	var wg sync.WaitGroup
+
+	t.Cleanup(func() {
+		wg.Wait()
+	})
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		t.Log("listen and serve")
+		defer t.Log("listen and serve done")
+
+		err := grpcServer.ListenAndServe()
+		i.NoErr(err)
+	}()
+
+	t.Cleanup(func() {
+		err := grpcServer.Close()
+		if err != nil {
+			t.Logf("err while closing server: %s", err)
+		}
+	})
+
+	return bufDialer
+}
+
+func newGreeterClient(
+	t *testing.T,
+	dialer func(context.Context, string) (net.Conn, error),
+) greetpb.GreetServiceClient {
+	t.Helper()
+
+	i := is.New(t)
+
+	clientConn, err := grpcclient.NewConn(
+		"",
+		grpcclient.WithContextDialer(dialer),
+		grpcclient.WithNoTLS(),
+	)
+	i.NoErr(err)
+
+	t.Cleanup(func() {
+		err := clientConn.Close()
+		if err != nil {
+			t.Logf("err while closing conn: %s", err)
+		}
+	})
+
+	return greetpb.NewGreetServiceClient(clientConn)
 }

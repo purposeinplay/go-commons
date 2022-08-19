@@ -1,4 +1,8 @@
 # .golangci.yml
+run:
+  skip-dirs:
+    - mock
+
 linters-settings:
   staticcheck:
     # Select the Go version to target. The default is '1.13'.
@@ -175,13 +179,4 @@ issues:
         - gosec
         - gocognit
         - forcetypeassert
-
-    - path: mock
-      linters:
-        - gomnd
-        - revive
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - forcetypeassert
+        - goerr113
