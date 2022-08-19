@@ -30,6 +30,7 @@ func TestPort(t *testing.T) {
 
 	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithDebugStandardLibraryEndpoints(),
+		commonsgrpc.WithErrorHandler(nil),
 	)
 	i.NoErr(err)
 

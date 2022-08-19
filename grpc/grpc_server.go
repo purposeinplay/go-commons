@@ -289,7 +289,10 @@ type ErrorHandler interface {
 	ErrorToGRPCStatus(error) (*status.Status, error)
 }
 
-func handleErr(
+// HandleError proposes a way of handling GRPC errors.
+// It logs and reports the error to an external service, everything
+// under a one-second timeout to avoid increasing the response time.
+func HandleError(
 	targetErr error,
 	errorHandler ErrorHandler,
 ) error {
@@ -335,16 +338,18 @@ func handleErr(
 
 		errorHandler.LogError(toGrpcStatusErr)
 
-		reportErrErr := errorHandler.ReportError(ctx, toGrpcStatusErr)
-		if reportErrErr == nil {
-			break
-		}
+		go func() {
+			reportErrErr := errorHandler.ReportError(ctx, toGrpcStatusErr)
+			if reportErrErr == nil {
+				return
+			}
 
-		errorHandler.LogError(fmt.Errorf(
-			"error while reporting this error %q: %w",
-			toGrpcStatusErr.Error(),
-			reportErrErr,
-		))
+			errorHandler.LogError(fmt.Errorf(
+				"error while reporting this error %q: %w",
+				toGrpcStatusErr.Error(),
+				reportErrErr,
+			))
+		}()
 
 	case errors.Is(targetErr, context.Canceled):
 		grpcStatus = status.New(codes.Internal, "context cancelled.")
@@ -352,17 +357,19 @@ func handleErr(
 	// If the error is an internal error, report it to an external
 	// service.
 	default:
-		// Report the error to an external service
-		reportErr := errorHandler.ReportError(ctx, targetErr)
-		if reportErr != nil {
-			// Log the error received from the external service
-			// and continue execution.
-			errorHandler.LogError(fmt.Errorf(
-				"error while reporting this error %q: %w",
-				targetErr.Error(),
-				reportErr,
-			))
-		}
+		go func() {
+			// Report the error to an external service
+			reportErr := errorHandler.ReportError(ctx, targetErr)
+			if reportErr != nil {
+				// Log the error received from the external service
+				// and continue execution.
+				errorHandler.LogError(fmt.Errorf(
+					"error while reporting this error %q: %w",
+					targetErr.Error(),
+					reportErr,
+				))
+			}
+		}()
 
 		// Create a GRPC status that doesn't leak any information
 		// about the internal error.
@@ -390,7 +397,7 @@ func prependErrorHandler(
 				// here as we do not want to pass the request context and have
 				// the handler cancelled in case the client cancels
 				// the request.
-				return nil, handleErr(fmt.Errorf(
+				return nil, HandleError(fmt.Errorf(
 					"%q: %w",
 					path.Base(info.FullMethod),
 					err,
