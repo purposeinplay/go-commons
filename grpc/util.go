@@ -23,18 +23,33 @@ func prependServerOption(
 }
 
 func isDebugLoggerNil(logger debugLogger) bool {
-	return logger == nil || reflect.ValueOf(logger).IsNil()
+	c := logger
+
+	return c == nil ||
+		(reflect.ValueOf(c).Kind() == reflect.Ptr &&
+			reflect.ValueOf(c).IsNil())
 }
 
 func isErrorHandlerNil(errorHandler ErrorHandler) bool {
-	return errorHandler == nil || reflect.ValueOf(errorHandler).IsNil()
+	c := errorHandler
+
+	return c == nil ||
+		(reflect.ValueOf(c).Kind() == reflect.Ptr &&
+			reflect.ValueOf(c).IsNil())
 }
 
 func isPanicHandlerNil(panicHandler PanicHandler) bool {
-	return panicHandler == nil || reflect.ValueOf(panicHandler).IsNil()
+	c := panicHandler
+
+	return c == nil ||
+		(reflect.ValueOf(c).Kind() == reflect.Ptr &&
+			reflect.ValueOf(c).IsNil())
 }
 
 func isMonitorOperationerNil(monitorOperationer MonitorOperationer) bool {
-	return monitorOperationer == nil ||
-		reflect.ValueOf(monitorOperationer).IsNil()
+	c := monitorOperationer
+
+	return c == nil ||
+		(reflect.ValueOf(c).Kind() == reflect.Ptr &&
+			reflect.ValueOf(c).IsNil())
 }

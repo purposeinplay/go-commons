@@ -61,9 +61,13 @@ func newGRPCServerWithListener(
 		return nil, fmt.Errorf("new grpc listener: %w", err)
 	}
 
-	grpcServerOptions, err := setGRPCTracing(tracing, defaultGRPCServerOptions)
-	if err != nil {
-		return nil, fmt.Errorf("set grpc tracing tracing: %w", err)
+	grpcServerOptions := defaultGRPCServerOptions
+
+	if tracing {
+		grpcServerOptions, err = setGRPCTracing(grpcServerOptions)
+		if err != nil {
+			return nil, fmt.Errorf("set grpc tracing tracing: %w", err)
+		}
 	}
 
 	if !isErrorHandlerNil(errorHandler) {
@@ -125,15 +129,9 @@ func newGRPCServerWithListener(
 	}, nil
 }
 
-// nolint: revive // false-positive, it reports tracing as a control flag.
 func setGRPCTracing(
-	tracing bool,
 	serverOptions []grpc.ServerOption,
 ) ([]grpc.ServerOption, error) {
-	if !tracing {
-		return serverOptions, nil
-	}
-
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		ProjectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
 	})
@@ -319,11 +317,14 @@ func handleErr(
 	case errorHandler.IsApplicationError(targetErr):
 		// Convert the application error type to a GRPC status.
 		sts, toGrpcStatusErr := errorHandler.ErrorToGRPCStatus(targetErr)
+		// on success break
 		if toGrpcStatusErr == nil {
 			grpcStatus = sts
+
 			break
 		}
 
+		// handle err
 		grpcStatus = status.New(codes.Internal, "internal error.")
 
 		toGrpcStatusErr = fmt.Errorf(
