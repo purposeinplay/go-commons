@@ -40,7 +40,8 @@ func (s *grpcServer) Close() error {
 	return nil
 }
 
-// nolint: gocyclo // cyclomatic complexity is 9. FIXME
+// nolint: gocyclo, revive // cyclomatic complexity is 9. FIXME
+// revive complains about tracing being a control flag.
 func newGRPCServerWithListener(
 	listener net.Listener,
 	address string,
