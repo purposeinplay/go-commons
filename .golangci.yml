@@ -164,7 +164,7 @@ linters:
     - nilnil # Checks that there is no simultaneous return of nil error and an invalid value.
     - wsl # Whitespace Linter - Forces you to use empty lines!
     - usestdlibvars # A linter that detect the possibility to use variables/constants from the Go standard library.
-    #    - interfacebloat # A linter that checks the number of methods inside an interface.
+    - interfacebloat # A linter that checks the number of methods inside an interface.
     - logrlint # Check logr arguments.
     - reassign # Checks that package variables are not reassigned
 issues:
