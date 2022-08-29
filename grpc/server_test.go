@@ -126,6 +126,7 @@ func TestErrorHandling(t *testing.T) {
 
 	ctx := context.Background()
 
+	// nolint: goerr113 // allow dynamic error for this sentinel error.
 	appErr := errors.New("err")
 
 	t.Run("Error", func(t *testing.T) {

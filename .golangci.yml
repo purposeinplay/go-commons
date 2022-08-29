@@ -1,7 +1,8 @@
 # .golangci.yml
 run:
-  skip-dirs:
-    - mock
+  modules-download-mode: mod
+
+  skip-dirs: mock
 
 linters-settings:
   staticcheck:
@@ -83,6 +84,7 @@ linters-settings:
       - i int
       - T any
       - i *is.I
+      - eg *errgroup.Group
 
   revive:
     ignore-generated-header: true
@@ -145,18 +147,15 @@ linters:
     - revive # Makes code style recomandations
     - gocyclo # Computes and checks the cyclomatic complexity of functions
     - gofumpt # Stricter gofmt
-    - deadcode #  Finds unused code
     - errcheck # Checks unchecked errors in go programs
     - gosimple # Linter for Go source code that specializes in simplifying a code
     - ineffassign # Detects when assignments to existing variables are not used
     - staticcheck # Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-    - structcheck # Finds unused struct fields
     - tagliatelle # Checks the struct tags.
     - typecheck # Like the front-end of a Go compiler, parses and type-checks Go code
     - thelper # thelper detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     - tenv # tenv is analyzer that detects using os.Setenv instead of t.Setenv since Go1.17
     - unused # Checks Go code for unused constants, variables, functions and types
-    - varcheck # Finds unused global variables and constants
     - varnamelen # checks that the length of a variable's name matches its scope	style
     - gocognit # Computes and checks the cognitive complexity of functions https://github.com/uudashr/gocognit
     - gosec # Inspects source code for security problems
@@ -165,7 +164,9 @@ linters:
     - nilnil # Checks that there is no simultaneous return of nil error and an invalid value.
     - wsl # Whitespace Linter - Forces you to use empty lines!
     - usestdlibvars # A linter that detect the possibility to use variables/constants from the Go standard library.
-
+    #    - interfacebloat # A linter that checks the number of methods inside an interface.
+    - logrlint # Check logr arguments.
+    - reassign # Checks that package variables are not reassigned
 issues:
   exclude-use-default: false
 
@@ -179,4 +180,13 @@ issues:
         - gosec
         - gocognit
         - forcetypeassert
-        - goerr113
+
+    - path: mock
+      linters:
+        - gomnd
+        - revive
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - forcetypeassert
