@@ -1,16 +1,14 @@
-name: lint-test-grpc
+name: lint-test-blockingqueue
 
 on:
-  # Trigger the workflow on push request if the files
-  # in ./pubsub package were modified
   push:
     branches:
       - main
     paths:
-      - grpc/**
+      - blockingqueue/**
 
 env:
-  PACKAGE: grpc
+  PACKAGE: blockingqueue
   GO_VERSION: 1.19
 
 jobs:
