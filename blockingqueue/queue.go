@@ -2,8 +2,7 @@ package blockingqueue
 
 import (
 	"context"
-
-	"go.uber.org/atomic"
+	"sync"
 )
 
 // Queue is a Blocking queue, it supports operations that wait
@@ -11,7 +10,9 @@ import (
 type Queue[T any] struct {
 	elements []T
 
-	c *atomic.Pointer[chan T]
+	elementsChan  chan T
+	resetMutex    sync.Mutex
+	elementsIndex int
 }
 
 // New creates a new Blocking Queue.
@@ -22,8 +23,10 @@ func New[T any](elements []T) *Queue[T] {
 	}
 
 	return &Queue[T]{
-		elements: elements,
-		c:        atomic.NewPointer(&c),
+		elements:      elements,
+		elementsChan:  c,
+		resetMutex:    sync.Mutex{},
+		elementsIndex: 0,
 	}
 }
 
@@ -32,27 +35,33 @@ func (q *Queue[T]) Take(
 	ctx context.Context,
 ) (v T) {
 	select {
-	case e, ok := <-*q.c.Load():
-		if !ok {
-			return q.Take(ctx)
-		}
-
-		v = e
+	case v = <-q.elementsChan:
 	case <-ctx.Done():
 	}
 
 	return v
 }
 
-// Reset refills the queue with the elements given at construction.
-func (q *Queue[T]) Reset() {
-	newC := make(chan T, len(q.elements))
+// Refill sends elements into the elements chan until the channel is full.
+func (q *Queue[T]) Refill() {
+	q.resetMutex.Lock()
+	defer q.resetMutex.Unlock()
 
-	for i := range q.elements {
-		newC <- q.elements[i]
+	// execute the loop until the elements channel is full.
+	for i := q.elementsIndex; len(q.elementsChan) <= cap(q.elementsChan); i++ {
+		// if the elements slice is consumed, reset the index and consume
+		// it again from the start.
+		if i == len(q.elements) {
+			i = 0
+		}
+
+		select {
+		case q.elementsChan <- q.elements[i]:
+			// successfully sent an element to the elements channel.
+		default:
+			// channel is full, store the elements index and return.
+			q.elementsIndex = i
+			return
+		}
 	}
-
-	oldC := q.c.Swap(&newC)
-
-	close(*oldC)
 }
