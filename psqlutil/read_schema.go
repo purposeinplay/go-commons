@@ -38,9 +38,9 @@ func ReadSchema(projectDirectoryName string) (string, error) {
 	return string(schemaB), nil
 }
 
-// DirectoryNotFound is returned when the
+// ErrDirectoryNotFound is returned when the
 // project directory is not found.
-var DirectoryNotFound = errors.New("wallee directory not found")
+var ErrDirectoryNotFound = errors.New("wallee directory not found")
 
 func getDirectoryPath(directoryName string) (string, error) {
 	_, filename, _, ok := runtime.Caller(0)
@@ -54,7 +54,7 @@ func getDirectoryPath(directoryName string) (string, error) {
 
 	// reverse range over path parts to find the directory
 	// absolute path
-	for len(pathParts) > 0 && directoryPath == "" {
+	for directoryPath == "" && len(pathParts) > 0 {
 		p := pathParts[len(pathParts)-1]
 		if p != directoryName {
 			pathParts = pathParts[:len(pathParts)-1]
@@ -64,7 +64,7 @@ func getDirectoryPath(directoryName string) (string, error) {
 	}
 
 	if directoryPath == "" {
-		return "", DirectoryNotFound
+		return "", ErrDirectoryNotFound
 	}
 
 	return directoryPath, nil
