@@ -58,6 +58,8 @@ func getDirectoryPath(directoryName string) (string, error) {
 		p := pathParts[len(pathParts)-1]
 		if p != directoryName {
 			pathParts = pathParts[:len(pathParts)-1]
+
+			continue
 		}
 
 		directoryPath = filepath.Join(pathParts...)
