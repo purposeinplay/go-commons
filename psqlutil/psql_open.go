@@ -20,6 +20,7 @@ import (
 func GormOpen(
 	ctx context.Context,
 	zapLogger *zap.Logger,
+	driver string,
 	postgresDSN string,
 ) (*gorm.DB, error) {
 	const (
@@ -34,7 +35,7 @@ func GormOpen(
 
 		db, err = gorm.Open(
 			postgres.New(postgres.Config{
-				DriverName: "postgres",
+				DriverName: driver,
 				DSN:        postgresDSN,
 			}),
 			&gorm.Config{
@@ -55,23 +56,6 @@ func GormOpen(
 	return db, nil
 }
 
-// SQLOpenWithGormDriver opens a new db connection and returns a
-// *sql.DB with a gorm driver.
-func SQLOpenWithGormDriver(
-	ctx context.Context,
-	postgresDSN string,
-) (*sql.DB, error) {
-	return sqlOpen(ctx, "postgres", postgresDSN)
-}
-
-// SQLOpenWithPgxDriver opens a new db connection with a pgx driver.
-func SQLOpenWithPgxDriver(
-	ctx context.Context,
-	postgresDSN string,
-) (*sql.DB, error) {
-	return sqlOpen(ctx, "pgx", postgresDSN)
-}
-
 // MustNewSQL panics if err is not nil, otherwise it returns db.
 func MustNewSQL(db *sql.DB, err error) *sql.DB {
 	if err != nil {
@@ -81,7 +65,9 @@ func MustNewSQL(db *sql.DB, err error) *sql.DB {
 	return db
 }
 
-func sqlOpen(
+// SQLOpen opens a new db connection and returns a
+// *sql.DB with a gorm driver.
+func SQLOpen(
 	ctx context.Context,
 	driver,
 	postgresDSN string,
