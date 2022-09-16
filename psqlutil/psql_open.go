@@ -55,17 +55,17 @@ func GormOpen(
 	return db, nil
 }
 
-// SQLOpenWithGorm opens a new db connection and returns a
+// SQLOpenWithGormDriver opens a new db connection and returns a
 // *sql.DB with a gorm driver.
-func SQLOpenWithGorm(
+func SQLOpenWithGormDriver(
 	ctx context.Context,
 	postgresDSN string,
 ) (*sql.DB, error) {
 	return sqlOpen(ctx, "postgres", postgresDSN)
 }
 
-// SQLOpenWithPgx opens a new db connection with a pgx driver.
-func SQLOpenWithPgx(
+// SQLOpenWithPgxDriver opens a new db connection with a pgx driver.
+func SQLOpenWithPgxDriver(
 	ctx context.Context,
 	postgresDSN string,
 ) (*sql.DB, error) {

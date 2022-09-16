@@ -55,8 +55,7 @@ func getDirectoryPath(directoryName string) (string, error) {
 	// reverse range over path parts to find the directory
 	// absolute path
 	for directoryPath == "" && len(pathParts) > 0 {
-		p := pathParts[len(pathParts)-1]
-		if p != directoryName {
+		if pathParts[len(pathParts)-1] != directoryName {
 			pathParts = pathParts[:len(pathParts)-1]
 
 			continue
