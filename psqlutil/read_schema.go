@@ -40,7 +40,7 @@ func ReadSchema(projectDirectoryName string) (string, error) {
 
 // ErrDirectoryNotFound is returned when the
 // project directory is not found.
-var ErrDirectoryNotFound = errors.New("wallee directory not found")
+var ErrDirectoryNotFound = errors.New("directory not found")
 
 func getDirectoryPath(directoryName string) (string, error) {
 	_, filename, _, ok := runtime.Caller(0)

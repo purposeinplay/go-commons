@@ -1,0 +1,49 @@
+name: lint-test-rabbitmq
+
+on:
+  # Trigger the workflow on push request if the files
+  # in ./pubsub package were modified
+  push:
+    branches:
+      - main
+    paths:
+      - rabbitmqdocker/
+
+env:
+  PACKAGE: rabbitmqdocker
+  GO_VERSION: 1.19
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m -c=$GITHUB_WORKSPACE/.golangci.yml
+          working-directory: ./${{ env.PACKAGE }}/
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: test
+        run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}
