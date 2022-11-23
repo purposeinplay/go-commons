@@ -86,7 +86,7 @@ type Server struct {
 	grpcServerWithListener        *serverWithListener
 	grpcGatewayServerWithListener *serverWithListener
 
-	debugLogger debugLogger
+	logging *logging
 
 	mu     sync.Mutex
 	closed bool
@@ -105,8 +105,8 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 
 	aggregatorServer := new(Server)
 
-	if !isDebugLoggerNil(opts.debugLogger) {
-		aggregatorServer.debugLogger = opts.debugLogger
+	if opts.logging != nil {
+		aggregatorServer.logging = opts.logging
 	}
 
 	grpcServerWithListener, err := newGRPCServerWithListener(
@@ -116,7 +116,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		opts.grpcServerOptions,
 		opts.unaryServerInterceptors,
 		opts.registerServer,
-		aggregatorServer.debugLogger,
+		aggregatorServer.logging,
 		opts.errorHandler,
 		opts.panicHandler,
 		opts.monitorOperationer,
@@ -258,9 +258,9 @@ func (s *Server) logDebug(msg string, fields ...zap.Field) {
 		return
 	}
 
-	s.debugLogger.Debug(msg, fields...)
+	s.logging.Debug(msg, fields...)
 }
 
 func (s *Server) debug() bool {
-	return !isDebugLoggerNil(s.debugLogger)
+	return !isDebugLoggerNil(s.logging)
 }

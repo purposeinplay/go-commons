@@ -20,7 +20,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
 
@@ -49,7 +48,7 @@ func newGRPCServerWithListener(
 	defaultGRPCServerOptions []grpc.ServerOption,
 	unaryServerInterceptors []grpc.UnaryServerInterceptor,
 	registerServer registerServerFunc,
-	debugLogger debugLogger,
+	logging *logging,
 	errorHandler ErrorHandler,
 	panicHandler PanicHandler,
 	monitorOperationer MonitorOperationer,
@@ -89,12 +88,12 @@ func newGRPCServerWithListener(
 		)
 	}
 
-	if !isDebugLoggerNil(debugLogger) {
+	if logging != nil {
 		// nolint: revive // complains that this lines modifies
 		// an input parameter.
 		unaryServerInterceptors = prependDebugInterceptor(
 			unaryServerInterceptors,
-			debugLogger,
+			logging,
 		)
 	}
 
@@ -115,8 +114,6 @@ func newGRPCServerWithListener(
 	}
 
 	internalGRPCServer := grpc.NewServer(grpcServerOptions...)
-
-	reflection.Register(internalGRPCServer)
 
 	if registerServer != nil {
 		registerServer(internalGRPCServer)
@@ -177,8 +174,14 @@ func newGRPCListener(
 
 func prependDebugInterceptor(
 	interceptors []grpc.UnaryServerInterceptor,
-	logger debugLogger,
+	logging *logging,
 ) []grpc.UnaryServerInterceptor {
+	logging.ignoredMethods = append(
+		logging.ignoredMethods,
+		"Check",
+		"Watch",
+	)
+
 	return prependServerOption(
 		func(
 			ctx context.Context,
@@ -190,8 +193,10 @@ func prependDebugInterceptor(
 
 			method := path.Base(info.FullMethod)
 
-			if method == "Check" || method == "Watch" {
-				return handler(ctx, req)
+			for _, m := range logging.ignoredMethods {
+				if method == m {
+					return handler(ctx, req)
+				}
 			}
 
 			requestID, err := grpcutils.GetRequestIDFromCtx(ctx)
@@ -199,7 +204,7 @@ func prependDebugInterceptor(
 				requestID = uuid.Nil.String()
 			}
 
-			logger.Debug(
+			logging.logger.Debug(
 				"request started",
 				zap.String("trace_id", requestID),
 				zap.String("method", method),
@@ -210,7 +215,7 @@ func prependDebugInterceptor(
 			code := status.Code(err)
 
 			if err != nil {
-				logger.Debug(
+				logging.logger.Debug(
 					"request completed with error",
 					zap.String("trace_id", requestID),
 					zap.String("method", method),
@@ -223,7 +228,7 @@ func prependDebugInterceptor(
 				return request, err
 			}
 
-			logger.Debug(
+			logging.logger.Debug(
 				"request completed successfully",
 				zap.String("trace_id", requestID),
 				zap.String("method", method),

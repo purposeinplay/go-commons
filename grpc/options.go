@@ -42,11 +42,16 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 	}
 }
 
+type logging struct {
+	logger         *zap.Logger
+	ignoredMethods []string
+}
+
 type serverOptions struct {
 	tracing                       bool
 	gateway                       bool
 	debugStandardLibraryEndpoints bool
-	debugLogger                   *zap.Logger
+	logging                       *logging
 	address                       string
 	grpcServerOptions             []grpc.ServerOption
 	muxOptions                    []runtime.ServeMuxOption
@@ -134,10 +139,13 @@ func WithNoGateway() ServerOption {
 	})
 }
 
-// WithDebug enables debugLogger logging for the servers.
-func WithDebug(logger *zap.Logger) ServerOption {
+// WithDebug enables logging for the servers.
+func WithDebug(logger *zap.Logger, ignoredMethods ...string) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.debugLogger = logger
+		o.logging = &logging{
+			logger:         logger,
+			ignoredMethods: ignoredMethods,
+		}
 	})
 }
 
@@ -246,7 +254,7 @@ func defaultServerOptions() serverOptions {
 		tracing:                       false,
 		gateway:                       true,
 		debugStandardLibraryEndpoints: false,
-		debugLogger:                   nil,
+		logging:                       nil,
 		address:                       "0.0.0.0:7350",
 		grpcServerOptions:             nil,
 		muxOptions: []runtime.ServeMuxOption{
