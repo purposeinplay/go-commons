@@ -2,13 +2,25 @@ package rabbitmqdocker
 
 import (
 	"github.com/ory/dockertest/v3"
+	"time"
 )
 
 type options struct {
 	containerName,
 	port,
 	managementPort string
-	pool *dockertest.Pool
+	pool       *dockertest.Pool
+	expiration time.Duration
+}
+
+func defaultOptions() options {
+	return options{
+		containerName:  "go-rabbitmqdocker",
+		port:           "5672",
+		managementPort: "15672",
+		pool:           nil,
+		expiration:     20,
+	}
 }
 
 // Option configures an BTC Node Docker.
@@ -50,4 +62,10 @@ func (p poolOption) apply(opts *options) {
 // WithPool sets the docker container pool.
 func WithPool(pool *dockertest.Pool) Option {
 	return poolOption{pool}
+}
+
+type expiration time.Duration
+
+func (e expiration) apply(opts *options) {
+	opts.expiration = time.Duration(e)
 }

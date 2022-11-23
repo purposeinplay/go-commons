@@ -16,13 +16,13 @@ func NewContainer(
 	pass string,
 	opts ...Option,
 ) (*dockertest.Resource, error) {
-	var options options
+	options := defaultOptions()
 
 	for _, o := range opts {
 		o.apply(&options)
 	}
 
-	_, managementPort, portBindings := ports(options)
+	portBindings := ports(options)
 
 	pool, err := pool(options)
 	if err != nil {
@@ -40,47 +40,29 @@ func NewContainer(
 	}
 
 	res, err := startContainer(pool, dockerRunOptions, func() error {
-		return ping(user, pass, managementPort)
+		return ping(user, pass, options.managementPort)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start container: %w", err)
 	}
 
+	// set expiration
+	_ = res.Expire(uint(options.expiration.Seconds()))
+
 	return res, nil
 }
 
-func ports(opts options) (
-	port,
-	managementPort string,
-	portBindings map[docker.Port][]docker.PortBinding,
-) {
-	const (
-		defaultPort           = "5672"
-		defaultManagementPort = "15672"
-	)
-
-	port = defaultPort
-
-	managementPort = defaultManagementPort
-
-	if opts.port != "" {
-		port = opts.port
-	}
-
-	if opts.managementPort != "" {
-		managementPort = opts.managementPort
-	}
-
+func ports(opts options) (portBindings map[docker.Port][]docker.PortBinding) {
 	pB := map[docker.Port][]docker.PortBinding{
-		docker.Port(defaultPort + "/tcp"): {
-			{HostIP: "0.0.0.0", HostPort: port},
+		docker.Port(opts.port + "/tcp"): {
+			{HostIP: "0.0.0.0", HostPort: opts.port},
 		},
-		docker.Port("15672/tcp"): {
-			{HostIP: "0.0.0.0", HostPort: "15672"},
+		docker.Port(opts.managementPort + "/tcp"): {
+			{HostIP: "0.0.0.0", HostPort: opts.managementPort},
 		},
 	}
 
-	return port, managementPort, pB
+	return pB
 }
 
 func envVars(user, password string) []string {
