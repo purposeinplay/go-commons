@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - rabbitmq/
+      - rabbitmq/**
 
 env:
   PACKAGE: rabbitmq

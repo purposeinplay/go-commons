@@ -69,3 +69,8 @@ type expiration time.Duration
 func (e expiration) apply(opts *options) {
 	opts.expiration = time.Duration(e)
 }
+
+// WithExpiration terminates the container after a period has passed.
+func WithExpiration(duration time.Duration) Option {
+	return expiration(duration)
+}
