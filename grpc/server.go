@@ -75,10 +75,6 @@ func (s *serverWithListener) Close() error {
 	return nil
 }
 
-type debugLogger interface {
-	Debug(msg string, fields ...zap.Field)
-}
-
 // Server holds the grpc and gateway underlying servers.
 // It starts and stops both of them together.
 // In case one of the server fails the other one is closed.
@@ -254,13 +250,9 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) logDebug(msg string, fields ...zap.Field) {
-	if !s.debug() {
+	if s.logging == nil {
 		return
 	}
 
-	s.logging.Debug(msg, fields...)
-}
-
-func (s *Server) debug() bool {
-	return !isDebugLoggerNil(s.logging)
+	s.logging.logger.Debug(msg, fields...)
 }

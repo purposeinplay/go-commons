@@ -362,6 +362,7 @@ func (s *greeterService) Greet(
 	}, nil
 }
 
+// nolint: contextcheck // no need to pass context here.
 func newBufnetServer(
 	t *testing.T,
 	greeter *greeterService,

@@ -22,14 +22,6 @@ func prependServerOption(
 	return newInterceptors
 }
 
-func isDebugLoggerNil(logger debugLogger) bool {
-	c := logger
-
-	return c == nil ||
-		(reflect.ValueOf(c).Kind() == reflect.Ptr &&
-			reflect.ValueOf(c).IsNil())
-}
-
 func isErrorHandlerNil(errorHandler ErrorHandler) bool {
 	c := errorHandler
 
