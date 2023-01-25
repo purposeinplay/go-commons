@@ -297,6 +297,7 @@ type ErrorHandler interface {
 // HandleError proposes a way of handling GRPC errors.
 // It logs and reports the error to an external service, everything
 // under a one-second timeout to avoid increasing the response time.
+// nolint: gocognit // high cognitive complexity, fix later.
 func HandleError(
 	targetErr error,
 	errorHandler ErrorHandler,
@@ -362,6 +363,11 @@ func HandleError(
 	// If the error is an internal error, report it to an external
 	// service.
 	default:
+		if s, ok := status.FromError(targetErr); ok {
+			grpcStatus = s
+			break
+		}
+
 		go func() {
 			// Report the error to an external service
 			reportErr := errorHandler.ReportError(ctx, targetErr)
