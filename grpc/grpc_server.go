@@ -394,11 +394,13 @@ func HandleError(
 func isGRPCStatus(err error) *status.Status {
 	var statusCandidate error
 
-	for {
-		statusCandidate = err
+	errCpy := err
 
-		err = errors.Unwrap(statusCandidate)
-		if err == nil {
+	for {
+		statusCandidate = errCpy
+
+		errCpy = errors.Unwrap(statusCandidate)
+		if errCpy == nil {
 			break
 		}
 	}
