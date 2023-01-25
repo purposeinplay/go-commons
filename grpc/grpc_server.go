@@ -363,7 +363,7 @@ func HandleError(
 	// If the error is an internal error, report it to an external
 	// service.
 	default:
-		if s, ok := status.FromError(targetErr); ok {
+		if s := isGRPCStatus(targetErr); s != nil {
 			grpcStatus = s
 			break
 		}
@@ -389,6 +389,23 @@ func HandleError(
 
 	// Return the grpc Status as an immutable error.
 	return grpcStatus.Err()
+}
+
+func isGRPCStatus(err error) *status.Status {
+	var statusCandidate error
+
+	for {
+		statusCandidate = err
+
+		err = errors.Unwrap(statusCandidate)
+		if err == nil {
+			break
+		}
+	}
+
+	s, _ := status.FromError(statusCandidate)
+
+	return s
 }
 
 func prependErrorHandler(
