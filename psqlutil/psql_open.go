@@ -22,6 +22,7 @@ func GormOpen(
 	zapLogger *zap.Logger,
 	driver string,
 	postgresDSN string,
+	ignoreRecordNotFoundErr bool,
 ) (*gorm.DB, error) {
 	const (
 		connectionAttempts = 5
@@ -29,6 +30,9 @@ func GormOpen(
 	)
 
 	var db *gorm.DB
+
+	logger := zapgorm2.New(zapLogger)
+	logger.IgnoreRecordNotFoundError = ignoreRecordNotFoundErr
 
 	err := retry.Do(func() error {
 		var err error
@@ -40,7 +44,7 @@ func GormOpen(
 			}),
 			&gorm.Config{
 				SkipDefaultTransaction: true,
-				Logger:                 zapgorm2.New(zapLogger),
+				Logger:                 logger,
 			})
 
 		return err
