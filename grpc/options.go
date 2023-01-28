@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"net"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +12,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -171,6 +173,31 @@ func WithUnaryServerInterceptorCodeGen() ServerOption {
 					grpc_ctxtags.CodeGenRequestFieldExtractor,
 				),
 			),
+		)
+	})
+}
+
+// WithUnaryServerInterceptorContextPropagation adds an interceptor to the
+// GRPC server that binds the received metadata on the incoming context
+// to the outgoing context.
+func WithUnaryServerInterceptorContextPropagation() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.unaryServerInterceptors = append(
+			o.unaryServerInterceptors,
+			func(
+				ctx context.Context,
+				req interface{},
+				_ *grpc.UnaryServerInfo,
+				handler grpc.UnaryHandler,
+			) (interface{}, error) {
+				outgoingCtx := ctx
+
+				if md, ok := metadata.FromIncomingContext(ctx); ok {
+					outgoingCtx = metadata.NewOutgoingContext(ctx, md)
+				}
+
+				return handler(outgoingCtx, req)
+			},
 		)
 	})
 }
