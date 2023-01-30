@@ -82,3 +82,13 @@ func WithContextDialer(
 		)
 	})
 }
+
+// WithClientUnaryInterceptor adds an interceptor for client calls.
+func WithClientUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) OptionConn {
+	return newFuncConnOption(func(o *connOptions) {
+		o.dialOptions = append(
+			o.dialOptions,
+			grpc.WithUnaryInterceptor(interceptor),
+		)
+	})
+}
