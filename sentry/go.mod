@@ -3,7 +3,7 @@ module github.com/purposeinplay/go-commons/sentry
 go 1.17
 
 require (
-	github.com/getsentry/sentry-go v0.17.0
+	github.com/getsentry/sentry-go v0.18.0
 	github.com/matryer/is v1.4.0
 )
 
