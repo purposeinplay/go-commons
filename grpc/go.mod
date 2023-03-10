@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
-	github.com/matryer/is v1.4.0
+	github.com/matryer/is v1.4.1
 	github.com/oklog/run v1.1.0
 	github.com/rs/cors v1.8.3
 	go.opencensus.io v0.24.0
