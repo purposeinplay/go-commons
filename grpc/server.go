@@ -3,8 +3,6 @@ package grpc
 import (
 	"errors"
 	"fmt"
-	"io"
-	"net"
 	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -18,22 +16,6 @@ import (
 var ErrServerClosed = errors.New("go-commons.grpc: server closed")
 
 type (
-	// the server interface defines basic methods for starting
-	// and stopping a server.
-	server interface {
-		io.Closer
-		Serve(listener net.Listener) error
-	}
-
-	// serverWithListener represents an implemented server
-	// that can be started and stopped.
-	serverWithListener struct {
-		server       server
-		listener     net.Listener
-		running      bool
-		runningMutex sync.Mutex
-	}
-
 	// registerServerFunc defines how we can register
 	// a grpc service to a grpc server.
 	registerServerFunc func(server *grpc.Server)
@@ -46,41 +28,12 @@ type (
 	) error
 )
 
-// ListenAndServe accepts incoming connections on the listener
-// available in the struct.
-func (s *serverWithListener) ListenAndServe() error {
-	s.runningMutex.Lock()
-
-	s.running = true
-
-	s.runningMutex.Unlock()
-
-	return s.server.Serve(s.listener)
-}
-
-// Close stops the seerver gracefully.
-func (s *serverWithListener) Close() error {
-	s.runningMutex.Lock()
-	defer s.runningMutex.Unlock()
-
-	if !s.running {
-		return nil
-	}
-
-	err := s.server.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Server holds the grpc and gateway underlying servers.
 // It starts and stops both of them together.
 // In case one of the server fails the other one is closed.
 type Server struct {
-	grpcServerWithListener        *serverWithListener
-	grpcGatewayServerWithListener *serverWithListener
+	grpcServer    *grpcServer
+	gatewayServer *gatewayServer
 
 	logging *logging
 
@@ -105,7 +58,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		aggregatorServer.logging = opts.logging
 	}
 
-	grpcServerWithListener, err := newGRPCServerWithListener(
+	grpcServerWithListener, err := newGRPCServer(
 		opts.grpcListener,
 		opts.address,
 		opts.tracing,
@@ -121,26 +74,27 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		return nil, fmt.Errorf("new gRPC server: %w", err)
 	}
 
-	aggregatorServer.grpcServerWithListener = grpcServerWithListener
+	aggregatorServer.grpcServer = grpcServerWithListener
 
 	// return here if a gateway server is not wanted.
 	if !opts.gateway {
 		return aggregatorServer, nil
 	}
 
-	grpcGatewayServer, err := newGatewayServerWithListener(
+	grpcGatewayServer, err := newGatewayServer(
 		opts.muxOptions,
 		opts.tracing,
 		opts.registerGateway,
 		opts.address,
 		opts.httpMiddlewares,
 		opts.debugStandardLibraryEndpoints,
+		opts.gatewayCorsOptions,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("new gRPC gateway server: %w", err)
 	}
 
-	aggregatorServer.grpcGatewayServerWithListener = grpcGatewayServer
+	aggregatorServer.gatewayServer = grpcGatewayServer
 
 	return aggregatorServer, nil
 }
@@ -151,26 +105,22 @@ func (s *Server) ListenAndServe() error {
 	s.mu.Lock()
 
 	if s.closed {
+		s.mu.Unlock()
+
 		return ErrServerClosed
 	}
 
 	var runGroup run.Group
 
-	runGroup.Add(
-		s.runGRPCServer,
-		func(err error) {
-			_ = s.grpcServerWithListener.Close()
-		},
-	)
+	runGroup.Add(s.runGRPCServer, func(err error) {
+		_ = s.grpcServer.close()
+	})
 
 	// start gateway server.
-	if s.grpcGatewayServerWithListener != nil {
-		runGroup.Add(
-			s.runGatewayServer,
-			func(err error) {
-				_ = s.grpcGatewayServerWithListener.Close()
-			},
-		)
+	if s.gatewayServer != nil {
+		runGroup.Add(s.runGatewayServer, func(err error) {
+			_ = s.gatewayServer.close()
+		})
 	}
 
 	s.mu.Unlock()
@@ -188,18 +138,18 @@ func (s *Server) runGRPCServer() error {
 		"starting gRPC server",
 		zap.String(
 			"address",
-			s.grpcServerWithListener.listener.Addr().String(),
+			s.grpcServer.addr(),
 		),
 	)
 
-	return s.grpcServerWithListener.ListenAndServe()
+	return s.grpcServer.listenAndServe()
 }
 
 func (s *Server) closeGRPCServer() error {
 	s.logDebug("close grpc server")
 	defer s.logDebug("grpc server done")
 
-	return s.grpcServerWithListener.Close()
+	return s.grpcServer.close()
 }
 
 func (s *Server) runGatewayServer() error {
@@ -207,18 +157,18 @@ func (s *Server) runGatewayServer() error {
 		"starting gRPC gateway server for HTTP requests",
 		zap.String(
 			"address",
-			s.grpcGatewayServerWithListener.listener.Addr().String(),
+			s.gatewayServer.addr(),
 		),
 	)
 
-	return s.grpcGatewayServerWithListener.ListenAndServe()
+	return s.gatewayServer.listenAndServe()
 }
 
 func (s *Server) closeGatewayServer() error {
 	s.logDebug("close gateway server")
 	defer s.logDebug("gateway server done")
 
-	return s.grpcGatewayServerWithListener.Close()
+	return s.gatewayServer.close()
 }
 
 // Close closes both underlying servers.
@@ -233,7 +183,7 @@ func (s *Server) Close() error {
 
 	// 1. Stop GRPC Gateway server first as it sits above GRPC server.
 	// This also closes the underlying grpcListener.
-	if s.grpcGatewayServerWithListener != nil {
+	if s.gatewayServer != nil {
 		err := s.closeGatewayServer()
 		if err != nil {
 			return fmt.Errorf("close gateway server: %w", err)

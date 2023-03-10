@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
@@ -23,25 +24,35 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var _ server = (*grpcServer)(nil)
-
 type grpcServer struct {
-	internalGRPCServer *grpc.Server
+	grpcServer *grpc.Server
+	listener   net.Listener
+	closed     atomic.Bool
 }
 
-func (s *grpcServer) Serve(listener net.Listener) error {
-	return s.internalGRPCServer.Serve(listener)
+func (s *grpcServer) listenAndServe() error {
+	return s.grpcServer.Serve(s.listener)
 }
 
-func (s *grpcServer) Close() error {
-	s.internalGRPCServer.GracefulStop()
+func (s *grpcServer) addr() string {
+	return s.listener.Addr().String()
+}
+
+func (s *grpcServer) close() error {
+	if s.closed.Load() {
+		return nil
+	}
+
+	s.closed.Store(true)
+
+	s.grpcServer.GracefulStop()
 
 	return nil
 }
 
 // nolint: gocyclo, revive // cyclomatic complexity is 9. FIXME
 // revive complains about tracing being a control flag.
-func newGRPCServerWithListener(
+func newGRPCServer(
 	listener net.Listener,
 	address string,
 	tracing bool,
@@ -53,7 +64,7 @@ func newGRPCServerWithListener(
 	panicHandler PanicHandler,
 	monitorOperationer MonitorOperationer,
 ) (
-	*serverWithListener,
+	*grpcServer,
 	error,
 ) {
 	grpcListener, err := newGRPCListener(listener, address)
@@ -119,11 +130,9 @@ func newGRPCServerWithListener(
 		registerServer(internalGRPCServer)
 	}
 
-	return &serverWithListener{
-		server: &grpcServer{
-			internalGRPCServer: internalGRPCServer,
-		},
-		listener: grpcListener,
+	return &grpcServer{
+		grpcServer: internalGRPCServer,
+		listener:   grpcListener,
 	}, nil
 }
 

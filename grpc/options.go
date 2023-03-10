@@ -10,6 +10,7 @@ import (
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/rs/cors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -65,6 +66,7 @@ type serverOptions struct {
 	errorHandler                  ErrorHandler
 	panicHandler                  PanicHandler
 	monitorOperationer            MonitorOperationer
+	gatewayCorsOptions            cors.Options
 }
 
 // WithAddress configures the Server to listen to the given address
@@ -276,6 +278,13 @@ func WithDebugStandardLibraryEndpoints() ServerOption {
 	})
 }
 
+// WithGatewayCorsOptions sets the options to be used with CORS for the gateway server.
+func WithGatewayCorsOptions(opts cors.Options) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.gatewayCorsOptions = opts
+	})
+}
+
 func defaultServerOptions() serverOptions {
 	return serverOptions{
 		tracing:                       false,
@@ -306,5 +315,14 @@ func defaultServerOptions() serverOptions {
 		registerGateway:         nil,
 		grpcListener:            nil,
 		unaryServerInterceptors: nil,
+		errorHandler:            nil,
+		panicHandler:            nil,
+		monitorOperationer:      nil,
+		gatewayCorsOptions: cors.Options{
+			AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+			ExposedHeaders:   []string{"Link", "X-Total-Count"},
+			AllowCredentials: true,
+		},
 	}
 }

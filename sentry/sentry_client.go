@@ -20,8 +20,8 @@ var (
 
 // NewClient returns a new instance of Sentry ReporterService.
 func NewClient(
-	dsn, environment, release string,
-	traceSampleRate float64,
+		dsn, environment, release string,
+		traceSampleRate float64,
 ) (*Client, error) {
 	err := sentry.Init(sentry.ClientOptions{
 		// Either set your DSN here or set the SENTRY_DSN environment variable.
@@ -44,7 +44,13 @@ func NewClient(
 
 // ReportError reports an error to Sentry.
 func (*Client) ReportError(ctx context.Context, err error) error {
-	eventID := hubFromContext(ctx).CaptureException(err)
+	hub := hubFromContext(ctx)
+
+	eventID := hub.Client().CaptureException(
+		err,
+		&sentry.EventHint{Context: ctx},
+		hub.Scope(),
+	)
 	if eventID == nil {
 		return ErrNoClientOrScopeAvailable
 	}
@@ -65,10 +71,10 @@ func (*Client) ReportEvent(ctx context.Context, event string) error {
 // MonitorOperation returns a new context to be used with the operation
 // and a done function to signal that the operation ended.
 func (*Client) MonitorOperation(
-	ctx context.Context,
-	operation string,
-	traceID [16]byte,
-	doFunc func(context.Context),
+		ctx context.Context,
+		operation string,
+		traceID [16]byte,
+		doFunc func(context.Context),
 ) {
 	hub := sentry.GetHubFromContext(ctx)
 	if hub == nil {

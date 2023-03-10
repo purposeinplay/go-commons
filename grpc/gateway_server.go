@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver/propagation"
@@ -19,14 +20,18 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var _ server = (*gatewayServer)(nil)
-
 type gatewayServer struct {
-	internalHTTPServer *http.Server
+	httpServer *http.Server
+	listener   net.Listener
+	closed     atomic.Bool
 }
 
-func (s *gatewayServer) Serve(listener net.Listener) error {
-	err := s.internalHTTPServer.Serve(listener)
+func (s *gatewayServer) addr() string {
+	return s.listener.Addr().String()
+}
+
+func (s *gatewayServer) listenAndServe() error {
+	err := s.httpServer.Serve(s.listener)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -34,20 +39,27 @@ func (s *gatewayServer) Serve(listener net.Listener) error {
 	return nil
 }
 
-func (s *gatewayServer) Close() error {
-	return s.internalHTTPServer.Shutdown(context.Background())
+func (s *gatewayServer) close() error {
+	if s.closed.Load() {
+		return nil
+	}
+
+	s.closed.Store(true)
+
+	return s.httpServer.Shutdown(context.Background())
 }
 
 // nolint: revive // false-positive, it reports tracing as a control flag.
-func newGatewayServerWithListener(
+func newGatewayServer(
 	muxOptions []runtime.ServeMuxOption,
 	tracing bool,
 	registerGateway registerGatewayFunc,
 	address string,
 	middlewares chi.Middlewares,
 	debugStandardLibraryEndpoints bool,
+	corsOptions cors.Options,
 ) (
-	*serverWithListener,
+	*gatewayServer,
 	error,
 ) {
 	grpcGatewayMux := runtime.NewServeMux(
@@ -80,12 +92,7 @@ func newGatewayServerWithListener(
 		return nil, fmt.Errorf("new listener: %w", err)
 	}
 
-	corsHandler := cors.New(cors.Options{
-		AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		ExposedHeaders:   []string{"Link", "X-Total-Count"},
-		AllowCredentials: true,
-	})
+	corsHandler := cors.New(corsOptions)
 
 	router := chi.NewRouter()
 
@@ -115,19 +122,17 @@ func newGatewayServerWithListener(
 		idleTimeout = 2 * time.Minute
 	)
 
-	return &serverWithListener{
-			server: &gatewayServer{
-				internalHTTPServer: &http.Server{
-					Handler: http.TimeoutHandler(
-						router,
-						handlerTimeout,
-						"",
-					),
-					ReadTimeout:       readTimeout,
-					ReadHeaderTimeout: readHeaderTimeout,
-					WriteTimeout:      writeTimeout,
-					IdleTimeout:       idleTimeout,
-				},
+	return &gatewayServer{
+			httpServer: &http.Server{
+				Handler: http.TimeoutHandler(
+					router,
+					handlerTimeout,
+					"",
+				),
+				ReadTimeout:       readTimeout,
+				ReadHeaderTimeout: readHeaderTimeout,
+				WriteTimeout:      writeTimeout,
+				IdleTimeout:       idleTimeout,
 			},
 			listener: listener,
 		},
