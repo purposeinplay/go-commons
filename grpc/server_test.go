@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
@@ -21,7 +23,63 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+	"io"
+	"strings"
 )
+
+func TestGateway(t *testing.T) {
+	t.Parallel()
+
+	i := is.New(t)
+
+	grpcServer, err := commonsgrpc.NewServer(
+		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+			greetpb.RegisterGreetServiceServer(server, &greeterService{
+				greetFunc: func() error { return nil },
+			})
+		}),
+		commonsgrpc.WithRegisterGatewayFunc(func(mux *runtime.ServeMux, dialOptions []grpc.DialOption) error {
+			err := greetpb.RegisterGreetServiceHandlerFromEndpoint(
+				context.Background(),
+				mux,
+				"0.0.0.0:7349",
+				dialOptions,
+			)
+			if err != nil {
+				return fmt.Errorf("register gRPC gateway: %w", err)
+			}
+
+			return nil
+		}),
+	)
+	i.NoErr(err)
+
+	go func() {
+		err := grpcServer.ListenAndServe()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	t.Cleanup(func() {
+		err := grpcServer.Close()
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	resp, err := http.Post(
+		"http://0.0.0.0:7350/greet",
+		"application/json",
+		strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`),
+	)
+	i.NoErr(err)
+
+	b, err := io.ReadAll(resp.Body)
+	i.NoErr(err)
+
+	i.Equal(string(b), `{"result":"JohnDoe"}`)
+}
 
 func TestPort(t *testing.T) {
 	t.Parallel()

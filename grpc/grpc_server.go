@@ -13,7 +13,6 @@ import (
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/google/uuid"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.opencensus.io/plugin/ocgrpc"
@@ -119,7 +118,7 @@ func newGRPCServer(
 
 	if len(unaryServerInterceptors) > 0 {
 		grpcServerOptions = append(grpcServerOptions,
-			grpc_middleware.WithUnaryServerChain(
+			grpc.ChainUnaryInterceptor(
 				unaryServerInterceptors...,
 			))
 	}
