@@ -7,7 +7,7 @@ run:
 linters-settings:
   staticcheck:
     # Select the Go version to target. The default is '1.13'.
-    go: "1.19"
+    go: "1.20"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all" ]
 
@@ -167,6 +167,7 @@ linters:
     - interfacebloat # A linter that checks the number of methods inside an interface.
     - logrlint # Check logr arguments.
     - reassign # Checks that package variables are not reassigned
+    - dupword
 issues:
   exclude-use-default: false
 

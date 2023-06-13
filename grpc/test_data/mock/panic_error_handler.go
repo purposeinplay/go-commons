@@ -21,10 +21,10 @@ var _ commonsgrpc.PanicHandler = &PanicHandlerMock{}
 //			LogErrorFunc: func(err error)  {
 //				panic("mock out the LogError method")
 //			},
-//			LogPanicFunc: func(ifaceVal interface{})  {
+//			LogPanicFunc: func(ifaceVal any)  {
 //				panic("mock out the LogPanic method")
 //			},
-//			ReportPanicFunc: func(contextMoqParam context.Context, ifaceVal interface{}) error {
+//			ReportPanicFunc: func(contextMoqParam context.Context, ifaceVal any) error {
 //				panic("mock out the ReportPanic method")
 //			},
 //		}
@@ -38,10 +38,10 @@ type PanicHandlerMock struct {
 	LogErrorFunc func(err error)
 
 	// LogPanicFunc mocks the LogPanic method.
-	LogPanicFunc func(ifaceVal interface{})
+	LogPanicFunc func(ifaceVal any)
 
 	// ReportPanicFunc mocks the ReportPanic method.
-	ReportPanicFunc func(contextMoqParam context.Context, ifaceVal interface{}) error
+	ReportPanicFunc func(contextMoqParam context.Context, ifaceVal any) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -53,14 +53,14 @@ type PanicHandlerMock struct {
 		// LogPanic holds details about calls to the LogPanic method.
 		LogPanic []struct {
 			// IfaceVal is the ifaceVal argument value.
-			IfaceVal interface{}
+			IfaceVal any
 		}
 		// ReportPanic holds details about calls to the ReportPanic method.
 		ReportPanic []struct {
 			// ContextMoqParam is the contextMoqParam argument value.
 			ContextMoqParam context.Context
 			// IfaceVal is the ifaceVal argument value.
-			IfaceVal interface{}
+			IfaceVal any
 		}
 	}
 	lockLogError    sync.RWMutex
@@ -101,12 +101,12 @@ func (mock *PanicHandlerMock) LogErrorCalls() []struct {
 }
 
 // LogPanic calls LogPanicFunc.
-func (mock *PanicHandlerMock) LogPanic(ifaceVal interface{}) {
+func (mock *PanicHandlerMock) LogPanic(ifaceVal any) {
 	if mock.LogPanicFunc == nil {
 		panic("PanicHandlerMock.LogPanicFunc: method is nil but PanicHandler.LogPanic was just called")
 	}
 	callInfo := struct {
-		IfaceVal interface{}
+		IfaceVal any
 	}{
 		IfaceVal: ifaceVal,
 	}
@@ -121,10 +121,10 @@ func (mock *PanicHandlerMock) LogPanic(ifaceVal interface{}) {
 //
 //	len(mockedPanicHandler.LogPanicCalls())
 func (mock *PanicHandlerMock) LogPanicCalls() []struct {
-	IfaceVal interface{}
+	IfaceVal any
 } {
 	var calls []struct {
-		IfaceVal interface{}
+		IfaceVal any
 	}
 	mock.lockLogPanic.RLock()
 	calls = mock.calls.LogPanic
@@ -133,13 +133,13 @@ func (mock *PanicHandlerMock) LogPanicCalls() []struct {
 }
 
 // ReportPanic calls ReportPanicFunc.
-func (mock *PanicHandlerMock) ReportPanic(contextMoqParam context.Context, ifaceVal interface{}) error {
+func (mock *PanicHandlerMock) ReportPanic(contextMoqParam context.Context, ifaceVal any) error {
 	if mock.ReportPanicFunc == nil {
 		panic("PanicHandlerMock.ReportPanicFunc: method is nil but PanicHandler.ReportPanic was just called")
 	}
 	callInfo := struct {
 		ContextMoqParam context.Context
-		IfaceVal        interface{}
+		IfaceVal        any
 	}{
 		ContextMoqParam: contextMoqParam,
 		IfaceVal:        ifaceVal,
@@ -156,11 +156,11 @@ func (mock *PanicHandlerMock) ReportPanic(contextMoqParam context.Context, iface
 //	len(mockedPanicHandler.ReportPanicCalls())
 func (mock *PanicHandlerMock) ReportPanicCalls() []struct {
 	ContextMoqParam context.Context
-	IfaceVal        interface{}
+	IfaceVal        any
 } {
 	var calls []struct {
 		ContextMoqParam context.Context
-		IfaceVal        interface{}
+		IfaceVal        any
 	}
 	mock.lockReportPanic.RLock()
 	calls = mock.calls.ReportPanic

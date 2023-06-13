@@ -3,14 +3,16 @@ package grpc_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
@@ -23,8 +25,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-	"io"
-	"strings"
 )
 
 func TestGateway(t *testing.T) {
@@ -38,7 +38,10 @@ func TestGateway(t *testing.T) {
 				greetFunc: func() error { return nil },
 			})
 		}),
-		commonsgrpc.WithRegisterGatewayFunc(func(mux *runtime.ServeMux, dialOptions []grpc.DialOption) error {
+		commonsgrpc.WithRegisterGatewayFunc(func(
+			mux *runtime.ServeMux,
+			dialOptions []grpc.DialOption,
+		) error {
 			err := greetpb.RegisterGreetServiceHandlerFromEndpoint(
 				context.Background(),
 				mux,
@@ -77,6 +80,8 @@ func TestGateway(t *testing.T) {
 
 	b, err := io.ReadAll(resp.Body)
 	i.NoErr(err)
+
+	i.NoErr(resp.Body.Close())
 
 	i.Equal(string(b), `{"result":"JohnDoe"}`)
 }
@@ -254,10 +259,10 @@ func TestErrorHandling(t *testing.T) {
 			LogErrorFunc: func(err error) {
 				log.Printf("log err: %s", err.Error())
 			},
-			LogPanicFunc: func(p interface{}) {
+			LogPanicFunc: func(p any) {
 				log.Printf("log panic: %s", p)
 			},
-			ReportPanicFunc: func(_ context.Context, p interface{}) error {
+			ReportPanicFunc: func(_ context.Context, p any) error {
 				log.Printf("report panic: %s", p)
 				return nil
 			},
@@ -313,10 +318,10 @@ func TestErrorHandling(t *testing.T) {
 			LogErrorFunc: func(err error) {
 				log.Printf("log err: %s", err.Error())
 			},
-			LogPanicFunc: func(p interface{}) {
+			LogPanicFunc: func(p any) {
 				log.Printf("log panic: %s", p)
 			},
-			ReportPanicFunc: func(_ context.Context, p interface{}) error {
+			ReportPanicFunc: func(_ context.Context, p any) error {
 				log.Printf("report panic: %s", p)
 				return nil
 			},

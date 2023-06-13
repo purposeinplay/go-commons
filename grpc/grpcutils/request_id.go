@@ -68,10 +68,10 @@ func SetOutgoingRequestIDFromIncoming(ctx context.Context) context.Context {
 func PassRequestIDUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		_ *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		return handler(
 			SetOutgoingRequestIDFromIncoming(ctx),
 			req,

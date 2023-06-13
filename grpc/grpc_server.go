@@ -193,10 +193,10 @@ func prependDebugInterceptor(
 	return prependServerOption(
 		func(
 			ctx context.Context,
-			req interface{},
+			req any,
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
-		) (resp interface{}, err error) {
+		) (resp any, err error) {
 			start := time.Now()
 
 			method := path.Base(info.FullMethod)
@@ -252,15 +252,15 @@ func prependDebugInterceptor(
 
 // PanicHandler defines methods for handling a panic.
 type PanicHandler interface {
-	ReportPanic(context.Context, interface{}) error
-	LogPanic(interface{})
+	ReportPanic(context.Context, any) error
+	LogPanic(any)
 	LogError(error)
 }
 
 func newRecoveryFunc(
 	panicHandler PanicHandler,
 ) grpc_recovery.RecoveryHandlerFunc {
-	return func(p interface{}) error {
+	return func(p any) error {
 		ctx, cancelCtx := context.WithTimeout(
 			context.Background(),
 			time.Second,
@@ -425,10 +425,10 @@ func prependErrorHandler(
 	return prependServerOption(
 		func(
 			ctx context.Context,
-			req interface{},
+			req any,
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
-		) (interface{}, error) {
+		) (any, error) {
 			resp, err := handler(ctx, req)
 			if err != nil {
 				// nolint: contextcheck // do not pass the request context
@@ -463,10 +463,10 @@ func newMonitorOperationUnaryInterceptor(
 ) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		if info.FullMethod == "/grpc.health.v1.Health/Check" {
 			return handler(ctx, req)
 		}
@@ -479,7 +479,7 @@ func newMonitorOperationUnaryInterceptor(
 		traceID, _ := uuid.Parse(requestID)
 
 		var (
-			resp       interface{}
+			resp       any
 			handlerErr error
 		)
 

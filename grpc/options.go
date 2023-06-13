@@ -188,10 +188,10 @@ func WithUnaryServerInterceptorContextPropagation() ServerOption {
 			o.unaryServerInterceptors,
 			func(
 				ctx context.Context,
-				req interface{},
+				req any,
 				_ *grpc.UnaryServerInfo,
 				handler grpc.UnaryHandler,
-			) (interface{}, error) {
+			) (any, error) {
 				outgoingCtx := ctx
 
 				if md, ok := metadata.FromIncomingContext(ctx); ok {
