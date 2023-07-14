@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -71,11 +72,12 @@ func TestGateway(t *testing.T) {
 		}
 	})
 
-	resp, err := http.Post(
-		"http://0.0.0.0:7350/greet",
-		"application/json",
-		strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`),
-	)
+	req, err := http.NewRequest(http.MethodPost, "http://0.0.0.0:7350/greet", strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`))
+	i.NoErr(err)
+
+	req.Header.Set("Grpc-Metadata-custom", "test")
+
+	resp, err := http.DefaultClient.Do(req)
 	i.NoErr(err)
 
 	b, err := io.ReadAll(resp.Body)
@@ -83,7 +85,7 @@ func TestGateway(t *testing.T) {
 
 	i.NoErr(resp.Body.Close())
 
-	i.Equal(string(b), `{"result":"JohnDoe"}`)
+	i.Equal(string(b), `{"result":"JohnDoetest"}`)
 }
 
 func TestPort(t *testing.T) {
@@ -410,7 +412,7 @@ type greeterService struct {
 }
 
 func (s *greeterService) Greet(
-	_ context.Context,
+	ctx context.Context,
 	req *greetpb.GreetRequest,
 ) (*greetpb.GreetResponse, error) {
 	if s.greetFunc != nil {
@@ -420,8 +422,16 @@ func (s *greeterService) Greet(
 		}
 	}
 
+	res := req.Greeting.FirstName + req.Greeting.LastName
+
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if len(md["custom"]) > 0 {
+			res = res + md["custom"][0]
+		}
+	}
+
 	return &greetpb.GreetResponse{
-		Result: req.Greeting.FirstName + req.Greeting.LastName,
+		Result: res,
 	}, nil
 }
 
