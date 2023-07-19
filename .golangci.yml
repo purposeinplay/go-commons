@@ -168,6 +168,10 @@ linters:
     - logrlint # Check logr arguments.
     - reassign # Checks that package variables are not reassigned
     - dupword
+    - tagalign
+    - mirror
+    - gosmopolitan
+
 issues:
   exclude-use-default: false
 

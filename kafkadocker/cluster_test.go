@@ -2,11 +2,11 @@ package kafkadocker_test
 
 import (
 	"context"
-	"fmt"
+	"testing"
+
 	"github.com/IBM/sarama"
 	"github.com/purposeinplay/go-commons/kafkadocker"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestBroker(t *testing.T) {
@@ -31,19 +31,52 @@ func TestBroker(t *testing.T) {
 
 	t.Logf("broker addresses: %s", brokerAddresses)
 
-	for i, a := range brokerAddresses {
-		msg := fmt.Sprintf("index: %d, address: %s", i, a)
+	t.Run("TestBrokers", func(t *testing.T) {
+		req := require.New(t)
 
-		broker := sarama.NewBroker(a)
+		for _, addr := range brokerAddresses {
+			brk := sarama.NewBroker(addr)
 
-		err = broker.Open(nil)
-		req.NoError(err, msg)
+			err = brk.Open(nil)
+			req.NoError(err)
 
-		conn, err := broker.Connected()
-		req.NoError(err, msg)
-		req.True(conn)
+			t.Cleanup(func() {
+				err := brk.Close()
+				req.NoError(err)
+			})
 
-		_, err = broker.Heartbeat(&sarama.HeartbeatRequest{})
-		req.NoError(err, msg)
-	}
+			conn, err := brk.Connected()
+			req.NoError(err)
+			req.True(conn)
+
+			_, err = brk.Heartbeat(&sarama.HeartbeatRequest{})
+			req.NoError(err)
+		}
+	})
+
+	cfg := sarama.NewConfig()
+
+	cfg.Producer.Return.Successes = true
+
+	client, err := sarama.NewClient(brokerAddresses, cfg)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := client.Close()
+		req.NoError(err)
+	})
+
+	producer, err := sarama.NewSyncProducerFromClient(client)
+	req.NoError(err)
+
+	_, _, err = producer.SendMessage(&sarama.ProducerMessage{
+		Topic: "test",
+		Value: sarama.StringEncoder("test"),
+	})
+	req.NoError(err)
+
+	topics, err := client.Topics()
+	req.NoError(err)
+
+	t.Log(topics)
 }
