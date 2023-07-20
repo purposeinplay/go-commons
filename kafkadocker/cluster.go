@@ -3,18 +3,19 @@ package kafkadocker
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/avast/retry-go"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/sync/errgroup"
-	"io"
-	"time"
 )
 
 // Cluster represents a Kafka cluster.
@@ -24,8 +25,9 @@ type Cluster struct {
 	started            atomic.Bool
 	network            testcontainers.Network
 
-	Brokers int      // For specifying the number of brokers to start.
-	Topics  []string // For specifying the topics to create.
+	Brokers     int      // For specifying the number of brokers to start.
+	Topics      []string // For specifying the topics to create.
+	HealthProbe bool
 }
 
 // BrokerAddresses returns the addresses of the brokers in the cluster.
@@ -107,12 +109,13 @@ func (c *Cluster) Start(ctx context.Context) error {
 	for brokerID := 1; brokerID <= brokers; brokerID++ {
 		containerName := fmt.Sprintf("kafkadocker-broker-%d", brokerID)
 		port := fmt.Sprintf("909%d", brokerID)
+		portTCP := port + "/tcp"
 
 		brokerRequests[brokerID-1] = testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Image: "confluentinc/cp-kafka",
 				ExposedPorts: []string{
-					port + "/tcp",
+					portTCP,
 				},
 				// nolint: revive // line too long
 				Env: map[string]string{
@@ -140,7 +143,10 @@ func (c *Cluster) Start(ctx context.Context) error {
 				Cmd: []string{
 					"sh",
 					"-c",
-					fmt.Sprintf(`while [ ! -f %[1]s ]; do sleep 0.1; done; %[1]s`, starterScriptName),
+					fmt.Sprintf(
+						`while [ ! -f %[1]s ]; do sleep 0.1; done; %[1]s`,
+						starterScriptName,
+					),
 				},
 				LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
 					{
@@ -154,8 +160,13 @@ func (c *Cluster) Start(ctx context.Context) error {
 								)
 
 								eg.Go(func() error {
+									const (
+										retryAttempts = 5
+										retryDelay    = time.Second / 10
+									)
+
 									return retry.Do(func() error {
-										p, err := container.MappedPort(egCtx, nat.Port(fmt.Sprintf(port+"/tcp")))
+										p, err := container.MappedPort(egCtx, nat.Port(portTCP))
 										if err != nil {
 											return fmt.Errorf("get hook mapped port: %w", err)
 										}
@@ -165,10 +176,11 @@ func (c *Cluster) Start(ctx context.Context) error {
 											return fmt.Errorf("get hook host: %w", err)
 										}
 
+										// nolint: revive // line too long
 										advertisedListenerAddress = fmt.Sprintf("%s:%s", h, p.Port())
 
 										return nil
-									}, retry.Attempts(5), retry.Delay(time.Second/10))
+									}, retry.Attempts(retryAttempts), retry.Delay(retryDelay))
 								})
 
 								eg.Go(func() error {
@@ -177,6 +189,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 										"/etc/confluent/docker/run",
 									)
 									if err != nil {
+										// nolint: revive // line too long
 										return fmt.Errorf("copy start script from container: %w", err)
 									}
 
@@ -212,11 +225,13 @@ func (c *Cluster) Start(ctx context.Context) error {
 									advListeners,
 								) + startScript[lastFiIdx+3:]
 
+								const fileMode = 0o755
+
 								if err := container.CopyToContainer(
 									ctx,
 									[]byte(startScript),
 									starterScriptName,
-									0755,
+									fileMode,
 								); err != nil {
 									return fmt.Errorf("copy start script to container: %w", err)
 								}
@@ -268,6 +283,22 @@ func (c *Cluster) Start(ctx context.Context) error {
 		c.brokerContainers[i].hostAddress = fmt.Sprintf("%s:%s", containerIP, port.Port())
 	}
 
+	if c.HealthProbe {
+		eg, egCtx := errgroup.WithContext(ctx)
+
+		for i := range c.brokerContainers {
+			i := i
+
+			eg.Go(func() error {
+				return probeBroker(egCtx, c.brokerContainers[i])
+			})
+		}
+
+		if err := eg.Wait(); err != nil {
+			return fmt.Errorf("probe brokers: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -315,4 +346,36 @@ func (c *Cluster) Stop(ctx context.Context) error {
 	c.started.Store(false)
 
 	return nil
+}
+
+func probeBroker(ctx context.Context, c brokerContainer) error {
+	return retry.Do(func() error {
+		brk := sarama.NewBroker(c.hostAddress)
+
+		if err := brk.Open(nil); err != nil {
+			return fmt.Errorf("open: %w", err)
+		}
+
+		// nolint: errcheck
+		defer brk.Close()
+
+		conn, err := brk.Connected()
+		if err != nil {
+			return fmt.Errorf("connected: %w", err)
+		}
+
+		if !conn {
+			return ErrBrokerNotConnected
+		}
+
+		if _, err = brk.Heartbeat(&sarama.HeartbeatRequest{}); err != nil {
+			return fmt.Errorf("heartbeat: %w", err)
+		}
+
+		if err := brk.Close(); err != nil {
+			return fmt.Errorf("close: %w", err)
+		}
+
+		return nil
+	}, retry.Context(ctx))
 }

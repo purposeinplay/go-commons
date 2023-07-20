@@ -9,4 +9,6 @@ var (
 	ErrBrokerAlreadyStarted = errors.New("broker already started")
 	// ErrBrokerWasNotStarted is returned when a broker is stopped before it is started.
 	ErrBrokerWasNotStarted = errors.New("broker was not started")
+	// ErrBrokerNotConnected is returned when a broker is not connected.
+	ErrBrokerNotConnected = errors.New("broker not connected")
 )
