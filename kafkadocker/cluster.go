@@ -7,13 +7,14 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/avast/retry-go"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/sync/errgroup"
 	"io"
-	"log"
+	"time"
 )
 
 // Cluster represents a Kafka cluster.
@@ -54,7 +55,8 @@ func (c *Cluster) Start(ctx context.Context) error {
 
 	network, err := testcontainers.GenericNetwork(ctx, testcontainers.GenericNetworkRequest{
 		NetworkRequest: testcontainers.NetworkRequest{
-			Name: networkName,
+			Name:           networkName,
+			CheckDuplicate: true,
 		},
 	})
 	if err != nil {
@@ -98,6 +100,8 @@ func (c *Cluster) Start(ctx context.Context) error {
 		brokers = c.Brokers
 	}
 
+	const starterScriptName = "/testcontainers_start.sh"
+
 	brokerRequests := make(testcontainers.ParallelContainerRequest, brokers)
 
 	for brokerID := 1; brokerID <= brokers; brokerID++ {
@@ -123,57 +127,51 @@ func (c *Cluster) Start(ctx context.Context) error {
 						"EXTERNAL://0.0.0.0:%[1]s,INTERNAL://0.0.0.0:2%[1]s",
 						port,
 					),
-					"KAFKA_ADVERTISED_LISTENERS": fmt.Sprintf(
-						"EXTERNAL://localhost:%[1]s,INTERNAL://%s:2%[1]s",
-						port,
-						containerName,
-					),
 				},
 				Networks: []string{networkName},
 				NetworkAliases: map[string][]string{
 					networkName: {containerName},
 				},
-				WaitingFor: wait.ForLog("started (kafka.server.KafkaServer)"),
-				Name:       containerName,
+				// WaitingFor: wait.ForLog("started (kafka.server.KafkaServer)"),
+				Name: containerName,
 				HostConfigModifier: func(config *container.HostConfig) {
 					config.RestartPolicy = container.RestartPolicy{Name: "unless-stopped"}
 				},
+				Cmd: []string{
+					"sh",
+					"-c",
+					fmt.Sprintf(`while [ ! -f %[1]s ]; do sleep 0.1; done; %[1]s`, starterScriptName),
+				},
 				LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
 					{
-						PreStarts: []testcontainers.ContainerHook{
-							func(ctx context.Context, container testcontainers.Container) error {
-								return nil
-							},
-						},
 						PostStarts: []testcontainers.ContainerHook{
 							func(ctx context.Context, container testcontainers.Container) error {
-								log.Println("start post")
-
 								eg, egCtx := errgroup.WithContext(ctx)
 
 								var (
-									advertisedListenerPort string
-									startScript            []byte
+									advertisedListenerAddress string
+									startScript               string
 								)
 
 								eg.Go(func() error {
-									log.Println("start mapped port")
-									defer log.Println("done mapped port")
+									return retry.Do(func() error {
+										p, err := container.MappedPort(egCtx, nat.Port(fmt.Sprintf(port+"/tcp")))
+										if err != nil {
+											return fmt.Errorf("get hook mapped port: %w", err)
+										}
 
-									p, err := container.MappedPort(egCtx, nat.Port(fmt.Sprintf(port+"/tcp")))
-									if err != nil {
-										return fmt.Errorf("get hook mapped port: %w", err)
-									}
+										h, err := container.Host(egCtx)
+										if err != nil {
+											return fmt.Errorf("get hook host: %w", err)
+										}
 
-									advertisedListenerPort = p.Port()
+										advertisedListenerAddress = fmt.Sprintf("%s:%s", h, p.Port())
 
-									return nil
+										return nil
+									}, retry.Attempts(5), retry.Delay(time.Second/10))
 								})
 
 								eg.Go(func() error {
-									log.Println("start file")
-									defer log.Println("done file")
-
 									startScriptReader, err := container.CopyFileFromContainer(
 										egCtx,
 										"/etc/confluent/docker/run",
@@ -191,7 +189,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 										return fmt.Errorf("close start script reader: %w", err)
 									}
 
-									startScript = ss
+									startScript = string(ss)
 
 									return nil
 								})
@@ -200,30 +198,28 @@ func (c *Cluster) Start(ctx context.Context) error {
 									return err
 								}
 
-								startScript = append(startScript, []byte("\necho brad\n")...)
+								lastFiIdx := strings.LastIndex(startScript, "fi\n")
+
+								advListeners := fmt.Sprintf(
+									"EXTERNAL://%s,INTERNAL://%s:2%s",
+									advertisedListenerAddress,
+									containerName,
+									port,
+								)
+
+								startScript = startScript[:lastFiIdx+3] + fmt.Sprintf(
+									"\necho wtf;export KAFKA_ADVERTISED_LISTENERS=%s;env\n",
+									advListeners,
+								) + startScript[lastFiIdx+3:]
 
 								if err := container.CopyToContainer(
 									ctx,
-									startScript,
-									"/etc/confluent/docker/run",
+									[]byte(startScript),
+									starterScriptName,
 									0755,
 								); err != nil {
 									return fmt.Errorf("copy start script to container: %w", err)
 								}
-
-								log.Println("brad", advertisedListenerPort, string(startScript))
-
-								if err := container.Stop(ctx, nil); err != nil {
-									return fmt.Errorf("stop container: %w", err)
-								}
-
-								log.Println("stop")
-
-								if err := container.Start(ctx); err != nil {
-									return fmt.Errorf("start container: %w", err)
-								}
-
-								log.Println("start")
 
 								return nil
 							},

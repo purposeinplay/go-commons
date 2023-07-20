@@ -4,9 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"fmt"
 	"github.com/IBM/sarama"
+	"github.com/avast/retry-go"
 	"github.com/purposeinplay/go-commons/kafkadocker"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 func TestBroker(t *testing.T) {
@@ -34,23 +37,38 @@ func TestBroker(t *testing.T) {
 	t.Run("TestBrokers", func(t *testing.T) {
 		req := require.New(t)
 
+		// time.Sleep(10 * time.Second)
+
 		for _, addr := range brokerAddresses {
-			brk := sarama.NewBroker(addr)
+			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(2*time.Minute))
 
-			err = brk.Open(nil)
+			err = retry.Do(func() error {
+				brk := sarama.NewBroker(addr)
+
+				if err = brk.Open(nil); err != nil {
+					return fmt.Errorf("open: %w", err)
+				}
+
+				defer brk.Close()
+
+				conn, err := brk.Connected()
+				if err != nil {
+					return fmt.Errorf("connected: %w", err)
+				}
+
+				if !conn {
+					return fmt.Errorf("not connected")
+				}
+
+				if _, err = brk.Heartbeat(&sarama.HeartbeatRequest{}); err != nil {
+					return fmt.Errorf("heartbeat: %w", err)
+				}
+
+				return nil
+			}, retry.Context(ctx))
 			req.NoError(err)
 
-			t.Cleanup(func() {
-				err := brk.Close()
-				req.NoError(err)
-			})
-
-			conn, err := brk.Connected()
-			req.NoError(err)
-			req.True(conn)
-
-			_, err = brk.Heartbeat(&sarama.HeartbeatRequest{})
-			req.NoError(err)
+			cancel()
 		}
 	})
 
@@ -69,14 +87,32 @@ func TestBroker(t *testing.T) {
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	req.NoError(err)
 
-	_, _, err = producer.SendMessage(&sarama.ProducerMessage{
-		Topic: "test",
-		Value: sarama.StringEncoder("test"),
+	const topic = "test"
+
+	partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.StringEncoder(topic),
 	})
 	req.NoError(err)
+
+	t.Logf("message partition: %d, message offset: %d", partition, offset)
+
+	consumer, err := sarama.NewConsumerFromClient(client)
+	req.NoError(err)
+
+	partConsumer, err := consumer.ConsumePartition(topic, partition, cfg.Consumer.Offsets.Initial)
+	req.NoError(err)
+
+	select {
+	case mes := <-partConsumer.Messages():
+		t.Logf("message: %s", mes.Value)
+
+	default:
+		req.Fail("no message")
+	}
 
 	topics, err := client.Topics()
 	req.NoError(err)
 
-	t.Log(topics)
+	req.Equal([]string{topic}, topics)
 }
