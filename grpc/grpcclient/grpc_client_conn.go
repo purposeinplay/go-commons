@@ -23,7 +23,7 @@ func NewConn(
 		o.apply(opts)
 	}
 
-	conn, err := grpc.Dial(addr, opts.dialOptions...)
+	conn, err := grpc.Dial(addr, opts.computeDialOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
@@ -32,12 +32,18 @@ func NewConn(
 }
 
 type connOptions struct {
-	dialOptions []grpc.DialOption
+	dialOptions  []grpc.DialOption
+	interceptors []grpc.UnaryClientInterceptor
+}
+
+func (o connOptions) computeDialOptions() []grpc.DialOption {
+	return append(o.dialOptions, grpc.WithChainUnaryInterceptor(o.interceptors...))
 }
 
 func defaultClientConnOptions() *connOptions {
 	return &connOptions{
-		dialOptions: []grpc.DialOption{},
+		dialOptions:  []grpc.DialOption{},
+		interceptors: []grpc.UnaryClientInterceptor{},
 	}
 }
 
@@ -86,9 +92,9 @@ func WithContextDialer(
 // WithClientUnaryInterceptor adds an interceptor for client calls.
 func WithClientUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) OptionConn {
 	return newFuncConnOption(func(o *connOptions) {
-		o.dialOptions = append(
-			o.dialOptions,
-			grpc.WithUnaryInterceptor(interceptor),
+		o.interceptors = append(
+			o.interceptors,
+			interceptor,
 		)
 	})
 }
