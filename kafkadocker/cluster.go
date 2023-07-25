@@ -20,14 +20,14 @@ import (
 
 // Cluster represents a Kafka cluster.
 type Cluster struct {
+	Brokers     int      // For specifying the number of brokers to start.
+	Topics      []string // For specifying the topics to create.
+	HealthProbe bool     // For specifying whether to health-probe the brokers after creation.
+
 	zookeeperContainer testcontainers.Container
 	brokerContainers   []brokerContainer
 	started            atomic.Bool
 	network            testcontainers.Network
-
-	Brokers     int      // For specifying the number of brokers to start.
-	Topics      []string // For specifying the topics to create.
-	HealthProbe bool
 }
 
 // BrokerAddresses returns the addresses of the brokers in the cluster.
@@ -311,15 +311,15 @@ func (c *Cluster) Stop(ctx context.Context) error {
 
 	eg, egCtx := errgroup.WithContext(ctx)
 
-	eg.Go(func() error {
-		if c.zookeeperContainer != nil {
+	if c.zookeeperContainer != nil {
+		eg.Go(func() error {
 			if err := c.zookeeperContainer.Terminate(egCtx); err != nil {
 				return fmt.Errorf("terminate zookeeper container: %w", err)
 			}
-		}
 
-		return nil
-	})
+			return nil
+		})
+	}
 
 	for i := range c.brokerContainers {
 		i := i

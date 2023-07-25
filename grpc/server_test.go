@@ -72,7 +72,11 @@ func TestGateway(t *testing.T) {
 		}
 	})
 
-	req, err := http.NewRequest(http.MethodPost, "http://0.0.0.0:7350/greet", strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`))
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"http://0.0.0.0:7350/greet",
+		strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`),
+	)
 	i.NoErr(err)
 
 	req.Header.Set("Grpc-Metadata-custom", "test")
@@ -426,7 +430,7 @@ func (s *greeterService) Greet(
 
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		if len(md["custom"]) > 0 {
-			res = res + md["custom"][0]
+			res += md["custom"][0]
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/purposeinplay/go-commons/grpc/grpcutils"
@@ -229,6 +230,7 @@ func prependDebugInterceptor(
 					zap.String("method", method),
 					zap.Any("request", req),
 					zap.Error(err),
+					zap.String("error dump", spew.Sdump(err)),
 					zap.String("code", code.String()),
 					zap.Duration("duration", time.Since(start)),
 				)

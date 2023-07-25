@@ -14,7 +14,7 @@ func TestBroker(t *testing.T) {
 	t.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 
 	req := require.New(t)
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	cluster := &kafkadocker.Cluster{
 		Brokers:     2,
