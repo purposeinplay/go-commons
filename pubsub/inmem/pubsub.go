@@ -18,7 +18,7 @@ type PubSub struct {
 	mu sync.Mutex
 
 	// map having channels as keys and subscriptions as value
-	channelsSubs map[interface{}]map[*Subscription]struct{}
+	channelsSubs map[string]map[*Subscription]struct{}
 
 	// eventBufferSize is the buffer size of the channel for each subscription.
 	eventBufferSize int
@@ -28,13 +28,13 @@ type PubSub struct {
 // by an in memory storage.
 func NewPubSub(eventBufferSize int) *PubSub {
 	return &PubSub{
-		channelsSubs:    make(map[interface{}]map[*Subscription]struct{}),
+		channelsSubs:    make(map[string]map[*Subscription]struct{}),
 		eventBufferSize: eventBufferSize,
 	}
 }
 
 // Publish publishes event to all the subscriptions of the channels provided.
-func (ps *PubSub) Publish(event pubsub.Event, channels ...interface{}) error {
+func (ps *PubSub) Publish(event pubsub.Event, channels ...string) error {
 	// Ensure at least one channel is provided.
 	if len(channels) == 0 {
 		return ErrNoChannel
@@ -76,7 +76,7 @@ var ErrNoChannel = errors.New("no channel given")
 
 // Subscribe creates a new subscription for the provided channels.
 func (ps *PubSub) Subscribe(
-	channels ...interface{},
+	channels ...string,
 ) (
 	pubsub.Subscription,
 	error,

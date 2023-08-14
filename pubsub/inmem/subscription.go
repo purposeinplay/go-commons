@@ -13,7 +13,7 @@ var _ pubsub.Subscription = (*Subscription)(nil)
 // of this subscription.
 type Subscription struct {
 	// Channels this subscription is subscribed to.
-	channels []interface{}
+	channels []string
 
 	// Ensures c only closed once
 	once sync.Once

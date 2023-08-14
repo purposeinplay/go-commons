@@ -11,14 +11,14 @@ package pubsub
 // Publisher is the interface that wraps the basic Publish method.
 type Publisher interface {
 	// Publish publishes an event to specified channels.
-	Publish(event Event, channels ...interface{}) error
+	Publish(event Event, channels ...string) error
 }
 
 // Subscriber is the interface that wraps the Subscribe method.
 type Subscriber interface {
 	// Subscribe creates a new subscription for the events published
 	// in the specified channels.
-	Subscribe(channels ...interface{}) (Subscription, error)
+	Subscribe(channels ...string) (Subscription, error)
 }
 
 // PublishSubscriber is the interface that groups the basic
@@ -46,5 +46,5 @@ type Event struct {
 	Type string `json:"type"`
 
 	// The actual data from the event.
-	Payload interface{} `json:"payload"`
+	Payload any `json:"payload"`
 }
