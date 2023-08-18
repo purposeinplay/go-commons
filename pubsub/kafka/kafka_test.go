@@ -1,6 +1,7 @@
 package kafka_test
 
 import (
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafka"
 	"go.uber.org/zap"
-	"log"
 )
 
 func TestPubSub(t *testing.T) {
