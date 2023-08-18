@@ -57,7 +57,7 @@ func TestPubSub(t *testing.T) {
 
 	t.Cleanup(func() { is.NoErr(sub.Close()) })
 
-	mes := pubsub.Event{Payload: []byte("test")}
+	mes := pubsub.Event[[]byte]{Payload: []byte("test")}
 
 	err = pub.Publish(mes, topic)
 	is.NoErr(err)

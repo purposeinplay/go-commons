@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ pubsub.Publisher = (*Publisher)(nil)
+var _ pubsub.Publisher[[]byte] = (*Publisher)(nil)
 
 // Publisher represents a kafka publisher.
 type Publisher struct {
@@ -42,19 +42,14 @@ func NewPublisher(
 }
 
 // Publish publishes an event to a kafka topic.
-func (p Publisher) Publish(event pubsub.Event, channels ...string) error {
+func (p Publisher) Publish(event pubsub.Event[[]byte], channels ...string) error {
 	if len(channels) != 1 {
 		return pubsub.ErrExactlyOneChannelAllowed
 	}
 
-	payload, ok := event.Payload.([]byte)
-	if !ok {
-		return pubsub.ErrEventPayloadMustBeByteSlice
-	}
-
 	if err := p.kafkaPublisher.Publish(
 		channels[0],
-		message.NewMessage(uuid.New().String(), payload),
+		message.NewMessage(uuid.New().String(), event.Payload),
 	); err != nil {
 		return fmt.Errorf("publish: %w", err)
 	}

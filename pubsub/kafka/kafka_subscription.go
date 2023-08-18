@@ -5,17 +5,17 @@ import (
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 
-var _ pubsub.Subscription = (*Subscription)(nil)
+var _ pubsub.Subscription[[]byte] = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to a kafka topic.
 type Subscription struct {
-	eventCh chan pubsub.Event
+	eventCh chan pubsub.Event[[]byte]
 	closeCh chan struct{}
 }
 
 // newSubscription creates a new subscription.
 func newSubscription(mesCh <-chan *message.Message) *Subscription {
-	eventCh := make(chan pubsub.Event)
+	eventCh := make(chan pubsub.Event[[]byte])
 	closeCh := make(chan struct{})
 
 	go func() {
@@ -28,8 +28,8 @@ func newSubscription(mesCh <-chan *message.Message) *Subscription {
 					return
 				}
 
-				eventCh <- pubsub.Event{
-					Payload: []byte(mes.Payload),
+				eventCh <- pubsub.Event[[]byte]{
+					Payload: mes.Payload,
 				}
 			}
 		}
@@ -42,7 +42,7 @@ func newSubscription(mesCh <-chan *message.Message) *Subscription {
 }
 
 // C returns a receive-only go channel of events published.
-func (s Subscription) C() <-chan pubsub.Event {
+func (s Subscription) C() <-chan pubsub.Event[[]byte] {
 	return s.eventCh
 }
 

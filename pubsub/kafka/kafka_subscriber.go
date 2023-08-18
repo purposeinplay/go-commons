@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ pubsub.Subscriber = (*Subscriber)(nil)
+var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
@@ -41,7 +41,7 @@ func NewSubscriber(
 }
 
 // Subscribe subscribes to a kafka topic.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription, error) {
+func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], error) {
 	if len(channels) != 1 {
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}

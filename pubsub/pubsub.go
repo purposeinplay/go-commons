@@ -9,30 +9,30 @@
 package pubsub
 
 // Publisher is the interface that wraps the basic Publish method.
-type Publisher interface {
+type Publisher[T any] interface {
 	// Publish publishes an event to specified channels.
-	Publish(event Event, channels ...string) error
+	Publish(event Event[T], channels ...string) error
 }
 
 // Subscriber is the interface that wraps the Subscribe method.
-type Subscriber interface {
+type Subscriber[T any] interface {
 	// Subscribe creates a new subscription for the events published
 	// in the specified channels.
-	Subscribe(channels ...string) (Subscription, error)
+	Subscribe(channels ...string) (Subscription[T], error)
 }
 
 // PublishSubscriber is the interface that groups the basic
 // Publish and Subscribe methods.
-type PublishSubscriber interface {
-	Publisher
-	Subscriber
+type PublishSubscriber[T any] interface {
+	Publisher[T]
+	Subscriber[T]
 }
 
 // Subscription represents a stream of events for a single user.
-type Subscription interface {
+type Subscription[T any] interface {
 	// C represents an even stream for all events that are published
 	// in the channels that of this Subscription.
-	C() <-chan Event
+	C() <-chan Event[T]
 
 	// Close disconnects the subscription, from the PubSub service.
 	// It also closes the event stream channel, thus the subscription
@@ -41,10 +41,10 @@ type Subscription interface {
 }
 
 // Event represents an event that occurs in the system.
-type Event struct {
+type Event[T any] struct {
 	// Specifies the type of event that is occurring.
 	Type string `json:"type"`
 
 	// The actual data from the event.
-	Payload any `json:"payload"`
+	Payload T `json:"payload"`
 }
