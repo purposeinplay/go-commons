@@ -46,7 +46,7 @@ jobs:
 
       - name: test
         env:
-          KAFKA_USERNAME : ${{ secrets.KAFKA_USERNAME }
-          KAFKA_PASSWORD : ${{ secrets.KAFKA_PASSWORD }
-          KAFKA_BROKER_URL : ${{ secrets.KAFKA_BROKER_URL }
+          KAFKA_USERNAME : ${{ secrets.KAFKA_USERNAME }}
+          KAFKA_PASSWORD : ${{ secrets.KAFKA_PASSWORD }}
+          KAFKA_BROKER_URL : ${{ secrets.KAFKA_BROKER_URL }}
         run: make test -C $GITHUB_WORKSPACE/${{ env.PACKAGE }}

@@ -1,7 +1,6 @@
 package kafka_test
 
 import (
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafka"
 	"go.uber.org/zap"
+	"log"
 )
 
 func TestPubSub(t *testing.T) {
@@ -19,14 +19,14 @@ func TestPubSub(t *testing.T) {
 	// nolint: gocritic, revive
 	is := is.New(t)
 
-	sarama.DebugLogger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
-
 	var (
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
 		topic     = username + ".test"
 	)
+
+	sarama.DebugLogger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
 
 	suber, err := kafka.NewSubscriber(
 		logger,
