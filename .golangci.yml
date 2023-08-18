@@ -84,6 +84,7 @@ linters-settings:
       - i int
       - T any
       - i *is.I
+      - is *is.I
       - eg *errgroup.Group
 
   revive:

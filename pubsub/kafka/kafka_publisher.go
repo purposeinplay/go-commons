@@ -3,6 +3,7 @@ package kafka
 import (
 	"fmt"
 
+	"github.com/Shopify/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
@@ -18,11 +19,16 @@ type Publisher struct {
 }
 
 // NewPublisher creates a new kafka publisher.
-func NewPublisher(logger *zap.Logger, brokers []string) (*Publisher, error) {
+func NewPublisher(
+	logger *zap.Logger,
+	saramaConfig *sarama.Config,
+	brokers []string,
+) (*Publisher, error) {
 	pub, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
-			Brokers:   brokers,
-			Marshaler: kafka.DefaultMarshaler{},
+			Brokers:               brokers,
+			Marshaler:             kafka.DefaultMarshaler{},
+			OverwriteSaramaConfig: saramaConfig,
 		},
 		newLoggerAdapter(logger),
 	)

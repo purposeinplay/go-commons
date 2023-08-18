@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Shopify/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"go.uber.org/zap"
@@ -17,11 +18,16 @@ type Subscriber struct {
 }
 
 // NewSubscriber creates a new kafka subscriber.
-func NewSubscriber(logger *zap.Logger, brokers []string) (*Subscriber, error) {
+func NewSubscriber(
+	logger *zap.Logger,
+	saramaConfig *sarama.Config,
+	brokers []string,
+) (*Subscriber, error) {
 	sub, err := kafka.NewSubscriber(
 		kafka.SubscriberConfig{
-			Brokers:     brokers,
-			Unmarshaler: kafka.DefaultMarshaler{},
+			Brokers:               brokers,
+			Unmarshaler:           kafka.DefaultMarshaler{},
+			OverwriteSaramaConfig: saramaConfig,
 		},
 		newLoggerAdapter(logger),
 	)

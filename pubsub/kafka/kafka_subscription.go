@@ -29,7 +29,7 @@ func newSubscription(mesCh <-chan *message.Message) *Subscription {
 				}
 
 				eventCh <- pubsub.Event{
-					Payload: mes.Payload,
+					Payload: []byte(mes.Payload),
 				}
 			}
 		}
