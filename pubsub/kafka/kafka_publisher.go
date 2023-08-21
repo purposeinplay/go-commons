@@ -20,9 +20,9 @@ type Publisher struct {
 
 // NewPublisher creates a new kafka publisher.
 func NewPublisher(
-		logger *zap.Logger,
-		saramaConfig *sarama.Config,
-		brokers []string,
+	logger *zap.Logger,
+	saramaConfig *sarama.Config,
+	brokers []string,
 ) (*Publisher, error) {
 	pub, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
