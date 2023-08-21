@@ -29,6 +29,7 @@ func newSubscription(mesCh <-chan *message.Message) *Subscription {
 				}
 
 				eventCh <- pubsub.Event[[]byte]{
+					Type:    mes.Metadata.Get("type"),
 					Payload: mes.Payload,
 				}
 			}

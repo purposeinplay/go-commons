@@ -20,9 +20,9 @@ type Publisher struct {
 
 // NewPublisher creates a new kafka publisher.
 func NewPublisher(
-	logger *zap.Logger,
-	saramaConfig *sarama.Config,
-	brokers []string,
+		logger *zap.Logger,
+		saramaConfig *sarama.Config,
+		brokers []string,
 ) (*Publisher, error) {
 	pub, err := kafka.NewPublisher(
 		kafka.PublisherConfig{
@@ -47,9 +47,13 @@ func (p Publisher) Publish(event pubsub.Event[[]byte], channels ...string) error
 		return pubsub.ErrExactlyOneChannelAllowed
 	}
 
+	mes := message.NewMessage(uuid.New().String(), event.Payload)
+
+	mes.Metadata.Set("type", event.Type)
+
 	if err := p.kafkaPublisher.Publish(
 		channels[0],
-		message.NewMessage(uuid.New().String(), event.Payload),
+		mes,
 	); err != nil {
 		return fmt.Errorf("publish: %w", err)
 	}
