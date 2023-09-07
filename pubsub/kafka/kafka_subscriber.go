@@ -22,12 +22,14 @@ func NewSubscriber(
 	logger *zap.Logger,
 	saramaConfig *sarama.Config,
 	brokers []string,
+	consumerGroup string,
 ) (*Subscriber, error) {
 	sub, err := kafka.NewSubscriber(
 		kafka.SubscriberConfig{
 			Brokers:               brokers,
 			Unmarshaler:           kafka.DefaultMarshaler{},
 			OverwriteSaramaConfig: saramaConfig,
+			ConsumerGroup:         consumerGroup,
 		},
 		newLoggerAdapter(logger),
 	)
