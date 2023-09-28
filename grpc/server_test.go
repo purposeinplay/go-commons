@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"bytes"
+	"github.com/go-chi/chi/v5"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/matryer/is"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
@@ -33,7 +35,31 @@ func TestGateway(t *testing.T) {
 
 	i := is.New(t)
 
+	body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
+	header := "test"
+
 	grpcServer, err := commonsgrpc.NewServer(
+		commonsgrpc.WithHTTPMiddlewares(chi.Middlewares{func(handler http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				b, err := io.ReadAll(r.Body)
+				if err != nil {
+					i.NoErr(err)
+				}
+
+				r.Body = io.NopCloser(bytes.NewReader(b))
+
+				t.Logf(
+					"middleware body: %s, custom header: %s",
+					string(b),
+					r.Header.Get("X-Custom"),
+				)
+
+				i.Equal(body, string(b))
+				i.Equal(header, r.Header.Get("X-Custom"))
+
+				handler.ServeHTTP(w, r)
+			})
+		}}),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 			greetpb.RegisterGreetServiceServer(server, &greeterService{
 				greetFunc: func() error { return nil },
@@ -75,11 +101,12 @@ func TestGateway(t *testing.T) {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		"http://0.0.0.0:7350/greet",
-		strings.NewReader(`{"greeting":{"first_name":"John","last_name":"Doe"}}`),
+		strings.NewReader(body),
 	)
 	i.NoErr(err)
 
-	req.Header.Set("Grpc-Metadata-custom", "test")
+	req.Header.Set("Grpc-Metadata-custom", header)
+	req.Header.Set("X-Custom", header)
 
 	resp, err := http.DefaultClient.Do(req)
 	i.NoErr(err)
