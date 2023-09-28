@@ -21,8 +21,9 @@ type (
 
 // Available error types.
 const (
-	ErrorTypeInvalid  ErrorType = "invalid"
-	ErrorTypeNotFound ErrorType = "not-found"
+	ErrorTypeInvalid              ErrorType = "invalid"
+	ErrorTypeNotFound             ErrorType = "not-found"
+	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
 )
 
 // Error object.
