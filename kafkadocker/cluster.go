@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"errors"
 	"github.com/IBM/sarama"
 	"github.com/avast/retry-go"
 	"github.com/docker/docker/api/types/container"
@@ -333,19 +334,21 @@ func (c *Cluster) Stop(ctx context.Context) error {
 		})
 	}
 
+	var errs error
+
 	if err := eg.Wait(); err != nil {
-		return err
+		errs = errors.Join(errs, fmt.Errorf("terminate containers: %w", err))
 	}
 
 	if c.network != nil {
 		if err := c.network.Remove(ctx); err != nil {
-			return fmt.Errorf("remove network: %w", err)
+			errs = errors.Join(errs, fmt.Errorf("remove network: %w", err))
 		}
 	}
 
 	c.started.Store(false)
 
-	return nil
+	return errs
 }
 
 func probeBroker(ctx context.Context, c brokerContainer) error {

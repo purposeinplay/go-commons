@@ -1,6 +1,10 @@
 package kafka
 
 import (
+	"log/slog"
+	"time"
+
+	"github.com/Shopify/sarama"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/purposeinplay/go-commons/pubsub"
 )
@@ -14,9 +18,15 @@ type Subscription struct {
 }
 
 // newSubscription creates a new subscription.
-func newSubscription(mesCh <-chan *message.Message) *Subscription {
+// nolint: gocognit
+func newSubscription(
+	mesCh <-chan *message.Message,
+	clusterAdmin sarama.ClusterAdmin,
+) *Subscription {
 	eventCh := make(chan pubsub.Event[[]byte])
 	closeCh := make(chan struct{})
+
+	const pingEvery = 5 * time.Second
 
 	go func() {
 		for {
@@ -25,12 +35,20 @@ func newSubscription(mesCh <-chan *message.Message) *Subscription {
 				return
 			case mes, ok := <-mesCh:
 				if !ok {
+					slog.Info("sub closed")
 					return
 				}
 
 				eventCh <- pubsub.Event[[]byte]{
 					Type:    mes.Metadata.Get("type"),
 					Payload: mes.Payload,
+				}
+			case <-time.After(pingEvery):
+				if _, _, err := clusterAdmin.DescribeCluster(); err != nil {
+					eventCh <- pubsub.Event[[]byte]{
+						Type:    "error",
+						Payload: []byte(err.Error()),
+					}
 				}
 			}
 		}

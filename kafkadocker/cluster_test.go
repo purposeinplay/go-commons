@@ -22,12 +22,13 @@ func TestBroker(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		err := cluster.Stop(ctx)
-		req.NoError(err)
+		cluster.Stop(ctx)
 	})
 
 	err := cluster.Start(ctx)
 	req.NoError(err)
+
+	t.Logf("cluster started successfully")
 
 	brokerAddresses := cluster.BrokerAddresses()
 
@@ -71,6 +72,21 @@ func TestBroker(t *testing.T) {
 
 	case <-time.After(20 * time.Second):
 		req.Fail("timeout")
+	}
+
+	err = cluster.Stop(ctx)
+	req.NoError(err)
+
+	select {
+	case mes, ok := <-partConsumer.Messages():
+		t.Logf("%t, message: %+v", ok, mes)
+		req.Equal(topic, string(mes.Value))
+
+	case err := <-partConsumer.Errors():
+		t.Logf("err: %s", err)
+
+	case <-time.After(10 * time.Second):
+		t.Error("timeout")
 	}
 
 	topics, err := client.Topics()

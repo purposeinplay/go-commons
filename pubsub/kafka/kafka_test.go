@@ -10,8 +10,10 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/matryer/is"
+	"github.com/purposeinplay/go-commons/kafkadocker"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafka"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -230,4 +232,39 @@ func TestConsumerGroups(t *testing.T) {
 	cancel()
 
 	wg.Wait()
+}
+
+func TestKafkaServerCloseError(t *testing.T) {
+	req := require.New(t)
+
+	ctx := context.Background()
+
+	logger := zap.NewExample()
+
+	cluster := &kafkadocker.Cluster{
+		Brokers:     2,
+		HealthProbe: true,
+		Topics:      []string{"test"},
+	}
+
+	err := cluster.Start(ctx)
+	req.NoError(err)
+
+	suber, err := kafka.NewSubscriber(logger, nil, cluster.BrokerAddresses(), "")
+	req.NoError(err)
+
+	sub, err := suber.Subscribe("test")
+	req.NoError(err)
+
+	err = cluster.Stop(ctx)
+	req.NoError(err)
+
+	t.Log("stopped cluster")
+
+	select {
+	case m := <-sub.C():
+		t.Logf("message: %+v", m)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
+	}
 }

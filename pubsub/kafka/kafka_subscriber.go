@@ -15,6 +15,7 @@ var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
 	kafkaSubscriber *kafka.Subscriber
+	clusterAdmin    sarama.ClusterAdmin
 }
 
 // NewSubscriber creates a new kafka subscriber.
@@ -24,6 +25,11 @@ func NewSubscriber(
 	brokers []string,
 	consumerGroup string,
 ) (*Subscriber, error) {
+	saramaClient, err := sarama.NewClusterAdmin(brokers, saramaConfig)
+	if err != nil {
+		return nil, fmt.Errorf("new sarama client: %w", err)
+	}
+
 	sub, err := kafka.NewSubscriber(
 		kafka.SubscriberConfig{
 			Brokers:               brokers,
@@ -39,6 +45,7 @@ func NewSubscriber(
 
 	return &Subscriber{
 		kafkaSubscriber: sub,
+		clusterAdmin:    saramaClient,
 	}, nil
 }
 
@@ -53,7 +60,7 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], 
 		return nil, fmt.Errorf("subscribe: %w", err)
 	}
 
-	return newSubscription(mes), nil
+	return newSubscription(mes, s.clusterAdmin), nil
 }
 
 // Close closes the kafka subscriber.
