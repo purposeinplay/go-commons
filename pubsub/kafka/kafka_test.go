@@ -2,13 +2,11 @@ package kafka_test
 
 import (
 	"context"
-	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/kafkadocker"
 	"github.com/purposeinplay/go-commons/pubsub"
@@ -29,8 +27,6 @@ func TestPubSub(t *testing.T) {
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
 		topic     = username + ".test"
 	)
-
-	sarama.DebugLogger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
 
 	suber1, err := kafka.NewSubscriber(
 		logger,
@@ -140,8 +136,6 @@ func TestConsumerGroups(t *testing.T) {
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
 		topic     = username + ".consumer"
 	)
-
-	sarama.DebugLogger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
