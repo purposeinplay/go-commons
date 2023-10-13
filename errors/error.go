@@ -10,6 +10,7 @@ var (
 	Is   = errors.Is
 	As   = errors.As
 	Join = errors.Join
+	New  = errors.New
 )
 
 type (
@@ -19,11 +20,19 @@ type (
 	ErrorCode int
 )
 
+func (t ErrorType) String() string {
+	return string(t)
+}
+
 // Available error types.
 const (
 	ErrorTypeInvalid              ErrorType = "invalid"
 	ErrorTypeNotFound             ErrorType = "not-found"
 	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
+	ErrorTypeUnauthorized         ErrorType = "unauthorzied"
+	ErrorTypeUnauthenticated      ErrorType = "unauthenticated"
+	ErrorTypeInternalError        ErrorType = "internal-error"
+	ErrorTypePanic                ErrorType = "panic"
 )
 
 // Error object.
