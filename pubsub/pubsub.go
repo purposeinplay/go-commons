@@ -40,6 +40,9 @@ type Subscription[T any] interface {
 	Close() error
 }
 
+// EventTypeError is used as type for an event that carries an error.
+var EventTypeError = "error"
+
 // Event represents an event that occurs in the system.
 type Event[T any] struct {
 	// Specifies the type of event that is occurring.
@@ -47,4 +50,7 @@ type Event[T any] struct {
 
 	// The actual data from the event.
 	Payload T `json:"payload"`
+
+	// Carries an error produced by the underlying subscriber.
+	Error error
 }

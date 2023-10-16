@@ -28,8 +28,8 @@ type PanicErrorHandler struct {
 // MustNewPanicErrorHandler creates an initialized PanicErrorHandler.
 // Panics if invalid data is passed.
 func MustNewPanicErrorHandler(
-	reportErrorer ReportErrorer,
-	logger *zap.Logger,
+		reportErrorer ReportErrorer,
+		logger *zap.Logger,
 ) PanicErrorHandler {
 	if reportErrorer == nil {
 		panic("nil error reporter")
@@ -61,7 +61,7 @@ func (h PanicErrorHandler) LogPanic(p any) {
 	)
 }
 
-// IsApplicationError checks whether the error is a Wallee Error.
+// IsApplicationError checks whether the error is an Application Error.
 func (PanicErrorHandler) IsApplicationError(err error) bool {
 	var applicationError *errors.Error
 	return errors.As(err, &applicationError)
@@ -82,7 +82,7 @@ var ErrNotApplicationError = errors.New("given error is not an application error
 
 // ErrorToGRPCStatus converts an error to a grpc status.
 func (PanicErrorHandler) ErrorToGRPCStatus(
-	err error,
+		err error,
 ) (*status.Status, error) {
 	if s, ok := status.FromError(err); ok {
 		return s, nil
@@ -101,9 +101,8 @@ func (PanicErrorHandler) ErrorToGRPCStatus(
 
 	grpcStatus := status.New(code, applicationError.Type.String())
 
-	grpcStatusWithDetails, attachDetailsErr := grpcStatus.WithDetails(
-		proto.MessageV1(errorToErrorResponse(applicationError)),
-	)
+	grpcStatusWithDetails, attachDetailsErr := grpcStatus.
+		WithDetails(proto.MessageV1(errorToErrorResponse(applicationError)))
 	if attachDetailsErr != nil {
 		return nil, fmt.Errorf("attach details: %w", err)
 	}
@@ -113,8 +112,8 @@ func (PanicErrorHandler) ErrorToGRPCStatus(
 
 // ReportPanic reports a panic to an external service.
 func (h PanicErrorHandler) ReportPanic(
-	ctx context.Context,
-	p any,
+		ctx context.Context,
+		p any,
 ) error {
 	return h.reportErrorer.ReportError(
 		ctx,
@@ -127,8 +126,8 @@ func (h PanicErrorHandler) ReportPanic(
 
 // ReportError reports an error to an external service.
 func (h PanicErrorHandler) ReportError(
-	ctx context.Context,
-	err error,
+		ctx context.Context,
+		err error,
 ) error {
 	return h.reportErrorer.ReportError(
 		ctx,
