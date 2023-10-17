@@ -33,90 +33,194 @@ import (
 func TestGateway(t *testing.T) {
 	t.Parallel()
 
-	i := is.New(t)
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 
-	body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
-	header := "test"
+		i := is.New(t)
 
-	grpcServer, err := commonsgrpc.NewServer(
-		commonsgrpc.WithHTTPMiddlewares(chi.Middlewares{func(handler http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				b, err := io.ReadAll(r.Body)
+		body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
+		header := "test"
+
+		grpcServer, err := commonsgrpc.NewServer(
+			commonsgrpc.WithMuxOptions([]runtime.ServeMuxOption{
+				runtime.WithErrorHandler(func(
+					ctx context.Context,
+					mux *runtime.ServeMux,
+					marshaler runtime.Marshaler,
+					w http.ResponseWriter,
+					r *http.Request,
+					err error,
+				) {
+					t.Logf("err: %s", err)
+
+					// return Internal when Marshal failed
+					const fallback = `{"code": 13, "message": "failed to marshal error message"}`
+
+					w.Header().Set("Content-Type", "application/json")
+					w.Write([]byte(fallback))
+				}),
+			}),
+			commonsgrpc.WithHTTPMiddlewares(chi.Middlewares{func(handler http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					b, err := io.ReadAll(r.Body)
+					if err != nil {
+						i.NoErr(err)
+					}
+
+					r.Body = io.NopCloser(bytes.NewReader(b))
+
+					t.Logf(
+						"middleware body: %s, custom header: %s",
+						string(b),
+						r.Header.Get("X-Custom"),
+					)
+
+					i.Equal(body, string(b))
+					i.Equal(header, r.Header.Get("X-Custom"))
+
+					handler.ServeHTTP(w, r)
+				})
+			}}),
+			commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+				greetpb.RegisterGreetServiceServer(server, &greeterService{
+					greetFunc: func() error { return nil },
+				})
+			}),
+			commonsgrpc.WithRegisterGatewayFunc(func(
+				mux *runtime.ServeMux,
+				dialOptions []grpc.DialOption,
+			) error {
+				err := greetpb.RegisterGreetServiceHandlerFromEndpoint(
+					context.Background(),
+					mux,
+					"0.0.0.0:7349",
+					dialOptions,
+				)
 				if err != nil {
-					i.NoErr(err)
+					return fmt.Errorf("register gRPC gateway: %w", err)
 				}
 
-				r.Body = io.NopCloser(bytes.NewReader(b))
+				return nil
+			}),
+		)
+		i.NoErr(err)
 
-				t.Logf(
-					"middleware body: %s, custom header: %s",
-					string(b),
-					r.Header.Get("X-Custom"),
-				)
-
-				i.Equal(body, string(b))
-				i.Equal(header, r.Header.Get("X-Custom"))
-
-				handler.ServeHTTP(w, r)
-			})
-		}}),
-		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
-			greetpb.RegisterGreetServiceServer(server, &greeterService{
-				greetFunc: func() error { return nil },
-			})
-		}),
-		commonsgrpc.WithRegisterGatewayFunc(func(
-			mux *runtime.ServeMux,
-			dialOptions []grpc.DialOption,
-		) error {
-			err := greetpb.RegisterGreetServiceHandlerFromEndpoint(
-				context.Background(),
-				mux,
-				"0.0.0.0:7349",
-				dialOptions,
-			)
+		go func() {
+			err := grpcServer.ListenAndServe()
 			if err != nil {
-				return fmt.Errorf("register gRPC gateway: %w", err)
+				panic(err)
 			}
+		}()
 
-			return nil
-		}),
-	)
-	i.NoErr(err)
+		t.Cleanup(func() {
+			err := grpcServer.Close()
+			if err != nil {
+				panic(err)
+			}
+		})
 
-	go func() {
-		err := grpcServer.ListenAndServe()
-		if err != nil {
-			panic(err)
-		}
-	}()
+		req, err := http.NewRequest(
+			http.MethodPost,
+			"http://0.0.0.0:7350/greet",
+			strings.NewReader(body),
+		)
+		i.NoErr(err)
 
-	t.Cleanup(func() {
-		err := grpcServer.Close()
-		if err != nil {
-			panic(err)
-		}
+		req.Header.Set("Grpc-Metadata-custom", header)
+		req.Header.Set("X-Custom", header)
+
+		resp, err := http.DefaultClient.Do(req)
+		i.NoErr(err)
+
+		b, err := io.ReadAll(resp.Body)
+		i.NoErr(err)
+
+		i.NoErr(resp.Body.Close())
+
+		i.Equal(string(b), `{"result":"JohnDoetest"}`)
 	})
 
-	req, err := http.NewRequest(
-		http.MethodPost,
-		"http://0.0.0.0:7350/greet",
-		strings.NewReader(body),
-	)
-	i.NoErr(err)
+	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
 
-	req.Header.Set("Grpc-Metadata-custom", header)
-	req.Header.Set("X-Custom", header)
+		i := is.New(t)
 
-	resp, err := http.DefaultClient.Do(req)
-	i.NoErr(err)
+		body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
 
-	b, err := io.ReadAll(resp.Body)
-	i.NoErr(err)
+		grpcErr := errors.New("custom test error")
 
-	i.NoErr(resp.Body.Close())
+		const errorMessage = `{"code": 13, "message": "failed to marshal error message"}`
 
-	i.Equal(string(b), `{"result":"JohnDoetest"}`)
+		grpcServer, err := commonsgrpc.NewServer(
+			commonsgrpc.WithMuxOptions([]runtime.ServeMuxOption{
+				runtime.WithErrorHandler(func(
+					ctx context.Context,
+					mux *runtime.ServeMux,
+					marshaler runtime.Marshaler,
+					w http.ResponseWriter,
+					r *http.Request,
+					err error,
+				) {
+					i.Equal(grpcErr.Error(), status.Convert(err).Message())
+
+					w.Write([]byte(errorMessage))
+				}),
+			}),
+			commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+				greetpb.RegisterGreetServiceServer(server, &greeterService{
+					greetFunc: func() error { return grpcErr },
+				})
+			}),
+			commonsgrpc.WithRegisterGatewayFunc(func(
+				mux *runtime.ServeMux,
+				dialOptions []grpc.DialOption,
+			) error {
+				err := greetpb.RegisterGreetServiceHandlerFromEndpoint(
+					context.Background(),
+					mux,
+					"0.0.0.0:7349",
+					dialOptions,
+				)
+				if err != nil {
+					return fmt.Errorf("register gRPC gateway: %w", err)
+				}
+
+				return nil
+			}),
+		)
+		i.NoErr(err)
+
+		go func() {
+			err := grpcServer.ListenAndServe()
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		t.Cleanup(func() {
+			err := grpcServer.Close()
+			if err != nil {
+				panic(err)
+			}
+		})
+
+		req, err := http.NewRequest(
+			http.MethodPost,
+			"http://0.0.0.0:7350/greet",
+			strings.NewReader(body),
+		)
+		i.NoErr(err)
+
+		resp, err := http.DefaultClient.Do(req)
+		i.NoErr(err)
+
+		b, err := io.ReadAll(resp.Body)
+		i.NoErr(err)
+
+		i.NoErr(resp.Body.Close())
+
+		i.Equal(errorMessage, string(b))
+	})
 }
 
 func TestPort(t *testing.T) {

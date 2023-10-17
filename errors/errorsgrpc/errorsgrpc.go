@@ -28,8 +28,8 @@ type PanicErrorHandler struct {
 // MustNewPanicErrorHandler creates an initialized PanicErrorHandler.
 // Panics if invalid data is passed.
 func MustNewPanicErrorHandler(
-		reportErrorer ReportErrorer,
-		logger *zap.Logger,
+	reportErrorer ReportErrorer,
+	logger *zap.Logger,
 ) PanicErrorHandler {
 	if reportErrorer == nil {
 		panic("nil error reporter")
@@ -82,7 +82,7 @@ var ErrNotApplicationError = errors.New("given error is not an application error
 
 // ErrorToGRPCStatus converts an error to a grpc status.
 func (PanicErrorHandler) ErrorToGRPCStatus(
-		err error,
+	err error,
 ) (*status.Status, error) {
 	if s, ok := status.FromError(err); ok {
 		return s, nil
@@ -112,8 +112,8 @@ func (PanicErrorHandler) ErrorToGRPCStatus(
 
 // ReportPanic reports a panic to an external service.
 func (h PanicErrorHandler) ReportPanic(
-		ctx context.Context,
-		p any,
+	ctx context.Context,
+	p any,
 ) error {
 	return h.reportErrorer.ReportError(
 		ctx,
@@ -126,8 +126,8 @@ func (h PanicErrorHandler) ReportPanic(
 
 // ReportError reports an error to an external service.
 func (h PanicErrorHandler) ReportError(
-		ctx context.Context,
-		err error,
+	ctx context.Context,
+	err error,
 ) error {
 	return h.reportErrorer.ReportError(
 		ctx,

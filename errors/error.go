@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"net/http"
 )
 
 // promote standard library errors package functions.
@@ -22,6 +23,26 @@ type (
 
 func (t ErrorType) String() string {
 	return string(t)
+}
+
+// HTTPStatus returns the corresponding HTTP Status.
+func (t ErrorType) HTTPStatus() int {
+	switch t {
+	case ErrorTypeInvalid:
+		return http.StatusBadRequest
+	case ErrorTypeNotFound:
+		return http.StatusNotFound
+	case ErrorTypeUnprocessableContent:
+		return http.StatusUnprocessableEntity
+	case ErrorTypeUnauthorized:
+		return http.StatusUnauthorized
+	case ErrorTypeUnauthenticated:
+		return http.StatusUnauthorized
+	case ErrorTypeInternalError, ErrorTypePanic:
+		return http.StatusInternalServerError
+	default:
+		return -1
+	}
 }
 
 // Available error types.
