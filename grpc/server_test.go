@@ -1,6 +1,7 @@
 package grpc_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"bytes"
 	"github.com/go-chi/chi/v5"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/matryer/is"
@@ -31,14 +31,11 @@ import (
 )
 
 func TestGateway(t *testing.T) {
-	t.Parallel()
+	const body = `{"greeting":{"first_name":"John","last_name":"Doe"}}`
 
 	t.Run("Success", func(t *testing.T) {
-		t.Parallel()
-
 		i := is.New(t)
 
-		body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
 		header := "test"
 
 		grpcServer, err := commonsgrpc.NewServer(
@@ -47,8 +44,8 @@ func TestGateway(t *testing.T) {
 					ctx context.Context,
 					mux *runtime.ServeMux,
 					marshaler runtime.Marshaler,
-					w http.ResponseWriter,
-					r *http.Request,
+					respWriter http.ResponseWriter,
+					req *http.Request,
 					err error,
 				) {
 					t.Logf("err: %s", err)
@@ -56,31 +53,32 @@ func TestGateway(t *testing.T) {
 					// return Internal when Marshal failed
 					const fallback = `{"code": 13, "message": "failed to marshal error message"}`
 
-					w.Header().Set("Content-Type", "application/json")
-					w.Write([]byte(fallback))
+					respWriter.Header().Set("Content-Type", "application/json")
+					respWriter.Write([]byte(fallback))
 				}),
 			}),
-			commonsgrpc.WithHTTPMiddlewares(chi.Middlewares{func(handler http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					b, err := io.ReadAll(r.Body)
-					if err != nil {
-						i.NoErr(err)
-					}
+			commonsgrpc.WithHTTPMiddlewares(
+				chi.Middlewares{func(handler http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						b, err := io.ReadAll(r.Body)
+						if err != nil {
+							i.NoErr(err)
+						}
 
-					r.Body = io.NopCloser(bytes.NewReader(b))
+						r.Body = io.NopCloser(bytes.NewReader(b))
 
-					t.Logf(
-						"middleware body: %s, custom header: %s",
-						string(b),
-						r.Header.Get("X-Custom"),
-					)
+						t.Logf(
+							"middleware body: %s, custom header: %s",
+							string(b),
+							r.Header.Get("X-Custom"),
+						)
 
-					i.Equal(body, string(b))
-					i.Equal(header, r.Header.Get("X-Custom"))
+						i.Equal(body, string(b))
+						i.Equal(header, r.Header.Get("X-Custom"))
 
-					handler.ServeHTTP(w, r)
-				})
-			}}),
+						handler.ServeHTTP(w, r)
+					})
+				}}),
 			commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 				greetpb.RegisterGreetServiceServer(server, &greeterService{
 					greetFunc: func() error { return nil },
@@ -141,12 +139,9 @@ func TestGateway(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		t.Parallel()
-
 		i := is.New(t)
 
-		body := `{"greeting":{"first_name":"John","last_name":"Doe"}}`
-
+		// nolint: goerr113
 		grpcErr := errors.New("custom test error")
 
 		const errorMessage = `{"code": 13, "message": "failed to marshal error message"}`
@@ -224,8 +219,6 @@ func TestGateway(t *testing.T) {
 }
 
 func TestPort(t *testing.T) {
-	t.Parallel()
-
 	i := is.New(t)
 
 	grpcServer, err := commonsgrpc.NewServer(
@@ -329,6 +322,8 @@ func TestErrorHandling(t *testing.T) {
 	// nolint: goerr113 // allow dynamic error for this sentinel error.
 	appErr := errors.New("err")
 
+	const panicString = "panic"
+
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
@@ -405,8 +400,6 @@ func TestErrorHandling(t *testing.T) {
 			},
 		}
 
-		panicString := "test"
-
 		bufDialer := newBufnetServer(
 			t,
 			&greeterService{
@@ -439,8 +432,6 @@ func TestErrorHandling(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
-
-		panicString := "panic"
 
 		errorHandler := &mock.ErrorHandlerMock{
 			IsApplicationErrorFunc: func(err error) bool {

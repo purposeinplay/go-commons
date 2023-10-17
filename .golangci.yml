@@ -86,6 +86,8 @@ linters-settings:
       - i *is.I
       - is *is.I
       - eg *errgroup.Group
+      - r *http.Request
+      - w http.ResponseWriter
 
   revive:
     ignore-generated-header: true

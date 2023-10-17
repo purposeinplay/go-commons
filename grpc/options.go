@@ -90,7 +90,7 @@ func WithGRPCServerOptions(opts []grpc.ServerOption) ServerOption {
 // Server. The ServeMux as a handler for the http server.
 func WithMuxOptions(opts []runtime.ServeMuxOption) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.muxOptions = opts
+		o.muxOptions = append(o.muxOptions, opts...)
 	})
 }
 
