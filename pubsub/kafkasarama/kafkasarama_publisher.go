@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 
@@ -19,7 +19,7 @@ type Publisher struct {
 
 // NewPublisher creates a new kafka publisher.
 func NewPublisher(
-	logger *slog.Logger,
+	slogHandler slog.Handler,
 	saramaConfig *sarama.Config,
 	brokers []string,
 ) (*Publisher, error) {
@@ -39,7 +39,7 @@ func NewPublisher(
 	}
 
 	return &Publisher{
-		logger:       logger,
+		logger:       slog.New(slogHandler),
 		syncProducer: producer,
 	}, nil
 }

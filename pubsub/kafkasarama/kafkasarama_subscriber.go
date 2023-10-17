@@ -15,8 +15,9 @@ var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
-	logger   *slog.Logger
-	consumer sarama.Consumer
+	logger  *slog.Logger
+	cfg     *sarama.Config
+	brokers []string
 }
 
 // NewSubscriber creates a new kafka subscriber.
@@ -35,14 +36,10 @@ func NewSubscriber(
 		cfg.Consumer.Return.Errors = true
 	}
 
-	consumer, err := sarama.NewConsumer(brokers, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("new sarama consumer: %w", err)
-	}
-
 	return &Subscriber{
-		logger:   slog.New(slogHandler),
-		consumer: consumer,
+		logger:  slog.New(slogHandler),
+		cfg:     cfg,
+		brokers: brokers,
 	}, nil
 }
 
@@ -52,9 +49,14 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], 
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
 
+	consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new sarama consumer: %w", err)
+	}
+
 	topic := channels[0]
 
-	return newSubscription(s.logger, s.consumer, topic)
+	return newSubscription(s.logger, consumer, topic)
 }
 
 var _ pubsub.Subscription[[]byte] = (*Subscription)(nil)
@@ -64,6 +66,7 @@ type Subscription struct {
 	eventCh    chan pubsub.Event[[]byte]
 	cancelFunc context.CancelFunc
 	wg         *sync.WaitGroup
+	consumer   sarama.Consumer
 }
 
 // newSubscription creates a new subscription.
@@ -97,6 +100,8 @@ func newSubscription(
 		go func() {
 			defer wg.Done()
 
+			// consume partition in the background, stop when the context is
+			// cancelled.
 			consumePartition(ctx, logger, partitionConsumer, eventCh)
 		}()
 	}
@@ -105,6 +110,7 @@ func newSubscription(
 		eventCh:    eventCh,
 		cancelFunc: cancel,
 		wg:         wg,
+		consumer:   consumer,
 	}, nil
 }
 
@@ -165,5 +171,5 @@ func (s Subscription) Close() error {
 
 	close(s.eventCh)
 
-	return nil
+	return s.consumer.Close()
 }

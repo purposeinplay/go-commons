@@ -1,4 +1,4 @@
-package kafka_test
+package kafkasarama_test
 
 import (
 	"context"
@@ -10,7 +10,9 @@ import (
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafka"
+	"github.com/purposeinplay/go-commons/pubsub/kafkasarama"
 	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
 )
 
 func TestPubSub(t *testing.T) {
@@ -19,6 +21,8 @@ func TestPubSub(t *testing.T) {
 	// nolint: gocritic, revive
 	is := is.New(t)
 
+	slogHandler := zapslog.NewHandler(logger.Core(), nil)
+
 	var (
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
@@ -26,9 +30,9 @@ func TestPubSub(t *testing.T) {
 		topic     = username + ".test"
 	)
 
-	suber1, err := kafka.NewSubscriber(
-		logger,
-		kafka.NewSASLSubscriberConfig(
+	suber1, err := kafkasarama.NewSubscriber(
+		slogHandler,
+		kafkasarama.NewSASLSubscriberConfig(
 			username,
 			password,
 		),
@@ -37,24 +41,9 @@ func TestPubSub(t *testing.T) {
 	)
 	is.NoErr(err)
 
-	t.Cleanup(func() { is.NoErr(suber1.Close()) })
-
-	suber2, err := kafka.NewSubscriber(
-		logger,
-		kafka.NewSASLSubscriberConfig(
-			username,
-			password,
-		),
-		[]string{brokerURL},
-		"",
-	)
-	is.NoErr(err)
-
-	t.Cleanup(func() { is.NoErr(suber2.Close()) })
-
-	pub, err := kafka.NewPublisher(
-		logger,
-		kafka.NewSASLPublisherConfig(
+	pub, err := kafkasarama.NewPublisher(
+		slogHandler,
+		kafkasarama.NewSASLPublisherConfig(
 			username,
 			password,
 		),
