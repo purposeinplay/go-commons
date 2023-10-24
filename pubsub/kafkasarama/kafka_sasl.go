@@ -36,8 +36,6 @@ func saslConfig(cfg *sarama.Config, username, password string) *sarama.Config {
 		MinVersion:         tls.VersionTLS13,
 	}
 
-	cfg.Version = sarama.V3_3_1_0
-
 	cfg.Net.SASL.Enable = true
 	cfg.Net.SASL.Handshake = true
 	cfg.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
