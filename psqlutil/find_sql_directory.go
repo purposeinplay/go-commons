@@ -2,37 +2,51 @@ package psqlutil
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
 
 // FindSQLDir attempts to compose the path to the sql directory in the project.
-func FindSQLDir(projectDirectoryName string) (string, error) {
-	p, err := getDirectoryPath(projectDirectoryName)
+// nolint: gocognit // allow high cog complexity.
+func FindSQLDir() (string, error) {
+	projectRoot, err := getProjectRoot()
 	if err != nil {
-		return "", fmt.Errorf("get project directory: %w", err)
+		return "", fmt.Errorf("get project root: %w", err)
 	}
 
-	sqlPath := filepath.Clean(
-		filepath.Join(
-			string(os.PathSeparator),
-			filepath.Join(
-				p,
-				"sql",
-			),
-		),
-	)
+	var sqlDirPath string
 
-	_, err = os.Stat(
-		sqlPath,
-	)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", err
+	if err := filepath.WalkDir(projectRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err // Propagate any error encountered.
 		}
 
-		return "", fmt.Errorf("err while checking if sql dir exists: %w", err)
+		if d.IsDir() {
+			// Check for 'schema.sql' inside this directory.
+			schemaFilePath := filepath.Join(path, "schema.sql")
+
+			if _, err := os.Stat(schemaFilePath); err != nil {
+				if os.IsNotExist(err) {
+					return nil // File not found, continue walking.
+				}
+
+				return fmt.Errorf("stat %q: %w", schemaFilePath, err)
+			}
+
+			sqlDirPath = path // Found the directory containing 'schema.sql'.
+
+			return fs.SkipAll // Throw an error to stop the walk early
+		}
+
+		return nil
+	}); err != nil {
+		return "", fmt.Errorf("walk project root: %w", err)
 	}
 
-	return sqlPath, nil
+	if sqlDirPath == "" {
+		return "", fs.ErrNotExist
+	}
+
+	return sqlDirPath, nil
 }

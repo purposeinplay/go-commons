@@ -6,67 +6,59 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
-// ErrUnableToResolveCaller is returned when the caller CWD cannot be retrieved.
-var ErrUnableToResolveCaller = errors.New("unable to resolve caller")
-
 // ReadSchema reads schema dynamically based on the CWD of the caller.
-func ReadSchema(projectDirectoryName string) (string, error) {
-	path, err := getDirectoryPath(projectDirectoryName)
+func ReadSchema() (string, error) {
+	sqlDir, err := FindSQLDir()
 	if err != nil {
-		return "", fmt.Errorf("get project directory: %w", err)
+		return "", fmt.Errorf("find sql dir: %w", err)
 	}
 
-	schemaPath := filepath.Clean(
-		filepath.Join(
-			string(os.PathSeparator),
-			filepath.Join(
-				path,
-				"sql",
-				"schema.sql",
-			),
-		),
-	)
+	const schemaFile = "schema.sql"
 
-	schemaB, err := os.ReadFile(schemaPath)
+	schemaB, err := os.ReadFile(filepath.Join(filepath.Clean(sqlDir), schemaFile))
 	if err != nil {
-		return "", fmt.Errorf("err while reading schema: %w", err)
+		return "", fmt.Errorf("read schema: %w", err)
 	}
 
 	return string(schemaB), nil
 }
 
-// ErrDirectoryNotFound is returned when the
-// project directory is not found.
-var ErrDirectoryNotFound = errors.New("directory not found")
+var (
+	// ErrUnableToResolveCaller is returned when the caller CWD cannot be retrieved.
+	ErrUnableToResolveCaller = errors.New("unable to resolve caller")
 
-func getDirectoryPath(directoryName string) (string, error) {
+	// ErrProjectRootNotFound is returned when the
+	// project root is not found.
+	ErrProjectRootNotFound = errors.New("project root not found")
+)
+
+func getProjectRoot() (string, error) {
+	rootIndicators := []string{"go.mod"}
+
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", ErrUnableToResolveCaller
 	}
 
-	pathParts := strings.Split(filename, string(os.PathSeparator))
+	dir := filepath.Dir(filename)
 
-	var directoryPath string
-
-	// reverse range over path parts to find the directory
-	// absolute path
-	for directoryPath == "" && len(pathParts) > 0 {
-		if pathParts[len(pathParts)-1] != directoryName {
-			pathParts = pathParts[:len(pathParts)-1]
-
-			continue
+	// Walk up the directory tree until we find the project root.
+	for {
+		for _, indicator := range rootIndicators {
+			if _, err := os.Stat(filepath.Join(dir, indicator)); err == nil {
+				return dir, nil
+			}
 		}
 
-		directoryPath = filepath.Join(pathParts...)
+		parentDir := filepath.Dir(dir)
+		if parentDir == dir {
+			break // we've reached the root of the filesystem and didn't find the project root
+		}
+
+		dir = parentDir
 	}
 
-	if directoryPath == "" {
-		return "", ErrDirectoryNotFound
-	}
-
-	return directoryPath, nil
+	return "", ErrProjectRootNotFound
 }
