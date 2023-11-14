@@ -3,12 +3,13 @@ package grpc
 import (
 	"context"
 	"net"
+	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"go.uber.org/zap"
@@ -50,6 +51,12 @@ type logging struct {
 	ignoredMethods []string
 }
 
+type httpRoute struct {
+	method  string
+	handler http.HandlerFunc
+	path    string
+}
+
 type serverOptions struct {
 	tracing                       bool
 	gateway                       bool
@@ -59,6 +66,7 @@ type serverOptions struct {
 	grpcServerOptions             []grpc.ServerOption
 	muxOptions                    []runtime.ServeMuxOption
 	httpMiddlewares               chi.Middlewares
+	httpRoutes                    []httpRoute
 	registerServer                registerServerFunc
 	registerGateway               registerGatewayFunc
 	grpcListener                  net.Listener
@@ -170,9 +178,9 @@ func WithUnaryServerInterceptorCodeGen() ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
-			grpc_ctxtags.UnaryServerInterceptor(
-				grpc_ctxtags.WithFieldExtractor(
-					grpc_ctxtags.CodeGenRequestFieldExtractor,
+			grpcctxtags.UnaryServerInterceptor(
+				grpcctxtags.WithFieldExtractor(
+					grpcctxtags.CodeGenRequestFieldExtractor,
 				),
 			),
 		)
@@ -207,12 +215,12 @@ func WithUnaryServerInterceptorContextPropagation() ServerOption {
 // WithUnaryServerInterceptorAuthFunc adds an interceptor to the GRPC server
 // that executes a per-request auth.
 func WithUnaryServerInterceptorAuthFunc(
-	authFunc grpc_auth.AuthFunc,
+	authFunc grpcauth.AuthFunc,
 ) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
-			grpc_auth.UnaryServerInterceptor(authFunc),
+			grpcauth.UnaryServerInterceptor(authFunc),
 		)
 	})
 }
@@ -246,13 +254,13 @@ func WithErrorHandler(errorHandler ErrorHandler) ServerOption {
 // WithUnaryServerInterceptorRecovery adds an interceptor to the GRPC server
 // that recovers from panics.
 func WithUnaryServerInterceptorRecovery(
-	recoveryHandler grpc_recovery.RecoveryHandlerFunc,
+	recoveryHandler grpcrecovery.RecoveryHandlerFunc,
 ) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
-			grpc_recovery.UnaryServerInterceptor(
-				grpc_recovery.WithRecoveryHandler(recoveryHandler),
+			grpcrecovery.UnaryServerInterceptor(
+				grpcrecovery.WithRecoveryHandler(recoveryHandler),
 			),
 		)
 	})
@@ -285,6 +293,17 @@ func WithGatewayCorsOptions(opts cors.Options) ServerOption {
 	})
 }
 
+// WithHTTPRoute registers a new http route to the gateway server.
+func WithHTTPRoute(method, path string, handler http.HandlerFunc) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.httpRoutes = append(o.httpRoutes, httpRoute{
+			method:  method,
+			handler: handler,
+			path:    path,
+		})
+	})
+}
+
 func defaultServerOptions() serverOptions {
 	return serverOptions{
 		tracing:                       false,
@@ -310,6 +329,7 @@ func defaultServerOptions() serverOptions {
 				},
 			),
 		},
+		httpRoutes:              nil,
 		httpMiddlewares:         nil,
 		registerServer:          nil,
 		registerGateway:         nil,

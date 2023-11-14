@@ -55,6 +55,7 @@ func newGatewayServer(
 	tracing bool,
 	registerGateway registerGatewayFunc,
 	address string,
+	httpRoutes []httpRoute,
 	middlewares chi.Middlewares,
 	debugStandardLibraryEndpoints bool,
 	corsOptions cors.Options,
@@ -106,6 +107,14 @@ func newGatewayServer(
 	)
 
 	router.Mount("/", handler)
+
+	for _, route := range httpRoutes {
+		router.MethodFunc(
+			route.method,
+			route.path,
+			route.handler,
+		)
+	}
 
 	if debugStandardLibraryEndpoints {
 		// Register all the standard library debug endpoints.

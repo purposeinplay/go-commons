@@ -86,6 +86,7 @@ func NewServer(opt ...ServerOption) (*Server, error) {
 		opts.tracing,
 		opts.registerGateway,
 		opts.address,
+		opts.httpRoutes,
 		opts.httpMiddlewares,
 		opts.debugStandardLibraryEndpoints,
 		opts.gatewayCorsOptions,

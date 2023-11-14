@@ -60,6 +60,11 @@ func TestGateway(t *testing.T) {
 			commonsgrpc.WithHTTPMiddlewares(
 				chi.Middlewares{func(handler http.Handler) http.Handler {
 					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if !strings.Contains(r.URL.Path, "greet") {
+							handler.ServeHTTP(w, r)
+							return
+						}
+
 						b, err := io.ReadAll(r.Body)
 						if err != nil {
 							i.NoErr(err)
@@ -79,6 +84,13 @@ func TestGateway(t *testing.T) {
 						handler.ServeHTTP(w, r)
 					})
 				}}),
+			commonsgrpc.WithHTTPRoute(
+				http.MethodGet,
+				"/test",
+				func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+				},
+			),
 			commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 				greetpb.RegisterGreetServiceServer(server, &greeterService{
 					greetFunc: func() error { return nil },
@@ -117,6 +129,14 @@ func TestGateway(t *testing.T) {
 			}
 		})
 
+		resp, err := http.DefaultClient.Get("http://0.0.0.0:7350/test")
+		i.NoErr(err)
+
+		err = resp.Body.Close()
+		i.NoErr(err)
+
+		i.Equal(resp.StatusCode, http.StatusUnprocessableEntity)
+
 		req, err := http.NewRequest(
 			http.MethodPost,
 			"http://0.0.0.0:7350/greet",
@@ -127,7 +147,7 @@ func TestGateway(t *testing.T) {
 		req.Header.Set("Grpc-Metadata-custom", header)
 		req.Header.Set("X-Custom", header)
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err = http.DefaultClient.Do(req)
 		i.NoErr(err)
 
 		b, err := io.ReadAll(resp.Body)

@@ -14,7 +14,7 @@ import (
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
@@ -261,7 +261,7 @@ type PanicHandler interface {
 
 func newRecoveryFunc(
 	panicHandler PanicHandler,
-) grpc_recovery.RecoveryHandlerFunc {
+) grpcrecovery.RecoveryHandlerFunc {
 	return func(p any) error {
 		ctx, cancelCtx := context.WithTimeout(
 			context.Background(),
@@ -289,8 +289,8 @@ func prependPanicHandler(
 	panicHandler PanicHandler,
 ) []grpc.UnaryServerInterceptor {
 	return prependServerOption(
-		grpc_recovery.UnaryServerInterceptor(
-			grpc_recovery.WithRecoveryHandler(newRecoveryFunc(panicHandler)),
+		grpcrecovery.UnaryServerInterceptor(
+			grpcrecovery.WithRecoveryHandler(newRecoveryFunc(panicHandler)),
 		),
 		interceptors,
 	)
