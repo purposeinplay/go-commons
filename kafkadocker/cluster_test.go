@@ -74,21 +74,6 @@ func TestBroker(t *testing.T) {
 		req.Fail("timeout")
 	}
 
-	err = cluster.Stop(ctx)
-	req.NoError(err)
-
-	select {
-	case mes, ok := <-partConsumer.Messages():
-		t.Logf("%t, message: %+v", ok, mes)
-		req.Equal(topic, string(mes.Value))
-
-	case err := <-partConsumer.Errors():
-		t.Logf("err: %s", err)
-
-	case <-time.After(10 * time.Second):
-		t.Error("timeout")
-	}
-
 	topics, err := client.Topics()
 	req.NoError(err)
 

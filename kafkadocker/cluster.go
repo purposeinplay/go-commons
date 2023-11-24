@@ -2,6 +2,7 @@ package kafkadocker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
 	"github.com/IBM/sarama"
 	"github.com/avast/retry-go"
 	"github.com/docker/docker/api/types/container"
@@ -178,7 +178,11 @@ func (c *Cluster) Start(ctx context.Context) error {
 										}
 
 										// nolint: revive // line too long
-										advertisedListenerAddress = fmt.Sprintf("%s:%s", h, p.Port())
+										advertisedListenerAddress = fmt.Sprintf(
+											"%s:%s",
+											h,
+											p.Port(),
+										)
 
 										return nil
 									}, retry.Attempts(retryAttempts), retry.Delay(retryDelay))
@@ -191,7 +195,10 @@ func (c *Cluster) Start(ctx context.Context) error {
 									)
 									if err != nil {
 										// nolint: revive // line too long
-										return fmt.Errorf("copy start script from container: %w", err)
+										return fmt.Errorf(
+											"copy start script from container: %w",
+											err,
+										)
 									}
 
 									ss, err := io.ReadAll(startScriptReader)
