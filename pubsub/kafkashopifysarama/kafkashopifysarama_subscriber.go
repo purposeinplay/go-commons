@@ -20,7 +20,6 @@ var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
 func NewConsumerGroup(
 	tlsConfig *tls.Config,
 	clientID string,
-	autoCommitIntervalSec int,
 	sessionTimeoutMS int,
 	heartbeatIntervalMS int,
 	brokers []string,
@@ -30,10 +29,7 @@ func NewConsumerGroup(
 
 	kafkaCfg.ClientID = clientID
 	kafkaCfg.Consumer.Offsets.Initial = sarama.OffsetNewest
-	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = true
-	kafkaCfg.Consumer.Offsets.AutoCommit.Interval = time.Duration(
-		autoCommitIntervalSec,
-	) * time.Second
+	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = false
 	kafkaCfg.Consumer.Group.Session.Timeout = time.Duration(sessionTimeoutMS) * time.Millisecond
 	kafkaCfg.Consumer.Group.Heartbeat.Interval = time.Duration(
 		heartbeatIntervalMS,
@@ -184,6 +180,7 @@ func (s *Subscription) ConsumeClaim(
 		// Create a closure for marking the message
 		markFunc := func() {
 			session.MarkMessage(msg, "")
+			session.Commit()
 		}
 
 		s.eventCh <- pubsub.Event[[]byte]{
