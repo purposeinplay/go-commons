@@ -20,7 +20,7 @@ func TestConsumerGroups(t *testing.T) {
 	slogHandler := zapslog.NewHandler(logger.Core(), nil)
 	topic := "test"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	tlsCfg, err := kafkashopifysarama.LoadTLSConfig(
@@ -109,7 +109,7 @@ func TestConsumerGroups(t *testing.T) {
 	// Initialize Kafka server and send message
 	kafkaServer := initialize(tlsCfg, brokers)
 
-	time.Sleep(25 * time.Second)
+	time.Sleep(7 * time.Second)
 	kafkaServer.SendMessage(t, "test", "test message")
 	kafkaServer.SendMessage(t, "test", "test message")
 

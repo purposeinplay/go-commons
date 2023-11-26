@@ -11,7 +11,7 @@ import (
 )
 
 type publisher struct {
-	syncProducer sarama.SyncProducer
+	asyncProducer sarama.AsyncProducer
 }
 
 type kafkaServer struct {
@@ -39,18 +39,18 @@ func newPublisher(
 	saramaConfig *sarama.Config,
 	brokers []string,
 ) (*publisher, error) {
-	producer, err := sarama.NewSyncProducer(brokers, saramaConfig)
+	producer, err := sarama.NewAsyncProducer(brokers, saramaConfig)
 	if err != nil {
 		return nil, fmt.Errorf("new kafka publisher: %w", err)
 	}
 
 	return &publisher{
-		syncProducer: producer,
+		asyncProducer: producer,
 	}, nil
 }
 
 // Publish publishes an event to a kafka topic.
-func (p publisher) Publish(event pubsub.Event[[]byte], channels ...string) error {
+func (p *publisher) Publish(event pubsub.Event[[]byte], channels ...string) error {
 	if len(channels) != 1 {
 		return pubsub.ErrExactlyOneChannelAllowed
 	}
@@ -68,9 +68,7 @@ func (p publisher) Publish(event pubsub.Event[[]byte], channels ...string) error
 		Value: sarama.ByteEncoder(event.Payload),
 	}
 
-	if _, _, err := p.syncProducer.SendMessage(mes); err != nil {
-		return fmt.Errorf("publish: %w", err)
-	}
+	p.asyncProducer.Input() <- mes
 
 	return nil
 }
@@ -94,5 +92,5 @@ func (ks *kafkaServer) SendMessage(t *testing.T, topic, msg string) {
 
 // Close closes the kafka publisher.
 func (ks *kafkaServer) Close() error {
-	return ks.publisher.syncProducer.Close()
+	return ks.publisher.asyncProducer.Close()
 }
