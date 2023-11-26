@@ -14,12 +14,8 @@ import (
 func NewTLSSubscriberConfig(tlsCfg *tls.Config) *sarama.Config {
 	cfg := sarama.NewConfig()
 
-	cfg.Consumer.Return.Errors = true
-
 	cfg.Net.TLS.Enable = true
 	cfg.Net.TLS.Config = tlsCfg
-
-	cfg.Version = sarama.V3_3_1_0
 
 	return cfg
 }

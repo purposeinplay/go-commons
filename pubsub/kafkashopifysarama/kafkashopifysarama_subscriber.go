@@ -38,7 +38,6 @@ func NewConsumerGroup(
 	kafkaCfg.Consumer.Group.Heartbeat.Interval = time.Duration(
 		heartbeatIntervalMS,
 	) * time.Millisecond
-	kafkaCfg.Consumer.Return.Errors = true
 
 	consumerGroup, err := sarama.NewConsumerGroup(brokers, groupID, kafkaCfg)
 	if err != nil {
