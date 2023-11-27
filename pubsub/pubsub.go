@@ -53,4 +53,8 @@ type Event[T any] struct {
 
 	// Carries an error produced by the underlying subscriber.
 	Error error
+
+	// Ack should be called to acknowledge the event if the processing
+	// of the event was successful.
+	Ack func()
 }
