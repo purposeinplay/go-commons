@@ -177,7 +177,7 @@ func (s *Subscription) ConsumeClaim(
 			}
 		}
 
-		// Create a closure for marking the message
+		// Create a closure for committing the message
 		markFunc := func() {
 			session.MarkMessage(msg, "")
 			session.Commit()
