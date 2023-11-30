@@ -38,6 +38,8 @@ func (t ErrorType) HTTPStatus() int {
 		return http.StatusForbidden
 	case ErrorTypeUnauthenticated:
 		return http.StatusUnauthorized
+	case ErrorTypeAlreadyExists:
+		return http.StatusConflict
 	case ErrorTypeInternalError, ErrorTypePanic:
 		return http.StatusInternalServerError
 	default:
@@ -52,6 +54,7 @@ const (
 	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
 	ErrorTypeUnauthorized         ErrorType = "unauthorzied"
 	ErrorTypeUnauthenticated      ErrorType = "unauthenticated"
+	ErrorTypeAlreadyExists        ErrorType = "already-exists"
 	ErrorTypeInternalError        ErrorType = "internal-error"
 	ErrorTypePanic                ErrorType = "panic"
 )

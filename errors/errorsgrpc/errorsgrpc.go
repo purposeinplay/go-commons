@@ -73,6 +73,7 @@ var errorTypeToStatusCode = map[errors.ErrorType]codes.Code{
 	errors.ErrorTypeUnprocessableContent: codes.Internal,
 	errors.ErrorTypeUnauthorized:         codes.PermissionDenied,
 	errors.ErrorTypeUnauthenticated:      codes.Unauthenticated,
+	errors.ErrorTypeAlreadyExists:        codes.AlreadyExists,
 	errors.ErrorTypeInternalError:        codes.Internal,
 }
 
