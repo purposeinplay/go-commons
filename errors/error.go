@@ -35,7 +35,7 @@ func (t ErrorType) HTTPStatus() int {
 	case ErrorTypeUnprocessableContent:
 		return http.StatusUnprocessableEntity
 	case ErrorTypeUnauthorized:
-		return http.StatusUnauthorized
+		return http.StatusForbidden
 	case ErrorTypeUnauthenticated:
 		return http.StatusUnauthorized
 	case ErrorTypeInternalError, ErrorTypePanic:
