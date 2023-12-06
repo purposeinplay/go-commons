@@ -51,17 +51,17 @@ func (s *gatewayServer) close() error {
 
 // nolint: revive // false-positive, it reports tracing as a control flag.
 func newGatewayServer(
-		muxOptions []runtime.ServeMuxOption,
-		tracing bool,
-		registerGateway registerGatewayFunc,
-		address string,
-		httpRoutes []httpRoute,
-		middlewares chi.Middlewares,
-		debugStandardLibraryEndpoints bool,
-		corsOptions cors.Options,
+	muxOptions []runtime.ServeMuxOption,
+	tracing bool,
+	registerGateway registerGatewayFunc,
+	address string,
+	httpRoutes []httpRoute,
+	middlewares chi.Middlewares,
+	debugStandardLibraryEndpoints bool,
+	corsOptions cors.Options,
 ) (
-		*gatewayServer,
-		error,
+	*gatewayServer,
+	error,
 ) {
 	grpcGatewayMux := runtime.NewServeMux(
 		muxOptions...,
