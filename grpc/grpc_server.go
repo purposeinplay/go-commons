@@ -332,69 +332,43 @@ func HandleError(
 	// Check if the error is an application error or an
 	// internal error
 	switch {
-	// If the error is an application error prepare the grpc
-	// response.
-	case errorHandler.IsApplicationError(targetErr):
+	case errors.Is(targetErr, context.Canceled):
+		grpcStatus = status.New(codes.Internal, "context cancelled.")
+
+	case errorHandler.IsApplicationError(targetErr): // error is an app error
 		// Convert the application error type to a GRPC status.
 		sts, toGrpcStatusErr := errorHandler.ErrorToGRPCStatus(targetErr)
-		// on success break
 		if toGrpcStatusErr == nil {
+			// If the error is an application error, and it was converted to a grpc status,
+			// return the grpc status but do not report the error.
 			grpcStatus = sts
 
 			break
 		}
 
-		// handle err
+		// error while converting to grpc status
+
+		errs := errors.Join(fmt.Errorf("error to grpc status: %w", toGrpcStatusErr), targetErr)
+
+		errorHandler.LogError(errs)
+
+		_ = errorHandler.ReportError(ctx, errs)
+
 		grpcStatus = status.New(codes.Internal, "internal error.")
 
-		toGrpcStatusErr = fmt.Errorf(
-			"error to grpc status: %w",
-			toGrpcStatusErr,
-		)
-
-		errorHandler.LogError(toGrpcStatusErr)
-
-		go func() {
-			reportErrErr := errorHandler.ReportError(ctx, toGrpcStatusErr)
-			if reportErrErr == nil {
-				return
-			}
-
-			errorHandler.LogError(fmt.Errorf(
-				"error while reporting this error %q: %w",
-				toGrpcStatusErr.Error(),
-				reportErrErr,
-			))
-		}()
-
-	case errors.Is(targetErr, context.Canceled):
-		grpcStatus = status.New(codes.Internal, "context cancelled.")
-
-	// If the error is an internal error, report it to an external
-	// service.
-	default:
+	default: // error is not an app error or a context cancelled error.
+		// if the error is a grpc status, forward it, because it was already handled elsewhere.
 		if s := isGRPCStatus(targetErr); s != nil {
 			grpcStatus = s
+
 			break
 		}
 
-		go func() {
-			// Report the error to an external service
-			reportErr := errorHandler.ReportError(ctx, targetErr)
-			if reportErr != nil {
-				// Log the error received from the external service
-				// and continue execution.
-				errorHandler.LogError(fmt.Errorf(
-					"error while reporting this error %q: %w",
-					targetErr.Error(),
-					reportErr,
-				))
-			}
-		}()
-
-		// Create a GRPC status that doesn't leak any information
-		// about the internal error.
+		// If the error is not an application error and not a grpc status, it's an internal error.
 		grpcStatus = status.New(codes.Internal, "internal error.")
+
+		// report the internal error.
+		_ = errorHandler.ReportError(ctx, targetErr)
 	}
 
 	// Return the grpc Status as an immutable error.
@@ -415,7 +389,10 @@ func isGRPCStatus(err error) *status.Status {
 		}
 	}
 
-	s, _ := status.FromError(statusCandidate)
+	s, ok := status.FromError(statusCandidate)
+	if !ok {
+		return nil
+	}
 
 	return s
 }
