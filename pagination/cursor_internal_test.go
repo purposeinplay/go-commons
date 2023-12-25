@@ -3,11 +3,14 @@ package pagination
 import (
 	"testing"
 	"time"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 )
 
 func TestComputeCursor(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		item any
 
@@ -16,8 +19,8 @@ func TestComputeCursor(t *testing.T) {
 	}{
 		"NoID": {
 			item: struct{ Foo string }{},
-			expectedError: func(t require.TestingT, err error, i ...interface{}) {
-				require.ErrorIs(t, err, ErrFieldNotFound)
+			expectedError: func(t require.TestingT, err error, i ...any) {
+				require.ErrorIs(t, err, ErrCursorFieldNotFound)
 			},
 			expectedCursor: "",
 		},
@@ -29,8 +32,8 @@ func TestComputeCursor(t *testing.T) {
 				ID:  "3f6e8d5a-b972-4cb7-a741-ce03fe791439",
 				Foo: "bar",
 			},
-			expectedError: func(t require.TestingT, err error, i ...interface{}) {
-				require.ErrorIs(t, err, ErrFieldNotFound)
+			expectedError: func(t require.TestingT, err error, i ...any) {
+				require.ErrorIs(t, err, ErrCursorFieldNotFound)
 			},
 			expectedCursor: "",
 		},
@@ -42,8 +45,8 @@ func TestComputeCursor(t *testing.T) {
 				ID:        "3f6e8d5a-b972-4cb7-a741-ce03fe791439",
 				CreatedAt: time.Now().String(),
 			},
-			expectedError: func(t require.TestingT, err error, i ...interface{}) {
-				require.ErrorIs(t, err, ErrInvalidValueType)
+			expectedError: func(t require.TestingT, err error, i ...any) {
+				require.ErrorIs(t, err, ErrCursorInvalidValueType)
 			},
 			expectedCursor: "",
 		},
@@ -55,7 +58,8 @@ func TestComputeCursor(t *testing.T) {
 				ID:        "3f6e8d5a-b972-4cb7-a741-ce03fe791439",
 				CreatedAt: *timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
 			},
-			expectedError:  require.NoError,
+			expectedError: require.NoError,
+			// nolint: revive
 			expectedCursor: "M2Y2ZThkNWEtYjk3Mi00Y2I3LWE3NDEtY2UwM2ZlNzkxNDM5OjIwMjMtMTItMjBUMTM6NTY6MDNa",
 		},
 		"CreatedAtTimePtr": {
@@ -66,7 +70,8 @@ func TestComputeCursor(t *testing.T) {
 				ID:        "3f6e8d5a-b972-4cb7-a741-ce03fe791439",
 				CreatedAt: timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
 			},
-			expectedError:  require.NoError,
+			expectedError: require.NoError,
+			// nolint: revive
 			expectedCursor: "M2Y2ZThkNWEtYjk3Mi00Y2I3LWE3NDEtY2UwM2ZlNzkxNDM5OjIwMjMtMTItMjBUMTM6NTY6MDNa",
 		},
 		"PtrCreatedAtTimePtr": {
@@ -77,7 +82,8 @@ func TestComputeCursor(t *testing.T) {
 				ID:        "3f6e8d5a-b972-4cb7-a741-ce03fe791439",
 				CreatedAt: timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
 			}),
-			expectedError:  require.NoError,
+			expectedError: require.NoError,
+			// nolint: revive
 			expectedCursor: "M2Y2ZThkNWEtYjk3Mi00Y2I3LWE3NDEtY2UwM2ZlNzkxNDM5OjIwMjMtMTItMjBUMTM6NTY6MDNa",
 		},
 	}
@@ -90,7 +96,7 @@ func TestComputeCursor(t *testing.T) {
 
 			req := require.New(t)
 
-			cursor, err := computeStructCursor(test.item)
+			cursor, err := computeItemCursor(test.item)
 
 			test.expectedError(t, err)
 			req.Equal(test.expectedCursor, cursor)

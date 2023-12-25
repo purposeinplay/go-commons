@@ -2,26 +2,30 @@ package pagination
 
 import (
 	"encoding/base64"
-	"time"
-	"fmt"
-	"strings"
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
+	"time"
 )
 
+// Cursor defines the fields used to compose a cursor.
 type Cursor struct {
-	id        string
-	createdAt time.Time
+	ID        string
+	CreatedAt time.Time
 }
 
+// String returns the cursor fields encoded as a base64 string.
 func (c *Cursor) String() string {
-	cursorRaw := fmt.Sprintf("%s:%s", c.id, c.createdAt.Format(time.RFC3339Nano))
+	cursorRaw := fmt.Sprintf("%s:%s", c.ID, c.CreatedAt.Format(time.RFC3339Nano))
 
 	return base64.StdEncoding.EncodeToString([]byte(cursorRaw))
 }
 
+// ErrInvalidCursor is returned when the cursor is invalid.
 var ErrInvalidCursor = errors.New("invalid Cursor")
 
+// SetString decodes the cursor from a base64 string.
 func (c *Cursor) SetString(text string) (*Cursor, error) {
 	cursorRawBytes, err := base64.StdEncoding.DecodeString(text)
 	if err != nil {
@@ -38,13 +42,14 @@ func (c *Cursor) SetString(text string) (*Cursor, error) {
 		return nil, fmt.Errorf("parse created at: %w", err)
 	}
 
-	c.id = id
-	c.createdAt = createdAt
+	c.ID = id
+	c.CreatedAt = createdAt
 
 	return c, nil
 }
 
-func computeStructCursor(obj any) (string, error) {
+// nolint: gocyclo
+func computeItemCursor(obj any) (string, error) {
 	v := reflect.ValueOf(obj)
 
 	if v.Kind() == reflect.Ptr {
@@ -55,15 +60,16 @@ func computeStructCursor(obj any) (string, error) {
 
 	var cursor Cursor
 
+	// nolint:exhaustive
 	switch idField.Kind() {
 	case reflect.String:
-		cursor.id = idField.String()
+		cursor.ID = idField.String()
 	case reflect.Invalid:
-		return "", fmt.Errorf("%w: ID", ErrFieldNotFound)
+		return "", fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
 	default:
 		return "", fmt.Errorf(
 			"%w: ID: expected: %s, actual: %s",
-			ErrInvalidValueType,
+			ErrCursorInvalidValueType,
 			reflect.String,
 			idField.Kind(),
 		)
@@ -71,15 +77,16 @@ func computeStructCursor(obj any) (string, error) {
 
 	createdAtField := v.FieldByName("CreatedAt")
 
+	// nolint:exhaustive
 	switch createdAtField.Kind() {
 	case timeKind:
 		var ok bool
 
-		cursor.createdAt, ok = createdAtField.Interface().(time.Time)
+		cursor.CreatedAt, ok = createdAtField.Interface().(time.Time)
 		if !ok {
 			return "", fmt.Errorf(
 				"%w: CreatedAt: expected: %s, actual: %s",
-				ErrInvalidValueType,
+				ErrCursorInvalidValueType,
 				"time.Time",
 				reflect.TypeOf(createdAtField.Interface()).String(),
 			)
@@ -90,20 +97,20 @@ func computeStructCursor(obj any) (string, error) {
 		if !ok {
 			return "", fmt.Errorf(
 				"%w: CreatedAt: expected: %s, actual: %s",
-				ErrInvalidValueType,
+				ErrCursorInvalidValueType,
 				"*time.Time",
 				reflect.TypeOf(createdAtField.Interface()).String(),
 			)
 		}
 
-		cursor.createdAt = *createdAt
+		cursor.CreatedAt = *createdAt
 
 	case reflect.Invalid:
-		return "", fmt.Errorf("%w: CreatedAt", ErrFieldNotFound)
+		return "", fmt.Errorf("%w: CreatedAt", ErrCursorFieldNotFound)
 	default:
 		return "", fmt.Errorf(
 			"%w: CreatedAt: expected: %s, actual: %s",
-			ErrInvalidValueType,
+			ErrCursorInvalidValueType,
 			reflect.Ptr,
 			idField.Kind(),
 		)
