@@ -38,14 +38,32 @@ type Arguments struct {
 
 // PageInfo represents pagination information.
 type PageInfo struct {
+	// HasPreviousPage is used to indicate whether more items exist prior to the
+	// set defined by the pagination arguments.
+	// If the client is paginating with last/before,
+	// then the server must return true if prior items exist, otherwise false.
+	// If the client is paginating with first/after, then the client may return true if
+	// items prior to after exist, if it can do so efficiently, otherwise may return false.
 	HasPreviousPage bool
-	HasNextPage     bool
+	// HasNextPage is used to indicate whether more items exist following the
+	// set defined by the pagination arguments.
+	// If the client is paginating with first/after, then the server must return true
+	// if further items exist, otherwise false.
+	// If the client is paginating with last/before, then the server may return true if
+	// items further from before exist, if it can do so efficiently, otherwise may return false.
+	HasNextPage bool
 
+	// StartCursor corresponds to the first item in the result set.
 	StartCursor *string
-	EndCursor   *string
+	// EndCursor corresponds to the last item in the result set.
+	EndCursor *string
 }
 
 // PaginatedItem contains a generic item and its cursor.
+//
+// In order to be able to compute the Cursor,
+// the expectation is that T defines a field named ID of type string and
+// field named CreatedAt of type time.Time or *time.Time.
 type PaginatedItem[T any] struct {
 	Item   T
 	Cursor string
