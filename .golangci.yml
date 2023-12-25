@@ -7,7 +7,7 @@ run:
 linters-settings:
   staticcheck:
     # Select the Go version to target. The default is '1.13'.
-    go: "1.20"
+    go: "1.21"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all" ]
 
@@ -88,6 +88,7 @@ linters-settings:
       - eg *errgroup.Group
       - r *http.Request
       - w http.ResponseWriter
+      - v reflect.Value
 
   revive:
     ignore-generated-header: true

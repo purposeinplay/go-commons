@@ -1,16 +1,14 @@
-name: lint-test-kafkadocker
+name: lint-test-pagination
 
 on:
-  # Trigger the workflow on push request if the files
-  # in ./pubsub package were modified
   push:
     branches:
       - main
     paths:
-      - kafkadocker/**
+      - pagination/**
 
 env:
-  PACKAGE: kafkadocker
+  PACKAGE: pagination
 
 jobs:
   lint:
@@ -18,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: stable
 
@@ -37,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: stable
 

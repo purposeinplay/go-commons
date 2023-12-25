@@ -15,9 +15,10 @@ var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
-	logger  *slog.Logger
-	cfg     *sarama.Config
-	brokers []string
+	logger        *slog.Logger
+	cfg           *sarama.Config
+	brokers       []string
+	consumerGroup string
 }
 
 // NewSubscriber creates a new kafka subscriber.
@@ -37,9 +38,10 @@ func NewSubscriber(
 	}
 
 	return &Subscriber{
-		logger:  slog.New(slogHandler),
-		cfg:     cfg,
-		brokers: brokers,
+		logger:        slog.New(slogHandler),
+		cfg:           cfg,
+		brokers:       brokers,
+		consumerGroup: consumerGroup,
 	}, nil
 }
 
@@ -48,6 +50,8 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], 
 	if len(channels) != 1 {
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
+
+	sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg)
 
 	consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
 	if err != nil {

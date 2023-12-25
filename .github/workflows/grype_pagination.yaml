@@ -1,9 +1,9 @@
-name: grype grpc
+name: grype pagination
 
 on:
   push:
     branches: [ main ]
-    paths: [ grpc/** ]
+    paths: [ pagination/** ]
 
 jobs:
   scan-source:
@@ -16,11 +16,11 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: anchore/scan-action@v3
         id: scan
         with:
-          path: grpc
+          path: pagination
           fail-build: true
           acs-report-enable: true
           severity-cutoff: medium
