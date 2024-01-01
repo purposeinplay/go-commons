@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"gorm.io/gorm"
+	"k8s.io/utils/ptr"
 )
 
 var _ Paginator[any] = (*PSQLPaginator[any])(nil)
@@ -47,11 +48,6 @@ func (p PSQLPaginator[T]) ListItems(
 
 	pageInfoSession := p.DB.Session(&gorm.Session{}).Model(model)
 
-	pageInfo, err := getPageInfo(pageInfoSession, int64(len(items)), paginationParams)
-	if err != nil {
-		return nil, PageInfo{}, fmt.Errorf("get page info: %w", err)
-	}
-
 	paginatedItems := make([]PaginatedItem[T], len(items))
 
 	for i := range items {
@@ -66,9 +62,36 @@ func (p PSQLPaginator[T]) ListItems(
 		}
 	}
 
+	var (
+		startCursor *Cursor
+		endCursor   *Cursor
+	)
+
 	if len(paginatedItems) > 0 {
-		pageInfo.StartCursor = &paginatedItems[0].Cursor
-		pageInfo.EndCursor = &paginatedItems[len(paginatedItems)-1].Cursor
+		startCursor, err = (&Cursor{}).SetString(paginatedItems[0].Cursor)
+		if err != nil {
+			return nil, PageInfo{}, fmt.Errorf("decode start cursor: %w", err)
+		}
+
+		endCursor, err = (&Cursor{}).SetString(paginatedItems[len(paginatedItems)-1].Cursor)
+		if err != nil {
+			return nil, PageInfo{}, fmt.Errorf("decode end cursor: %w", err)
+		}
+	}
+
+	pageInfo, err := getPageInfo(
+		pageInfoSession,
+		paginationParams,
+		startCursor,
+		endCursor,
+	)
+	if err != nil {
+		return nil, PageInfo{}, fmt.Errorf("get page info: %w", err)
+	}
+
+	if len(paginatedItems) > 0 {
+		pageInfo.StartCursor = ptr.To(startCursor.String())
+		pageInfo.EndCursor = ptr.To(endCursor.String())
 	}
 
 	return paginatedItems, pageInfo, nil
@@ -112,118 +135,133 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 
 func getPageInfo(
 	db *gorm.DB,
-	itemsCount int64,
 	pagination Arguments,
+	startCursor *Cursor,
+	endCursor *Cursor,
 ) (PageInfo, error) {
 	if pagination.First != nil {
-		return getForwardPaginationPageInfo(db, itemsCount, pagination)
+		return getForwardPaginationPageInfo(db, pagination, endCursor)
 	}
 
-	return getBackwardPaginationPageInfo(db, itemsCount, pagination)
+	return getBackwardPaginationPageInfo(db, pagination, startCursor)
 }
 
 func getForwardPaginationPageInfo(
 	db *gorm.DB,
-	itemsCount int64,
 	pagination Arguments,
+	endCursor *Cursor,
 ) (PageInfo, error) {
 	var (
-		totalItemsForward  int64
-		totalItemsBackward int64
+		hasItemForward  int64
+		hasItemBackward int64
 	)
 
-	totalItemsForwardQuery := db.
+	itemForwardQuery := db.
 		Session(&gorm.Session{}).
 		Order("created_at DESC")
 
-	totalItemsBackwardQuery := db.
+	itemBackwardQuery := db.
 		Session(&gorm.Session{}).
 		Order("created_at DESC")
 
-	if pagination.afterCursor == nil {
-		if err := totalItemsForwardQuery.Count(&totalItemsForward).Error; err != nil {
-			return PageInfo{}, fmt.Errorf("count items for forward pagination: %w", err)
-		}
+	var pageInfo PageInfo
 
-		return PageInfo{
-			HasPreviousPage: false,
-			HasNextPage:     totalItemsForward > itemsCount,
-		}, nil
+	if endCursor != nil {
+		itemForwardQuery = itemForwardQuery.Where(
+			"created_at < ?",
+			endCursor.CreatedAt,
+		)
+	} else if pagination.afterCursor != nil {
+		// Case where zero items are fetched but with a cursor.
+		itemForwardQuery = itemForwardQuery.Where(
+			"created_at < ?",
+			pagination.afterCursor.CreatedAt,
+		)
 	}
 
-	totalItemsForwardQuery = totalItemsForwardQuery.Where(
-		"created_at < ?",
-		pagination.afterCursor.CreatedAt,
-	)
+	if err := itemForwardQuery.Count(&hasItemForward).
+		Limit(1).Error; err != nil {
+		return PageInfo{}, fmt.Errorf("count items for forward pagination: %w", err)
+	}
 
-	totalItemsBackwardQuery = totalItemsBackwardQuery.Debug().Where(
+	pageInfo.HasNextPage = hasItemForward > 0
+
+	if pagination.afterCursor == nil {
+		pageInfo.HasPreviousPage = false
+		return pageInfo, nil
+	}
+
+	itemBackwardQuery = itemBackwardQuery.Where(
 		"created_at > ?",
 		pagination.afterCursor.CreatedAt,
 	)
 
-	if err := totalItemsForwardQuery.Count(&totalItemsForward).Error; err != nil {
-		return PageInfo{}, fmt.Errorf("count items for forward pagination: %w", err)
-	}
-
-	if err := totalItemsBackwardQuery.Count(&totalItemsBackward).Error; err != nil {
+	if err := itemBackwardQuery.Count(&hasItemBackward).
+		Limit(1).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("count items for backward pagination: %w", err)
 	}
 
-	return PageInfo{
-		HasPreviousPage: totalItemsBackward > 0,
-		HasNextPage:     totalItemsForward > itemsCount,
-	}, nil
+	pageInfo.HasPreviousPage = hasItemBackward > 0
+
+	return pageInfo, nil
 }
 
 func getBackwardPaginationPageInfo(
 	db *gorm.DB,
-	itemsCount int64,
 	pagination Arguments,
+	startCursor *Cursor,
 ) (PageInfo, error) {
 	var (
-		totalItemsForward  int64
-		totalItemsBackward int64
+		hasItemForward  int64
+		hasItemBackward int64
 	)
 
-	totalItemsForwardQuery := db.
+	itemForwardQuery := db.
 		Session(&gorm.Session{}).
 		Order("created_at DESC")
 
-	totalItemsBackwardQuery := db.
+	itemBackwardQuery := db.
 		Session(&gorm.Session{}).
 		Order("created_at DESC")
 
-	if pagination.Before == nil {
-		if err := totalItemsBackwardQuery.Count(&totalItemsBackward).Error; err != nil {
-			return PageInfo{}, fmt.Errorf("count items for backward pagination: %w", err)
-		}
+	var pageInfo PageInfo
 
-		return PageInfo{
-			HasPreviousPage: totalItemsBackward > itemsCount,
-			HasNextPage:     false,
-		}, nil
+	if startCursor != nil {
+		itemBackwardQuery = itemBackwardQuery.Where(
+			"created_at > ?",
+			startCursor.CreatedAt,
+		)
+	} else if pagination.beforeCursor != nil {
+		// Case where zero items are fetched but with a cursor.
+		itemBackwardQuery = itemBackwardQuery.Where(
+			"created_at > ?",
+			pagination.beforeCursor.CreatedAt,
+		)
 	}
 
-	totalItemsForwardQuery = totalItemsForwardQuery.Where(
+	if err := itemBackwardQuery.Count(&hasItemBackward).
+		Limit(1).Error; err != nil {
+		return PageInfo{}, fmt.Errorf("count items for backward pagination: %w", err)
+	}
+
+	pageInfo.HasPreviousPage = hasItemBackward > 0
+
+	if pagination.beforeCursor == nil {
+		pageInfo.HasNextPage = false
+		return pageInfo, nil
+	}
+
+	itemForwardQuery = itemForwardQuery.Where(
 		"created_at < ?",
 		pagination.beforeCursor.CreatedAt,
 	)
 
-	totalItemsBackwardQuery = totalItemsBackwardQuery.Where(
-		"created_at > ?",
-		pagination.beforeCursor.CreatedAt,
-	)
-
-	if err := totalItemsForwardQuery.Count(&totalItemsForward).Error; err != nil {
+	if err := itemForwardQuery.Count(&hasItemForward).
+		Limit(1).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("count items for forward pagination: %w", err)
 	}
 
-	if err := totalItemsBackwardQuery.Count(&totalItemsBackward).Error; err != nil {
-		return PageInfo{}, fmt.Errorf("count items for backward pagination: %w", err)
-	}
+	pageInfo.HasNextPage = hasItemForward > 0
 
-	return PageInfo{
-		HasPreviousPage: totalItemsBackward > itemsCount,
-		HasNextPage:     totalItemsForward > 0,
-	}, nil
+	return pageInfo, nil
 }

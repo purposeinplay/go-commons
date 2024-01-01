@@ -29,10 +29,10 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 
 	const schema = `
 	CREATE TABLE users (
-	    id 			UUID PRIMARY KEY, 
-	    name 		TEXT, 
+	    id 			UUID PRIMARY KEY,
+	    name 		TEXT,
 	    created_at 	TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-	);	 
+	);
 	`
 
 	psqlContainer := psqldocker.NewContainer(
@@ -190,6 +190,88 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     userToCursor(users[0]),
 				EndCursor:       userToCursor(users[94]),
+			},
+		},
+		"First0NoCursor": {
+			params: pagination.Arguments{
+				First: ptr.To(0),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: false,
+				HasNextPage:     true,
+				StartCursor:     nil,
+				EndCursor:       nil,
+			},
+		},
+		"Last0NoCursor": {
+			params: pagination.Arguments{
+				Last: ptr.To(0),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: true,
+				HasNextPage:     false,
+				StartCursor:     nil,
+				EndCursor:       nil,
+			},
+		},
+		"First0WithCursor": {
+			params: pagination.Arguments{
+				First: ptr.To(0),
+				After: userToCursor(users[0]),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: false,
+				HasNextPage:     true,
+				StartCursor:     nil,
+				EndCursor:       nil,
+			},
+		},
+		"Last0WithCursor": {
+			params: pagination.Arguments{
+				Last:   ptr.To(0),
+				Before: userToCursor(users[99]),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: true,
+				HasNextPage:     false,
+				StartCursor:     nil,
+				EndCursor:       nil,
+			},
+		},
+		"First0CursorAtEnd": {
+			params: pagination.Arguments{
+				First: ptr.To(0),
+				After: userToCursor(users[99]),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: true,
+				HasNextPage:     false,
+				StartCursor:     nil,
+				EndCursor:       nil,
+			},
+		},
+		"Last0CursorStart": {
+			params: pagination.Arguments{
+				Last:   ptr.To(0),
+				Before: userToCursor(users[0]),
+			},
+			expectedError: require.NoError,
+			expectedUsers: []user{},
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: false,
+				HasNextPage:     true,
+				StartCursor:     nil,
+				EndCursor:       nil,
 			},
 		},
 	}
