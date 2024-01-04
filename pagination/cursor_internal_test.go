@@ -99,7 +99,7 @@ func TestComputeCursor(t *testing.T) {
 			cursor, err := computeItemCursor(test.item)
 
 			test.expectedError(t, err)
-			req.Equal(test.expectedCursor, cursor)
+			req.Equal(test.expectedCursor, cursor.String())
 		})
 	}
 }

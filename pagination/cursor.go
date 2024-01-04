@@ -17,6 +17,10 @@ type Cursor struct {
 
 // String returns the cursor fields encoded as a base64 string.
 func (c *Cursor) String() string {
+	if c.ID == "" || c.CreatedAt.IsZero() {
+		return ""
+	}
+
 	cursorRaw := fmt.Sprintf("%s:%s", c.ID, c.CreatedAt.Format(time.RFC3339Nano))
 
 	return base64.StdEncoding.EncodeToString([]byte(cursorRaw))
@@ -58,12 +62,15 @@ func computeItemCursor(obj any) (Cursor, error) {
 
 	idField := v.FieldByName("ID")
 
-	var cursor Cursor
+	var (
+		cursorID        string
+		cursorCreatedAt time.Time
+	)
 
 	// nolint:exhaustive
 	switch idField.Kind() {
 	case reflect.String:
-		cursor.ID = idField.String()
+		cursorID = idField.String()
 	case reflect.Invalid:
 		return Cursor{}, fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
 	default:
@@ -82,7 +89,7 @@ func computeItemCursor(obj any) (Cursor, error) {
 	case timeKind:
 		var ok bool
 
-		cursor.CreatedAt, ok = createdAtField.Interface().(time.Time)
+		cursorCreatedAt, ok = createdAtField.Interface().(time.Time)
 		if !ok {
 			return Cursor{}, fmt.Errorf(
 				"%w: CreatedAt: expected: %s, actual: %s",
@@ -103,7 +110,7 @@ func computeItemCursor(obj any) (Cursor, error) {
 			)
 		}
 
-		cursor.CreatedAt = *createdAt
+		cursorCreatedAt = *createdAt
 
 	case reflect.Invalid:
 		return Cursor{}, fmt.Errorf("%w: CreatedAt", ErrCursorFieldNotFound)
@@ -116,5 +123,8 @@ func computeItemCursor(obj any) (Cursor, error) {
 		)
 	}
 
-	return cursor, nil
+	return Cursor{
+		ID:        cursorID,
+		CreatedAt: cursorCreatedAt,
+	}, nil
 }
