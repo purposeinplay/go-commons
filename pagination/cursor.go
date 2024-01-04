@@ -49,7 +49,7 @@ func (c *Cursor) SetString(text string) (*Cursor, error) {
 }
 
 // nolint: gocyclo
-func computeItemCursor(obj any) (string, error) {
+func computeItemCursor(obj any) (Cursor, error) {
 	v := reflect.ValueOf(obj)
 
 	if v.Kind() == reflect.Ptr {
@@ -65,9 +65,9 @@ func computeItemCursor(obj any) (string, error) {
 	case reflect.String:
 		cursor.ID = idField.String()
 	case reflect.Invalid:
-		return "", fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
+		return Cursor{}, fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
 	default:
-		return "", fmt.Errorf(
+		return Cursor{}, fmt.Errorf(
 			"%w: ID: expected: %s, actual: %s",
 			ErrCursorInvalidValueType,
 			reflect.String,
@@ -84,7 +84,7 @@ func computeItemCursor(obj any) (string, error) {
 
 		cursor.CreatedAt, ok = createdAtField.Interface().(time.Time)
 		if !ok {
-			return "", fmt.Errorf(
+			return Cursor{}, fmt.Errorf(
 				"%w: CreatedAt: expected: %s, actual: %s",
 				ErrCursorInvalidValueType,
 				"time.Time",
@@ -95,7 +95,7 @@ func computeItemCursor(obj any) (string, error) {
 	case reflect.Ptr:
 		createdAt, ok := createdAtField.Interface().(*time.Time)
 		if !ok {
-			return "", fmt.Errorf(
+			return Cursor{}, fmt.Errorf(
 				"%w: CreatedAt: expected: %s, actual: %s",
 				ErrCursorInvalidValueType,
 				"*time.Time",
@@ -106,9 +106,9 @@ func computeItemCursor(obj any) (string, error) {
 		cursor.CreatedAt = *createdAt
 
 	case reflect.Invalid:
-		return "", fmt.Errorf("%w: CreatedAt", ErrCursorFieldNotFound)
+		return Cursor{}, fmt.Errorf("%w: CreatedAt", ErrCursorFieldNotFound)
 	default:
-		return "", fmt.Errorf(
+		return Cursor{}, fmt.Errorf(
 			"%w: CreatedAt: expected: %s, actual: %s",
 			ErrCursorInvalidValueType,
 			reflect.Ptr,
@@ -116,5 +116,5 @@ func computeItemCursor(obj any) (string, error) {
 		)
 	}
 
-	return cursor.String(), nil
+	return cursor, nil
 }

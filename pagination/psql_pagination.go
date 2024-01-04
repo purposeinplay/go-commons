@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
+	"k8s.io/utils/ptr"
 )
 
-var _ Paginator[any] = (*PSQLPaginator[any])(nil)
+var _ Paginator[schema.Tabler] = (*PSQLPaginator[schema.Tabler])(nil)
 
 // PSQLPaginator implements the Paginator interface for
 // PostgreSQL databases.
-type PSQLPaginator[T any] struct {
+type PSQLPaginator[T schema.Tabler] struct {
 	DB *gorm.DB
 }
 
@@ -48,7 +50,11 @@ func (p PSQLPaginator[T]) ListItems(
 
 	pageInfoSession := p.DB.Session(&gorm.Session{}).Model(model)
 
-	paginatedItems := make([]PaginatedItem[T], len(items))
+	var (
+		paginatedItems = make([]PaginatedItem[T], len(items))
+		startCursor    *Cursor
+		endCursor      *Cursor
+	)
 
 	for i := range items {
 		cursor, err := computeItemCursor(items[i])
@@ -56,20 +62,18 @@ func (p PSQLPaginator[T]) ListItems(
 			return nil, PageInfo{}, fmt.Errorf("compute cursor: %w", err)
 		}
 
+		if i == 0 {
+			startCursor = &cursor
+		}
+
+		if i == len(items)-1 {
+			endCursor = &cursor
+		}
+
 		paginatedItems[i] = PaginatedItem[T]{
 			Item:   items[i],
-			Cursor: cursor,
+			Cursor: cursor.String(),
 		}
-	}
-
-	var (
-		startCursor *string
-		endCursor   *string
-	)
-
-	if len(paginatedItems) > 0 {
-		startCursor = &paginatedItems[0].Cursor
-		endCursor = &paginatedItems[len(paginatedItems)-1].Cursor
 	}
 
 	pageInfo, err := getPageInfo[T](
@@ -83,8 +87,8 @@ func (p PSQLPaginator[T]) ListItems(
 	}
 
 	if len(paginatedItems) > 0 {
-		pageInfo.StartCursor = startCursor
-		pageInfo.EndCursor = endCursor
+		pageInfo.StartCursor = ptr.To(paginatedItems[0].Cursor)
+		pageInfo.EndCursor = ptr.To(paginatedItems[len(paginatedItems)-1].Cursor)
 	}
 
 	return paginatedItems, pageInfo, nil
@@ -126,11 +130,11 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	return items, nil
 }
 
-func getPageInfo[T any](
+func getPageInfo[T schema.Tabler](
 	db *gorm.DB,
 	pagination Arguments,
-	startCursor *string,
-	endCursor *string,
+	startCursor *Cursor,
+	endCursor *Cursor,
 ) (PageInfo, error) {
 	if pagination.First != nil {
 		return getForwardPaginationPageInfo[T](db, pagination, endCursor)
@@ -139,10 +143,10 @@ func getPageInfo[T any](
 	return getBackwardPaginationPageInfo[T](db, pagination, startCursor)
 }
 
-func getForwardPaginationPageInfo[T any](
+func getForwardPaginationPageInfo[T schema.Tabler](
 	db *gorm.DB,
 	pagination Arguments,
-	endCursor *string,
+	endCursor *Cursor,
 ) (PageInfo, error) {
 	var (
 		hasItemForward  bool
@@ -154,29 +158,17 @@ func getForwardPaginationPageInfo[T any](
 	createdAt := time.Now()
 
 	if endCursor != nil {
-		ca, err := time.Parse(time.RFC3339Nano, *endCursor)
-		if err != nil {
-			return PageInfo{}, fmt.Errorf("parse end cursor: %w", err)
-		}
-
-		createdAt = ca
+		createdAt = endCursor.CreatedAt
 	} else if pagination.afterCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.afterCursor.CreatedAt
 	}
 
 	var model T
+	tableName := model.TableName()
 
-	stmt := &gorm.Statement{DB: db}
-	if err := stmt.Parse(&model); err != nil {
-		return PageInfo{}, fmt.Errorf("parse model: %w", err)
-	}
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
 
-	tableName := stmt.Schema.Table
-
-	query := fmt.Sprintf(
-		"SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName,
-	)
 	if err := db.Raw(query, createdAt).Scan(&hasItemForward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
@@ -188,11 +180,12 @@ func getForwardPaginationPageInfo[T any](
 		return pageInfo, nil
 	}
 
-	query = fmt.Sprintf(
-		"SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName,
-	)
-	if err := db.Raw(query, pagination.afterCursor.CreatedAt).
-		Scan(&hasItemBackward).Error; err != nil {
+	query = fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName)
+
+	if err := db.Raw(
+		query,
+		pagination.afterCursor.CreatedAt,
+	).Scan(&hasItemBackward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
 
@@ -201,10 +194,10 @@ func getForwardPaginationPageInfo[T any](
 	return pageInfo, nil
 }
 
-func getBackwardPaginationPageInfo[T any](
+func getBackwardPaginationPageInfo[T schema.Tabler](
 	db *gorm.DB,
 	pagination Arguments,
-	startCursor *string,
+	startCursor *Cursor,
 ) (PageInfo, error) {
 	var (
 		hasItemForward  bool
@@ -216,29 +209,16 @@ func getBackwardPaginationPageInfo[T any](
 	var createdAt time.Time
 
 	if startCursor != nil {
-		ca, err := time.Parse(time.RFC3339Nano, *startCursor)
-		if err != nil {
-			return PageInfo{}, fmt.Errorf("parse start cursor: %w", err)
-		}
-
-		createdAt = ca
+		createdAt = startCursor.CreatedAt
 	} else if pagination.beforeCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.beforeCursor.CreatedAt
 	}
 
 	var model T
+	tableName := model.TableName()
 
-	stmt := &gorm.Statement{DB: db}
-	if err := stmt.Parse(&model); err != nil {
-		return PageInfo{}, fmt.Errorf("parse model: %w", err)
-	}
-
-	tableName := stmt.Schema.Table
-
-	query := fmt.Sprintf(
-		"SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName,
-	)
+	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName)
 	if err := db.Raw(query, createdAt).Scan(&hasItemBackward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
@@ -250,9 +230,7 @@ func getBackwardPaginationPageInfo[T any](
 		return pageInfo, nil
 	}
 
-	query = fmt.Sprintf(
-		"SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName,
-	)
+	query = fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
 	if err := db.Raw(query, pagination.beforeCursor.CreatedAt).
 		Scan(&hasItemForward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)

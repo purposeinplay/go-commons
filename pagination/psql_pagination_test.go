@@ -15,6 +15,17 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+type user struct {
+	ID   string  `gorm:"column:id;type:uuid;primaryKey"`
+	Name *string `gorm:"column:name;type:text"`
+	// nolint: revive
+	CreatedAt time.Time `gorm:"column:created_at;type:timestamp with time zone;not null;default:now()"`
+}
+
+func (user) TableName() string {
+	return "users"
+}
+
 func TestListPSQLPaginatedItems(t *testing.T) {
 	t.Parallel()
 
@@ -50,13 +61,6 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 		err := psqlContainer.Close()
 		req.NoError(err)
 	})
-
-	type user struct {
-		ID   string  `gorm:"column:id;type:uuid;primaryKey"`
-		Name *string `gorm:"column:name;type:text"`
-		// nolint: revive
-		CreatedAt time.Time `gorm:"column:created_at;type:timestamp with time zone;not null;default:now()"`
-	}
 
 	userToCursor := func(u user) *string {
 		return ptr.To((&pagination.Cursor{
