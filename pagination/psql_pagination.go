@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"k8s.io/utils/ptr"
 )
 
 var _ Paginator[any] = (*PSQLPaginator[any])(nil)
@@ -64,20 +63,13 @@ func (p PSQLPaginator[T]) ListItems(
 	}
 
 	var (
-		startCursor *Cursor
-		endCursor   *Cursor
+		startCursor *string
+		endCursor   *string
 	)
 
 	if len(paginatedItems) > 0 {
-		startCursor, err = (&Cursor{}).SetString(paginatedItems[0].Cursor)
-		if err != nil {
-			return nil, PageInfo{}, fmt.Errorf("decode start cursor: %w", err)
-		}
-
-		endCursor, err = (&Cursor{}).SetString(paginatedItems[len(paginatedItems)-1].Cursor)
-		if err != nil {
-			return nil, PageInfo{}, fmt.Errorf("decode end cursor: %w", err)
-		}
+		startCursor = &paginatedItems[0].Cursor
+		endCursor = &paginatedItems[len(paginatedItems)-1].Cursor
 	}
 
 	pageInfo, err := getPageInfo[T](
@@ -91,8 +83,8 @@ func (p PSQLPaginator[T]) ListItems(
 	}
 
 	if len(paginatedItems) > 0 {
-		pageInfo.StartCursor = ptr.To(startCursor.String())
-		pageInfo.EndCursor = ptr.To(endCursor.String())
+		pageInfo.StartCursor = startCursor
+		pageInfo.EndCursor = endCursor
 	}
 
 	return paginatedItems, pageInfo, nil
@@ -137,8 +129,8 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 func getPageInfo[T any](
 	db *gorm.DB,
 	pagination Arguments,
-	startCursor *Cursor,
-	endCursor *Cursor,
+	startCursor *string,
+	endCursor *string,
 ) (PageInfo, error) {
 	if pagination.First != nil {
 		return getForwardPaginationPageInfo[T](db, pagination, endCursor)
@@ -150,7 +142,7 @@ func getPageInfo[T any](
 func getForwardPaginationPageInfo[T any](
 	db *gorm.DB,
 	pagination Arguments,
-	endCursor *Cursor,
+	endCursor *string,
 ) (PageInfo, error) {
 	var (
 		hasItemForward  bool
@@ -160,8 +152,14 @@ func getForwardPaginationPageInfo[T any](
 	var pageInfo PageInfo
 
 	createdAt := time.Now()
+
 	if endCursor != nil {
-		createdAt = endCursor.CreatedAt
+		ca, err := time.Parse(time.RFC3339Nano, *endCursor)
+		if err != nil {
+			return PageInfo{}, fmt.Errorf("parse end cursor: %w", err)
+		}
+
+		createdAt = ca
 	} else if pagination.afterCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.afterCursor.CreatedAt
@@ -206,7 +204,7 @@ func getForwardPaginationPageInfo[T any](
 func getBackwardPaginationPageInfo[T any](
 	db *gorm.DB,
 	pagination Arguments,
-	startCursor *Cursor,
+	startCursor *string,
 ) (PageInfo, error) {
 	var (
 		hasItemForward  bool
@@ -216,8 +214,14 @@ func getBackwardPaginationPageInfo[T any](
 	var pageInfo PageInfo
 
 	var createdAt time.Time
+
 	if startCursor != nil {
-		createdAt = startCursor.CreatedAt
+		ca, err := time.Parse(time.RFC3339Nano, *startCursor)
+		if err != nil {
+			return PageInfo{}, fmt.Errorf("parse start cursor: %w", err)
+		}
+
+		createdAt = ca
 	} else if pagination.beforeCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.beforeCursor.CreatedAt
