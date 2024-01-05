@@ -22,7 +22,7 @@ type user struct {
 	CreatedAt time.Time `gorm:"column:created_at;type:timestamp with time zone;not null;default:now()"`
 }
 
-func (user) TableName() string {
+func (*user) TableName() string {
 	return "users"
 }
 
@@ -62,7 +62,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 		req.NoError(err)
 	})
 
-	userToCursor := func(u user) *string {
+	userToCursor := func(u *user) *string {
 		return ptr.To((&pagination.Cursor{
 			ID:        u.ID,
 			CreatedAt: u.CreatedAt,
@@ -85,14 +85,14 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 	)
 	req.NoError(err)
 
-	users := make([]user, 100)
+	users := make([]*user, 100)
 
 	for i := 0; i < 100; i++ {
 		id := uuid.UUID{}
 
 		id[0] = byte(i)
 
-		users[i] = user{
+		users[i] = &user{
 			ID:        id.String(),
 			CreatedAt: time.Now().Add(time.Duration(i) * time.Second),
 		}
@@ -101,17 +101,17 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 	err = db.Create(users).Error
 	req.NoError(err)
 
-	psqlPaginator := pagination.PSQLPaginator[user]{
+	slices.Reverse(users)
+
+	psqlPaginator := pagination.PSQLPaginator[*user]{
 		DB: db,
 	}
-
-	slices.Reverse(users)
 
 	tests := map[string]struct {
 		params pagination.Arguments
 
 		expectedError    require.ErrorAssertionFunc
-		expectedUsers    []user
+		expectedUsers    []*user
 		expectedPageInfo pagination.PageInfo
 	}{
 		"First3": {
@@ -201,7 +201,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				First: ptr.To(0),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: false,
 				HasNextPage:     true,
@@ -214,7 +214,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				Last: ptr.To(0),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: true,
 				HasNextPage:     false,
@@ -228,7 +228,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				After: userToCursor(users[0]),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: false,
 				HasNextPage:     true,
@@ -242,7 +242,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				Before: userToCursor(users[99]),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: true,
 				HasNextPage:     false,
@@ -256,7 +256,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				After: userToCursor(users[99]),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: true,
 				HasNextPage:     false,
@@ -270,7 +270,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				Before: userToCursor(users[0]),
 			},
 			expectedError: require.NoError,
-			expectedUsers: []user{},
+			expectedUsers: []*user{},
 			expectedPageInfo: pagination.PageInfo{
 				HasPreviousPage: false,
 				HasNextPage:     true,

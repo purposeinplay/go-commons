@@ -169,7 +169,7 @@ func getForwardPaginationPageInfo[T schema.Tabler](
 
 	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
 
-	if err := db.Raw(query, createdAt).Scan(&hasItemForward).Error; err != nil {
+	if err := db.Raw(query, createdAt).Take(&hasItemForward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
 
@@ -185,7 +185,7 @@ func getForwardPaginationPageInfo[T schema.Tabler](
 	if err := db.Raw(
 		query,
 		pagination.afterCursor.CreatedAt,
-	).Scan(&hasItemBackward).Error; err != nil {
+	).Take(&hasItemBackward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
 
@@ -219,7 +219,7 @@ func getBackwardPaginationPageInfo[T schema.Tabler](
 	tableName := model.TableName()
 
 	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName)
-	if err := db.Raw(query, createdAt).Scan(&hasItemBackward).Error; err != nil {
+	if err := db.Raw(query, createdAt).Take(&hasItemBackward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
 
@@ -232,7 +232,7 @@ func getBackwardPaginationPageInfo[T schema.Tabler](
 
 	query = fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
 	if err := db.Raw(query, pagination.beforeCursor.CreatedAt).
-		Scan(&hasItemForward).Error; err != nil {
+		Take(&hasItemForward).Error; err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
 
