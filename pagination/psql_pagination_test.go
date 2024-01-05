@@ -288,25 +288,25 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 
 			req := require.New(t)
 
-			paginatedUsers, pageInfo, err := psqlPaginator.ListItems(
+			page, err := psqlPaginator.ListItems(
 				ctx,
 				test.params,
 			)
 			test.expectedError(t, err)
 
-			t.Logf("\nexpected users: %+v\nactual users: %+v", test.expectedUsers, paginatedUsers)
+			t.Logf("\nexpected users: %+v\nactual users: %+v", test.expectedUsers, page.Items)
 
 			for i := range test.expectedUsers {
 				req.Equal(
 					test.expectedUsers[i],
-					paginatedUsers[i].Item,
+					page.Items[i].Item,
 					"id: %s, i: %d",
-					paginatedUsers[i].Item.ID,
+					page.Items[i].Item.ID,
 					i,
 				)
 			}
 
-			req.Equal(test.expectedPageInfo, pageInfo)
+			req.Equal(test.expectedPageInfo, page.Info)
 		})
 	}
 }

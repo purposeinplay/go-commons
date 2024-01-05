@@ -7,15 +7,14 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 	"k8s.io/utils/ptr"
 )
 
-var _ Paginator[schema.Tabler] = (*PSQLPaginator[schema.Tabler])(nil)
+var _ Paginator[Tabler] = (*PSQLPaginator[Tabler])(nil)
 
 // PSQLPaginator implements the Paginator interface for
 // PostgreSQL databases.
-type PSQLPaginator[T schema.Tabler] struct {
+type PSQLPaginator[T Tabler] struct {
 	DB *gorm.DB
 }
 
@@ -24,26 +23,26 @@ type PSQLPaginator[T schema.Tabler] struct {
 func (p PSQLPaginator[T]) ListItems(
 	_ context.Context,
 	paginationParams Arguments,
-) ([]PaginatedItem[T], PageInfo, error) {
+) (*Page[T], error) {
 	var err error
 
 	if paginationParams.After != nil {
 		paginationParams.afterCursor, err = (&Cursor{}).SetString(*paginationParams.After)
 		if err != nil {
-			return nil, PageInfo{}, fmt.Errorf("decode after cursor: %w", err)
+			return nil, fmt.Errorf("decode after cursor: %w", err)
 		}
 	}
 
 	if paginationParams.Before != nil {
 		paginationParams.beforeCursor, err = (&Cursor{}).SetString(*paginationParams.Before)
 		if err != nil {
-			return nil, PageInfo{}, fmt.Errorf("decode before cursor: %w", err)
+			return nil, fmt.Errorf("decode before cursor: %w", err)
 		}
 	}
 
 	items, err := queryItems[T](p.DB, paginationParams)
 	if err != nil {
-		return nil, PageInfo{}, fmt.Errorf("query items: %w", err)
+		return nil, fmt.Errorf("query items: %w", err)
 	}
 
 	var model T
@@ -59,7 +58,7 @@ func (p PSQLPaginator[T]) ListItems(
 	for i := range items {
 		cursor, err := computeItemCursor(items[i])
 		if err != nil {
-			return nil, PageInfo{}, fmt.Errorf("compute cursor: %w", err)
+			return nil, fmt.Errorf("compute cursor: %w", err)
 		}
 
 		if i == 0 {
@@ -83,7 +82,7 @@ func (p PSQLPaginator[T]) ListItems(
 		endCursor,
 	)
 	if err != nil {
-		return nil, PageInfo{}, fmt.Errorf("get page info: %w", err)
+		return nil, fmt.Errorf("get page info: %w", err)
 	}
 
 	if len(paginatedItems) > 0 {
@@ -91,7 +90,10 @@ func (p PSQLPaginator[T]) ListItems(
 		pageInfo.EndCursor = ptr.To(paginatedItems[len(paginatedItems)-1].Cursor)
 	}
 
-	return paginatedItems, pageInfo, nil
+	return &Page[T]{
+		Items: paginatedItems,
+		Info:  pageInfo,
+	}, nil
 }
 
 func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
@@ -130,7 +132,7 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	return items, nil
 }
 
-func getPageInfo[T schema.Tabler](
+func getPageInfo[T Tabler](
 	db *gorm.DB,
 	pagination Arguments,
 	startCursor *Cursor,
@@ -143,7 +145,7 @@ func getPageInfo[T schema.Tabler](
 	return getBackwardPaginationPageInfo[T](db, pagination, startCursor)
 }
 
-func getForwardPaginationPageInfo[T schema.Tabler](
+func getForwardPaginationPageInfo[T Tabler](
 	db *gorm.DB,
 	pagination Arguments,
 	endCursor *Cursor,
@@ -194,7 +196,7 @@ func getForwardPaginationPageInfo[T schema.Tabler](
 	return pageInfo, nil
 }
 
-func getBackwardPaginationPageInfo[T schema.Tabler](
+func getBackwardPaginationPageInfo[T Tabler](
 	db *gorm.DB,
 	pagination Arguments,
 	startCursor *Cursor,

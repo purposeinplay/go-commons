@@ -5,7 +5,13 @@ import (
 	"errors"
 	"reflect"
 	"time"
+
+	"gorm.io/gorm/schema"
 )
+
+// Tabler is an interface that must be implemented by all models.
+// Currently it's an alias for Gorm's schema.Tabler interface.
+type Tabler = schema.Tabler
 
 // Arguments represents pagination arguments.
 // The arguments can be used to paginate forward or backward.
@@ -90,6 +96,12 @@ var timeKind = reflect.TypeOf(time.Time{}).Kind()
 //
 // When before: cursor is used, the edge closest to cursor must come last in the result edges.
 // When after: cursor is used, the edge closest to cursor must come first in the result edges.
-type Paginator[T any] interface {
-	ListItems(ctx context.Context, pagination Arguments) ([]PaginatedItem[T], PageInfo, error)
+type Paginator[T Tabler] interface {
+	ListItems(ctx context.Context, pagination Arguments) (*Page[T], error)
+}
+
+// Page represents a paginated result set.
+type Page[T Tabler] struct {
+	Items []PaginatedItem[T]
+	Info  PageInfo
 }
