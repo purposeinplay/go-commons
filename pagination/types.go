@@ -96,12 +96,12 @@ var timeKind = reflect.TypeOf(time.Time{}).Kind()
 //
 // When before: cursor is used, the edge closest to cursor must come last in the result edges.
 // When after: cursor is used, the edge closest to cursor must come first in the result edges.
-type Paginator[T Tabler] interface {
+type Paginator[T any] interface {
 	ListItems(ctx context.Context, pagination Arguments) (*Page[T], error)
 }
 
 // Page represents a paginated result set.
-type Page[T Tabler] struct {
+type Page[T any] struct {
 	Items []PaginatedItem[T]
 	Info  PageInfo
 }
