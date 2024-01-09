@@ -1,0 +1,12 @@
+version: v1
+name: buf.build/pip/pagination
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+    - RPC_RESPONSE_STANDARD_NAME
+
+breaking:
+  use:
+    - FILE

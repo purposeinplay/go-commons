@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package pagination.v1;
+option go_package = "github.com/purposeinplay/go-commons/grpc/pagination/proto/pagination/v1;paginationv1";
+
+
+message Pagination {
+  message Forward {
+    int64 first = 1;
+    string after = 2;
+  }
+
+  message Backward {
+    int64 last = 1;
+    string before = 2;
+  }
+
+  oneof pagination {
+    Forward forward = 1;
+    Backward backward = 2;
+  }
+}
+
+message PageInfo {
+  optional string start_cursor = 1;
+  optional string end_cursor = 2;
+  bool has_next_page = 3;
+  bool has_previous_page = 4;
+}
