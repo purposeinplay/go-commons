@@ -50,7 +50,7 @@ func (p PSQLPaginator[T]) ListItems(
 	pageInfoSession := p.DB.Session(&gorm.Session{}).Model(model)
 
 	var (
-		paginatedItems = make([]PaginatedItem[T], len(items))
+		paginatedItems = make([]Item[T], len(items))
 		startCursor    *Cursor
 		endCursor      *Cursor
 	)
@@ -69,7 +69,7 @@ func (p PSQLPaginator[T]) ListItems(
 			endCursor = &cursor
 		}
 
-		paginatedItems[i] = PaginatedItem[T]{
+		paginatedItems[i] = Item[T]{
 			Item:   items[i],
 			Cursor: cursor.String(),
 		}
@@ -96,10 +96,23 @@ func (p PSQLPaginator[T]) ListItems(
 	}, nil
 }
 
+// nolint: gocognit, gocyclo
 func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	var items []T
 
 	pagSession := ses.Session(&gorm.Session{})
+
+	if pagination.First == nil && pagination.Last == nil {
+		pagSession = pagSession.Order("created_at DESC")
+
+		if pagination.afterCursor != nil {
+			pagSession = pagSession.Where("created_at < ?", pagination.afterCursor.CreatedAt)
+		}
+
+		if err := pagSession.Find(&items).Error; err != nil {
+			return nil, fmt.Errorf("find items: %w", err)
+		}
+	}
 
 	// First/After
 	if pagination.First != nil {

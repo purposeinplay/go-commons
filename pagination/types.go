@@ -65,12 +65,12 @@ type PageInfo struct {
 	EndCursor *string
 }
 
-// PaginatedItem contains a generic item and its cursor.
+// Item contains a generic item and its cursor.
 //
 // In order to be able to compute the Cursor,
 // the expectation is that T defines a field named ID of type string and
 // field named CreatedAt of type time.Time or *time.Time.
-type PaginatedItem[T any] struct {
+type Item[T any] struct {
 	Item   T
 	Cursor string
 }
@@ -102,6 +102,6 @@ type Paginator[T any] interface {
 
 // Page represents a paginated result set.
 type Page[T any] struct {
-	Items []PaginatedItem[T]
+	Items []Item[T]
 	Info  PageInfo
 }

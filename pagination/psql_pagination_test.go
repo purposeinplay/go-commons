@@ -114,6 +114,17 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 		expectedUsers    []*user
 		expectedPageInfo pagination.PageInfo
 	}{
+		"NoPagination": {
+			params:        pagination.Arguments{},
+			expectedUsers: users,
+			expectedError: require.NoError,
+			expectedPageInfo: pagination.PageInfo{
+				HasPreviousPage: false,
+				HasNextPage:     false,
+				StartCursor:     userToCursor(users[0]),
+				EndCursor:       userToCursor(users[len(users)-1]),
+			},
+		},
 		"First3": {
 			params: pagination.Arguments{
 				First: ptr.To(3),
