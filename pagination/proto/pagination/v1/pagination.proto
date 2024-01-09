@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package pagination.v1;
-option go_package = "github.com/purposeinplay/go-commons/grpc/pagination/proto/pagination/v1;paginationv1";
+option go_package = "github.com/purposeinplay/go-commons/pagination/proto/pagination/v1;paginationv1";
 
 
 message Pagination {
