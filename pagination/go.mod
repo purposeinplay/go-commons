@@ -8,6 +8,7 @@ require (
 	github.com/purposeinplay/go-commons/psqlutil v0.0.8
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
+	google.golang.org/protobuf v1.32.0
 	gorm.io/gorm v1.25.5
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 )
