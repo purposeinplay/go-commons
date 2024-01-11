@@ -18,6 +18,10 @@ func MarshalPageInfo(pageInfo pagination.PageInfo) *paginationv1.PageInfo {
 
 // UnmarshalPageInfo unmarshals a paginationv1.PageInfo to a pagination.PageInfo.
 func UnmarshalPageInfo(pageInfo *paginationv1.PageInfo) pagination.PageInfo {
+	if pageInfo == nil {
+		return pagination.PageInfo{}
+	}
+
 	return pagination.PageInfo{
 		StartCursor:     pageInfo.StartCursor,
 		EndCursor:       pageInfo.EndCursor,
@@ -68,6 +72,10 @@ func MarshalArguments(args pagination.Arguments) *paginationv1.Arguments {
 // UnmarshalArguments unmarshals paginationv1.Arguments to pagination.Arguments.
 func UnmarshalArguments(args *paginationv1.Arguments) pagination.Arguments {
 	var paginationArgs pagination.Arguments
+
+	if args == nil || args.Pagination == nil {
+		return paginationArgs
+	}
 
 	switch pag := args.Pagination.(type) {
 	case *paginationv1.Arguments_Forward_:
