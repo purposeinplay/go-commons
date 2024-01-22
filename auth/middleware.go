@@ -10,15 +10,19 @@ const (
 	HeaderAppID  = "X-APP-ID"
 )
 
-var (
-	userIDCtxKey struct{}
-	appIDCtxKey  struct{}
+type contextKey int
+
+const (
+	_ contextKey = iota
+
+	userIDCtxKey
+	appIDCtxKey
 )
 
 func UserIDMiddlewareFunc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.Header.Get(HeaderUserID)
-		userIDCtx := newUserIDContext(r.Context(), userID)
+		userIDCtx := NewUserIDContext(r.Context(), userID)
 
 		next.ServeHTTP(w, r.WithContext(userIDCtx))
 	})
@@ -27,13 +31,13 @@ func UserIDMiddlewareFunc(next http.Handler) http.Handler {
 func AppIDMiddlewareFunc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		appID := r.Header.Get(HeaderAppID)
-		appIDCtx := newAppIDContext(r.Context(), appID)
+		appIDCtx := NewAppIDContext(r.Context(), appID)
 
 		next.ServeHTTP(w, r.WithContext(appIDCtx))
 	})
 }
 
-func newUserIDContext(ctx context.Context, userID string) context.Context {
+func NewUserIDContext(ctx context.Context, userID string) context.Context {
 	if userID == "" {
 		return ctx
 	}
@@ -41,7 +45,7 @@ func newUserIDContext(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, userIDCtxKey, userID)
 }
 
-func newAppIDContext(ctx context.Context, appID string) context.Context {
+func NewAppIDContext(ctx context.Context, appID string) context.Context {
 	if appID == "" {
 		return ctx
 	}
