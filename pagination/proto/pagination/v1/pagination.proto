@@ -5,20 +5,10 @@ option go_package = "github.com/purposeinplay/go-commons/pagination/proto/pagina
 
 
 message Arguments {
-  message Forward {
-    int64 first = 1;
-    string after = 2;
-  }
-
-  message Backward {
-    int64 last = 1;
-    string before = 2;
-  }
-
-  oneof pagination {
-    Forward forward = 1;
-    Backward backward = 2;
-  }
+    optional int64 first = 1;
+    optional string after = 2;
+    optional int64 last = 3;
+    optional string before = 4;
 }
 
 message PageInfo {

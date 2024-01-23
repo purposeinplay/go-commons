@@ -32,60 +32,52 @@ func UnmarshalPageInfo(pageInfo *paginationv1.PageInfo) pagination.PageInfo {
 
 // MarshalArguments marshals pagination.Arguments to paginationv1.Arguments.
 func MarshalArguments(args pagination.Arguments) *paginationv1.Arguments {
-	protoArgs := &paginationv1.Arguments{}
+	protoArgs := &paginationv1.Arguments{
+		After:  args.After,
+		Before: args.Before,
+	}
+
+	var first *int64
 
 	if args.First != nil {
-		var after string
-
-		if args.After != nil {
-			after = *args.After
-		}
-
-		protoArgs.Pagination = &paginationv1.Arguments_Forward_{
-			Forward: &paginationv1.Arguments_Forward{
-				First: int64(*args.First),
-				After: after,
-			},
-		}
-
-		return protoArgs
+		first = ptr.To(int64(*args.First))
 	}
+
+	protoArgs.First = first
+
+	var last *int64
 
 	if args.Last != nil {
-		var before string
-
-		if args.Before != nil {
-			before = *args.Before
-		}
-
-		protoArgs.Pagination = &paginationv1.Arguments_Backward_{
-			Backward: &paginationv1.Arguments_Backward{
-				Last:   int64(*args.Last),
-				Before: before,
-			},
-		}
+		last = ptr.To(int64(*args.Last))
 	}
+
+	protoArgs.Last = last
 
 	return protoArgs
 }
 
 // UnmarshalArguments unmarshals paginationv1.Arguments to pagination.Arguments.
 func UnmarshalArguments(args *paginationv1.Arguments) pagination.Arguments {
-	var paginationArgs pagination.Arguments
-
-	if args == nil || args.Pagination == nil {
-		return paginationArgs
+	paginationArgs := pagination.Arguments{
+		After:  args.After,
+		Before: args.Before,
 	}
 
-	switch pag := args.Pagination.(type) {
-	case *paginationv1.Arguments_Forward_:
-		paginationArgs.First = ptr.To(int(pag.Forward.First))
-		paginationArgs.After = &pag.Forward.After
+	var first *int
 
-	case *paginationv1.Arguments_Backward_:
-		paginationArgs.Last = ptr.To(int(pag.Backward.Last))
-		paginationArgs.Before = &pag.Backward.Before
+	if args.First != nil {
+		first = ptr.To(int(*args.First))
 	}
+
+	paginationArgs.First = first
+
+	var last *int
+
+	if args.Last != nil {
+		last = ptr.To(int(*args.Last))
+	}
+
+	paginationArgs.Last = last
 
 	return paginationArgs
 }
