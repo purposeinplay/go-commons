@@ -58,6 +58,10 @@ func MarshalArguments(args pagination.Arguments) *paginationv1.Arguments {
 
 // UnmarshalArguments unmarshals paginationv1.Arguments to pagination.Arguments.
 func UnmarshalArguments(args *paginationv1.Arguments) pagination.Arguments {
+	if args == nil {
+		return pagination.Arguments{}
+	}
+
 	paginationArgs := pagination.Arguments{
 		After:  args.After,
 		Before: args.Before,
