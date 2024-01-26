@@ -49,6 +49,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 type logging struct {
 	logger         *zap.Logger
 	ignoredMethods []string
+	logRequest     bool
 }
 
 type httpRoute struct {
@@ -152,11 +153,12 @@ func WithNoGateway() ServerOption {
 }
 
 // WithDebug enables logging for the servers.
-func WithDebug(logger *zap.Logger, ignoredMethods ...string) ServerOption {
+func WithDebug(logger *zap.Logger, logRequest bool, ignoredMethods ...string) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.logging = &logging{
 			logger:         logger,
 			ignoredMethods: ignoredMethods,
+			logRequest:     logRequest,
 		}
 	})
 }

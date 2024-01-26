@@ -295,7 +295,7 @@ func TestBufnet(t *testing.T) {
 
 	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithDebug(zap.NewExample()),
+		commonsgrpc.WithDebug(zap.NewExample(), true),
 	)
 	i.NoErr(err)
 
@@ -610,7 +610,7 @@ func newBufnetServer(
 
 	opts := []commonsgrpc.ServerOption{
 		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithDebug(zap.NewExample()),
+		commonsgrpc.WithDebug(zap.NewExample(), true),
 	}
 
 	if greeter != nil {

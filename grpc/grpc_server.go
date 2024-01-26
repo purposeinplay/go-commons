@@ -181,6 +181,7 @@ func newGRPCListener(
 	return listener, nil
 }
 
+// nolint: gocognit
 func prependDebugInterceptor(
 	interceptors []grpc.UnaryServerInterceptor,
 	logging *logging,
@@ -197,7 +198,7 @@ func prependDebugInterceptor(
 			req any,
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
-		) (resp any, err error) {
+		) (any, error) {
 			start := time.Now()
 
 			method := path.Base(info.FullMethod)
@@ -213,13 +214,21 @@ func prependDebugInterceptor(
 				requestID = uuid.Nil.String()
 			}
 
-			logging.logger.Debug(
-				"request started",
+			loggingFields := []zap.Field{
 				zap.String("trace_id", requestID),
 				zap.String("method", method),
+			}
+
+			if logging.logRequest {
+				loggingFields = append(loggingFields, zap.Any("request", req))
+			}
+
+			logging.logger.Debug(
+				"request started",
+				loggingFields...,
 			)
 
-			request, err := handler(ctx, req)
+			resp, err := handler(ctx, req)
 
 			code := status.Code(err)
 
@@ -228,14 +237,13 @@ func prependDebugInterceptor(
 					"request completed with error",
 					zap.String("trace_id", requestID),
 					zap.String("method", method),
-					zap.Any("request", req),
 					zap.Error(err),
 					zap.String("error dump", spew.Sdump(err)),
 					zap.String("code", code.String()),
 					zap.Duration("duration", time.Since(start)),
 				)
 
-				return request, err
+				return resp, err
 			}
 
 			logging.logger.Debug(
@@ -244,9 +252,10 @@ func prependDebugInterceptor(
 				zap.String("method", method),
 				zap.String("code", code.String()),
 				zap.Duration("duration", time.Since(start)),
+				zap.Any("response", resp),
 			)
 
-			return request, err
+			return resp, err
 		},
 		interceptors,
 	)
