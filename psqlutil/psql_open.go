@@ -8,7 +8,7 @@ import (
 
 	"github.com/avast/retry-go"
 	// import for init function.
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -20,7 +20,6 @@ import (
 func GormOpen(
 	ctx context.Context,
 	zapLogger *zap.Logger,
-	driver string,
 	postgresDSN string,
 	ignoreRecordNotFoundErr bool,
 ) (*gorm.DB, error) {
@@ -38,10 +37,7 @@ func GormOpen(
 		var err error
 
 		db, err = gorm.Open(
-			postgres.New(postgres.Config{
-				DriverName: driver,
-				DSN:        postgresDSN,
-			}),
+			postgres.Open(postgresDSN),
 			&gorm.Config{
 				SkipDefaultTransaction: true,
 				Logger:                 logger,

@@ -27,7 +27,7 @@ linters-settings:
 
   goconst:
     min-len: 2 # minimal length of string constant
-    min-occurrences: 2 # minimal occurrences count to trigger
+    min-occurrences: 4 # minimal occurrences count to trigger
 
   gocritic:
     enabled-tags:
