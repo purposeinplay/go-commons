@@ -50,7 +50,7 @@ func newPublisher(
 }
 
 // Publish publishes an event to a kafka topic.
-func (p *publisher) Publish(event pubsub.Event[[]byte], channels ...string) error {
+func (p *publisher) Publish(event pubsub.Event[string, []byte], channels ...string) error {
 	if len(channels) != 1 {
 		return pubsub.ErrExactlyOneChannelAllowed
 	}
@@ -80,7 +80,7 @@ func (ks *kafkaServer) SendMessage(t *testing.T, topic, msg string) {
 	i := is.New(t)
 	i.Helper()
 
-	err := ks.publisher.Publish(pubsub.Event[[]byte]{
+	err := ks.publisher.Publish(pubsub.Event[string, []byte]{
 		Type:    "test",
 		Payload: []byte(msg),
 	}, topic)

@@ -11,7 +11,7 @@ import (
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 
-var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
+var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
@@ -46,12 +46,14 @@ func NewSubscriber(
 }
 
 // Subscribe creates a new subscription that runs in the background.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], error) {
+func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
 	if len(channels) != 1 {
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
 
-	sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg)
+	if _, err := sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg); err != nil {
+		return nil, fmt.Errorf("new sarama consumer group: %w", err)
+	}
 
 	consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
 	if err != nil {
@@ -63,11 +65,11 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], 
 	return newSubscription(s.logger, consumer, topic)
 }
 
-var _ pubsub.Subscription[[]byte] = (*Subscription)(nil)
+var _ pubsub.Subscription[string, []byte] = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to a kafka topic.
 type Subscription struct {
-	eventCh    chan pubsub.Event[[]byte]
+	eventCh    chan pubsub.Event[string, []byte]
 	cancelFunc context.CancelFunc
 	wg         *sync.WaitGroup
 	consumer   sarama.Consumer
@@ -85,7 +87,7 @@ func newSubscription(
 		return nil, fmt.Errorf("get topic %q partitions: %w", topic, err)
 	}
 
-	eventCh := make(chan pubsub.Event[[]byte])
+	eventCh := make(chan pubsub.Event[string, []byte])
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -123,7 +125,7 @@ func consumePartition(
 	ctx context.Context,
 	logger *slog.Logger,
 	partitionConsumer sarama.PartitionConsumer,
-	eventCh chan<- pubsub.Event[[]byte],
+	eventCh chan<- pubsub.Event[string, []byte],
 ) {
 	for {
 		select {
@@ -138,13 +140,13 @@ func consumePartition(
 				}
 			}
 
-			eventCh <- pubsub.Event[[]byte]{
+			eventCh <- pubsub.Event[string, []byte]{
 				Type:    typ,
 				Payload: m.Value,
 			}
 
 		case err := <-partitionConsumer.Errors():
-			eventCh <- pubsub.Event[[]byte]{
+			eventCh <- pubsub.Event[string, []byte]{
 				Type:  pubsub.EventTypeError,
 				Error: err,
 			}
@@ -163,7 +165,7 @@ func consumePartition(
 }
 
 // C returns a receive-only go channel of events published.
-func (s Subscription) C() <-chan pubsub.Event[[]byte] {
+func (s Subscription) C() <-chan pubsub.Event[string, []byte] {
 	return s.eventCh
 }
 

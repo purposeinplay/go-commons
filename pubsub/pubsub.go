@@ -9,30 +9,30 @@
 package pubsub
 
 // Publisher is the interface that wraps the basic Publish method.
-type Publisher[T any] interface {
+type Publisher[T, P any] interface {
 	// Publish publishes an event to specified channels.
-	Publish(event Event[T], channels ...string) error
+	Publish(event Event[T, P], channels ...string) error
 }
 
 // Subscriber is the interface that wraps the Subscribe method.
-type Subscriber[T any] interface {
+type Subscriber[T, P any] interface {
 	// Subscribe creates a new subscription for the events published
 	// in the specified channels.
-	Subscribe(channels ...string) (Subscription[T], error)
+	Subscribe(channels ...string) (Subscription[T, P], error)
 }
 
 // PublishSubscriber is the interface that groups the basic
 // Publish and Subscribe methods.
-type PublishSubscriber[T any] interface {
-	Publisher[T]
-	Subscriber[T]
+type PublishSubscriber[T, P any] interface {
+	Publisher[T, P]
+	Subscriber[T, P]
 }
 
 // Subscription represents a stream of events for a single user.
-type Subscription[T any] interface {
+type Subscription[T, P any] interface {
 	// C represents an even stream for all events that are published
 	// in the channels that of this Subscription.
-	C() <-chan Event[T]
+	C() <-chan Event[T, P]
 
 	// Close disconnects the subscription, from the PubSub service.
 	// It also closes the event stream channel, thus the subscription
@@ -44,12 +44,12 @@ type Subscription[T any] interface {
 var EventTypeError = "error"
 
 // Event represents an event that occurs in the system.
-type Event[T any] struct {
+type Event[T, P any] struct {
 	// Specifies the type of event that is occurring.
-	Type string `json:"type"`
+	Type T `json:"type"`
 
 	// The actual data from the event.
-	Payload T `json:"payload"`
+	Payload P `json:"payload"`
 
 	// Carries an error produced by the underlying subscriber.
 	Error error

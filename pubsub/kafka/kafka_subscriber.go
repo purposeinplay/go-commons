@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
+var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
 type Subscriber struct {
@@ -45,7 +45,7 @@ func NewSubscriber(
 }
 
 // Subscribe subscribes to a kafka topic.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], error) {
+func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
 	if len(channels) != 1 {
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
@@ -63,11 +63,11 @@ func (s Subscriber) Close() error {
 	return s.kafkaSubscriber.Close()
 }
 
-var _ pubsub.Subscription[[]byte] = (*Subscription)(nil)
+var _ pubsub.Subscription[string, []byte] = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to a kafka topic.
 type Subscription struct {
-	eventCh chan pubsub.Event[[]byte]
+	eventCh chan pubsub.Event[string, []byte]
 	closeCh chan struct{}
 }
 
@@ -76,7 +76,7 @@ type Subscription struct {
 func newSubscription(
 	mesCh <-chan *message.Message,
 ) *Subscription {
-	eventCh := make(chan pubsub.Event[[]byte])
+	eventCh := make(chan pubsub.Event[string, []byte])
 	closeCh := make(chan struct{})
 
 	go func() {
@@ -90,7 +90,7 @@ func newSubscription(
 					return
 				}
 
-				eventCh <- pubsub.Event[[]byte]{
+				eventCh <- pubsub.Event[string, []byte]{
 					Type:    mes.Metadata.Get("type"),
 					Payload: mes.Payload,
 				}
@@ -105,7 +105,7 @@ func newSubscription(
 }
 
 // C returns a receive-only go channel of events published.
-func (s Subscription) C() <-chan pubsub.Event[[]byte] {
+func (s Subscription) C() <-chan pubsub.Event[string, []byte] {
 	return s.eventCh
 }
 

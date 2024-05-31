@@ -13,7 +13,7 @@ import (
 	"github.com/purposeinplay/go-commons/pubsub"
 )
 
-var _ pubsub.Subscriber[[]byte] = (*Subscriber)(nil)
+var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
 
 // NewConsumerGroup generates a new kafka consumer to be used by the subscriber,
 // allowing for dependency injection for testing with a Sarama mock.
@@ -61,17 +61,17 @@ func NewSubscriber(
 }
 
 // Subscribe creates a new subscription that runs in the background.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[[]byte], error) {
+func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
 	return newSubscription(s.logger, s.consumerGroup, channels)
 }
 
-var _ pubsub.Subscription[[]byte] = (*Subscription)(nil)
+var _ pubsub.Subscription[string, []byte] = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to a kafka topic.
 type Subscription struct {
 	logger        *slog.Logger
 	consumerGroup sarama.ConsumerGroup
-	eventCh       chan pubsub.Event[[]byte]
+	eventCh       chan pubsub.Event[string, []byte]
 	cancelFunc    context.CancelFunc
 	wg            *sync.WaitGroup
 	ready         chan bool
@@ -82,7 +82,7 @@ func newSubscription(
 	consumerGroup sarama.ConsumerGroup,
 	topics []string,
 ) (*Subscription, error) {
-	eventCh := make(chan pubsub.Event[[]byte])
+	eventCh := make(chan pubsub.Event[string, []byte])
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -124,7 +124,7 @@ func newSubscription(
 }
 
 // C returns a receive-only go channel of events published.
-func (s *Subscription) C() <-chan pubsub.Event[[]byte] {
+func (s *Subscription) C() <-chan pubsub.Event[string, []byte] {
 	return s.eventCh
 }
 
@@ -183,7 +183,7 @@ func (s *Subscription) ConsumeClaim(
 			session.Commit()
 		}
 
-		s.eventCh <- pubsub.Event[[]byte]{
+		s.eventCh <- pubsub.Event[string, []byte]{
 			Type:    typ,
 			Payload: msg.Value,
 			Ack:     markFunc,

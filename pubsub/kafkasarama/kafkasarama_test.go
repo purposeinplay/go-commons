@@ -63,7 +63,7 @@ func TestPubSub(t *testing.T) {
 
 	t.Cleanup(func() { is.NoErr(sub2.Close()) })
 
-	mes := pubsub.Event[[]byte]{
+	mes := pubsub.Event[string, []byte]{
 		Type:    "test",
 		Payload: []byte("test"),
 	}
@@ -202,7 +202,7 @@ func TestConsumerGroups(t *testing.T) {
 
 	t.Cleanup(func() { is.NoErr(pub.Close()) })
 
-	err = pub.Publish(pubsub.Event[[]byte]{
+	err = pub.Publish(pubsub.Event[string, []byte]{
 		Type:    "",
 		Payload: []byte("brad"),
 	}, topic)

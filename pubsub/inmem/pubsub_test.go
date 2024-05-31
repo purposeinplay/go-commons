@@ -18,7 +18,7 @@ func TestPubSub_SubscribeSuccess(t *testing.T) {
 		channelC = "c"
 	)
 
-	ps := NewPubSub[string](eventBufferSize)
+	ps := NewPubSub[string, string](eventBufferSize)
 
 	subA, err := ps.Subscribe(channelA)
 	i.NoErr(err)
@@ -30,7 +30,7 @@ func TestPubSub_SubscribeSuccess(t *testing.T) {
 	i.NoErr(err)
 
 	// Publish event for first 2 subscriptions.
-	_ = ps.Publish(pubsub.Event[string]{Type: "test", Payload: "test"}, channelA)
+	_ = ps.Publish(pubsub.Event[string, string]{Type: "test", Payload: "test"}, channelA)
 
 	select {
 	case <-subA.C():
@@ -60,12 +60,12 @@ func TestPubSub_UnsubscribeSuccess(t *testing.T) {
 		channelA        = "a"
 	)
 
-	ps := NewPubSub[string](eventBufferSize)
+	ps := NewPubSub[string, string](eventBufferSize)
 
 	subscription, err := ps.Subscribe(channelA)
 	i.NoErr(err)
 
-	err = ps.Publish(pubsub.Event[string]{Type: "test", Payload: "test"}, channelA)
+	err = ps.Publish(pubsub.Event[string, string]{Type: "test", Payload: "test"}, channelA)
 	i.NoErr(err)
 
 	err = subscription.Close()
