@@ -73,7 +73,6 @@ type serverOptions struct {
 	registerGateway               registerGatewayFunc
 	grpcListener                  net.Listener
 	unaryServerInterceptors       []grpc.UnaryServerInterceptor
-	dialOptions                   []grpc.DialOption
 	errorHandler                  ErrorHandler
 	panicHandler                  PanicHandler
 	monitorOperationer            MonitorOperationer
@@ -311,9 +310,9 @@ func WithHTTPRoute(method, path string, handler http.HandlerFunc) ServerOption {
 // WithOTEL adds the OpenTelemetry instrumentation to the GRPC server.
 func WithOTEL() ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
-		o.dialOptions = append(
-			o.dialOptions,
-			grpc.WithStatsHandler(otelgrpc.NewServerHandler()),
+		o.grpcServerOptions = append(
+			o.grpcServerOptions,
+			grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		)
 	})
 }
@@ -349,7 +348,6 @@ func defaultServerOptions() serverOptions {
 		registerGateway:         nil,
 		grpcListener:            nil,
 		unaryServerInterceptors: nil,
-		dialOptions:             nil,
 		errorHandler:            nil,
 		panicHandler:            nil,
 		monitorOperationer:      nil,
