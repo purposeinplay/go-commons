@@ -2,6 +2,7 @@ package otel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,34 +14,71 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+var _ trace.TracerProvider = (*TracerProvider)(nil)
+
+// TracerProvider is a wrapper around the GRPC OpenTelemetry TracerProvider.
+type TracerProvider struct {
+	embedded.TracerProvider
+
+	conn *grpc.ClientConn
+	tp   *sdktrace.TracerProvider
+}
+
+// Tracer returns a named tracer.
+func (t *TracerProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
+	return t.tp.Tracer(name, options...)
+}
+
+// Close closes the TracerProvider and the GRPC Conn.
+func (t *TracerProvider) Close() error {
+	var errs error
+
+	const timeout = 10 * time.Second
+
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := t.tp.Shutdown(timeoutCtx); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("shutdown: %w", err))
+	}
+
+	if err := t.conn.Close(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("close connection: %w", err))
+	}
+
+	return errs
+}
+
 // Init initializes the OpenTelemetry SDK with the OTLP exporter.
 func Init(
 	ctx context.Context,
-	otelCollectorEndopoint string,
+	otelCollectorEndpoint string,
 	serviceName string,
-) error {
-	oltpCollectorConn, err := newOTLPCollectorConn(otelCollectorEndopoint)
+) (*TracerProvider, error) {
+	oltpCollectorConn, err := newOTLPCollectorConn(otelCollectorEndpoint)
 	if err != nil {
-		return fmt.Errorf("failed to create otlp collector connection: %w", err)
+		return nil, fmt.Errorf("new otlp collector connection: %w", err)
 	}
 
-	traceProvider, err := newTraceProvider(ctx, oltpCollectorConn, serviceName)
+	tracerProvider, err := newTracerProvider(ctx, oltpCollectorConn, serviceName)
 	if err != nil {
-		return fmt.Errorf("failed to create trace provider: %w", err)
+		return nil, fmt.Errorf("new trace provider: %w", err)
 	}
 
-	// Start runtime instrumentation
+	// report runtime metrics
 	if err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
-		return fmt.Errorf("failed to start runtime instrumentation: %w", err)
+		return nil, fmt.Errorf("start runtime instrumentation: %w", err)
 	}
 
 	// Set the global TracerProvider.
-	otel.SetTracerProvider(traceProvider)
+	otel.SetTracerProvider(tracerProvider)
 
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
@@ -48,7 +86,10 @@ func Init(
 		),
 	)
 
-	return nil
+	return &TracerProvider{
+		tp:   tracerProvider,
+		conn: oltpCollectorConn,
+	}, nil
 }
 
 func newOTLPCollectorConn(
@@ -65,7 +106,7 @@ func newOTLPCollectorConn(
 	return conn, err
 }
 
-func newTraceProvider(
+func newTracerProvider(
 	ctx context.Context,
 	otlpCollectorConn *grpc.ClientConn,
 	serviceName string,

@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
-	"github.com/purposeinplay/go-commons/otel"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"google.golang.org/grpc/test/bufconn"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
 	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc"
+	"github.com/purposeinplay/go-commons/otel"
+	"github.com/stretchr/testify/require"
 	ootel "go.opentelemetry.io/otel"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestIntegration(t *testing.T) {
@@ -102,7 +102,7 @@ func (s *greeterService) Greet(
 ) (*greetpb.GreetResponse, error) {
 	tracer := ootel.Tracer("test")
 
-	ctx, span := tracer.Start(ctx, "greet")
+	spanCtx, span := tracer.Start(ctx, "greet")
 	defer span.End()
 
 	if s.greetFunc != nil {
@@ -114,7 +114,7 @@ func (s *greeterService) Greet(
 
 	res := req.Greeting.FirstName + req.Greeting.LastName
 
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
+	if md, ok := metadata.FromIncomingContext(spanCtx); ok {
 		if len(md["custom"]) > 0 {
 			res += md["custom"][0]
 		}
