@@ -22,8 +22,14 @@ func TestIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
 	req.NoError(err)
+
+	t.Cleanup(func() {
+		if err := tp.Close(); err != nil {
+			t.Logf("close tracer provider: %s", err)
+		}
+	})
 
 	const bufSize = 1024 * 1024
 

@@ -10,7 +10,7 @@ exporters:
 
 processors:
   batch:
-    timeout: 10s
+    timeout: 2s
   resourcedetection:
     detectors: [ system ]
 
