@@ -41,11 +41,11 @@ func TestGateway(t *testing.T) {
 		grpcServer, err := commonsgrpc.NewServer(
 			commonsgrpc.WithMuxOptions([]runtime.ServeMuxOption{
 				runtime.WithErrorHandler(func(
-					ctx context.Context,
-					mux *runtime.ServeMux,
-					marshaler runtime.Marshaler,
+					_ context.Context,
+					_ *runtime.ServeMux,
+					_ runtime.Marshaler,
 					respWriter http.ResponseWriter,
-					req *http.Request,
+					_ *http.Request,
 					err error,
 				) {
 					t.Logf("err: %s", err)
@@ -87,7 +87,7 @@ func TestGateway(t *testing.T) {
 			commonsgrpc.WithHTTPRoute(
 				http.MethodGet,
 				"/test",
-				func(w http.ResponseWriter, r *http.Request) {
+				func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 				},
 			),
@@ -144,7 +144,7 @@ func TestGateway(t *testing.T) {
 		)
 		i.NoErr(err)
 
-		req.Header.Set("Grpc-Metadata-custom", header)
+		req.Header.Set("Grpc-Metadata-Custom", header)
 		req.Header.Set("X-Custom", header)
 
 		resp, err = http.DefaultClient.Do(req)
@@ -169,11 +169,11 @@ func TestGateway(t *testing.T) {
 		grpcServer, err := commonsgrpc.NewServer(
 			commonsgrpc.WithMuxOptions([]runtime.ServeMuxOption{
 				runtime.WithErrorHandler(func(
-					ctx context.Context,
-					mux *runtime.ServeMux,
-					marshaler runtime.Marshaler,
+					_ context.Context,
+					_ *runtime.ServeMux,
+					_ runtime.Marshaler,
 					w http.ResponseWriter,
-					r *http.Request,
+					_ *http.Request,
 					err error,
 				) {
 					i.Equal(grpcErr.Error(), status.Convert(err).Message())
@@ -326,7 +326,7 @@ func TestBufnet(t *testing.T) {
 		wg.Wait()
 	})
 
-	_, err = grpc.Dial(
+	_, err = grpc.NewClient(
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -351,7 +351,7 @@ func TestErrorHandling(t *testing.T) {
 
 		errorHandler := &mock.ErrorHandlerMock{
 			ErrorToGRPCStatusFunc: func(
-				err error,
+				error,
 			) (*status.Status, error) {
 				return status.New(codes.Internal, appErr.Error()), nil
 			},
@@ -382,7 +382,7 @@ func TestErrorHandling(t *testing.T) {
 			nil,
 		)
 
-		greetClient := newGreeterClient(t, bufDialer)
+		greetClient := newGreeterClient(t, "bufnet", bufDialer)
 
 		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
 			Greeting: &greetpb.Greeting{
@@ -432,7 +432,7 @@ func TestErrorHandling(t *testing.T) {
 			nil,
 		)
 
-		greetClient := newGreeterClient(t, bufDialer)
+		greetClient := newGreeterClient(t, "bufnet", bufDialer)
 
 		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
 			Greeting: &greetpb.Greeting{
@@ -454,7 +454,7 @@ func TestErrorHandling(t *testing.T) {
 		i := is.New(t)
 
 		errorHandler := &mock.ErrorHandlerMock{
-			IsApplicationErrorFunc: func(err error) bool {
+			IsApplicationErrorFunc: func(error) bool {
 				panic(panicString)
 			},
 			LogErrorFunc: func(err error) {
@@ -487,7 +487,7 @@ func TestErrorHandling(t *testing.T) {
 			nil,
 		)
 
-		greetClient := newGreeterClient(t, bufDialer)
+		greetClient := newGreeterClient(t, "bufnet", bufDialer)
 
 		resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
 			Greeting: &greetpb.Greeting{
@@ -535,7 +535,7 @@ func TestMonitorOperation(t *testing.T) {
 		monitorOperationer,
 	)
 
-	greetClient := newGreeterClient(t, bufDialer)
+	greetClient := newGreeterClient(t, "bufnet", bufDialer)
 
 	resp, err := greetClient.Greet(ctx, &greetpb.GreetRequest{
 		Greeting: &greetpb.Greeting{
@@ -675,6 +675,7 @@ func newBufnetServer(
 
 func newGreeterClient(
 	t *testing.T,
+	addr string,
 	dialer func(context.Context, string) (net.Conn, error),
 ) greetpb.GreetServiceClient {
 	t.Helper()
@@ -682,7 +683,7 @@ func newGreeterClient(
 	i := is.New(t)
 
 	clientConn, err := grpcclient.NewConn(
-		"",
+		addr,
 		grpcclient.WithContextDialer(dialer),
 		grpcclient.WithNoTLS(),
 	)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -23,7 +24,12 @@ func NewConn(
 		o.apply(opts)
 	}
 
-	conn, err := grpc.Dial(addr, opts.computeDialOptions()...)
+	// nolint: revive
+	if addr == "bufnet" {
+		addr = "passthrough://bufnet"
+	}
+
+	conn, err := grpc.NewClient(addr, opts.computeDialOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial: %w", err)
 	}
@@ -95,6 +101,16 @@ func WithClientUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) OptionC
 		o.interceptors = append(
 			o.interceptors,
 			interceptor,
+		)
+	})
+}
+
+// WithOTEL adds OpenTelemetry instrumentation to the client.
+func WithOTEL() OptionConn {
+	return newFuncConnOption(func(o *connOptions) {
+		o.dialOptions = append(
+			o.dialOptions,
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		)
 	})
 }

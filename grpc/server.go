@@ -113,13 +113,13 @@ func (s *Server) ListenAndServe() error {
 
 	var runGroup run.Group
 
-	runGroup.Add(s.runGRPCServer, func(err error) {
+	runGroup.Add(s.runGRPCServer, func(error) {
 		_ = s.grpcServer.close()
 	})
 
 	// start gateway server.
 	if s.gatewayServer != nil {
-		runGroup.Add(s.runGatewayServer, func(err error) {
+		runGroup.Add(s.runGatewayServer, func(error) {
 			_ = s.gatewayServer.close()
 		})
 	}

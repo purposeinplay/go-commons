@@ -12,6 +12,7 @@ import (
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -72,6 +73,7 @@ type serverOptions struct {
 	registerGateway               registerGatewayFunc
 	grpcListener                  net.Listener
 	unaryServerInterceptors       []grpc.UnaryServerInterceptor
+	dialOptions                   []grpc.DialOption
 	errorHandler                  ErrorHandler
 	panicHandler                  PanicHandler
 	monitorOperationer            MonitorOperationer
@@ -306,6 +308,16 @@ func WithHTTPRoute(method, path string, handler http.HandlerFunc) ServerOption {
 	})
 }
 
+// WithOTEL adds the OpenTelemetry instrumentation to the GRPC server.
+func WithOTEL() ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.dialOptions = append(
+			o.dialOptions,
+			grpc.WithStatsHandler(otelgrpc.NewServerHandler()),
+		)
+	})
+}
+
 func defaultServerOptions() serverOptions {
 	return serverOptions{
 		tracing:                       false,
@@ -331,12 +343,13 @@ func defaultServerOptions() serverOptions {
 				},
 			),
 		},
-		httpRoutes:              nil,
 		httpMiddlewares:         nil,
+		httpRoutes:              nil,
 		registerServer:          nil,
 		registerGateway:         nil,
 		grpcListener:            nil,
 		unaryServerInterceptors: nil,
+		dialOptions:             nil,
 		errorHandler:            nil,
 		panicHandler:            nil,
 		monitorOperationer:      nil,
