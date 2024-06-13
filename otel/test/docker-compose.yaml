@@ -5,7 +5,6 @@ services:
     image: otel/opentelemetry-collector-contrib:latest
     volumes:
       - ./collector-config.yaml:/etc/otel/config.yaml
-      - ./out.json:/tmp/out.json
     command: ["--config=/etc/otel/config.yaml"]
     ports:
       - "4317:4317" # For receiving OTLP GRPC data

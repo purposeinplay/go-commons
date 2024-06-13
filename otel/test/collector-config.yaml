@@ -5,15 +5,14 @@ receivers:
         endpoint: localhost:4317
 
 exporters:
-  # Data sources: traces, metrics, logs
-  file:
-    path: /tmp/out.json
+  debug:
+    verbosity: detailed
 
 processors:
   batch:
     timeout: 10s
   resourcedetection:
-    detectors: [system]
+    detectors: [ system ]
 
 service:
   telemetry:
@@ -23,4 +22,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch, resourcedetection]
+      exporters: [debug]

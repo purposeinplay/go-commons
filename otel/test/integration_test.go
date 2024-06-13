@@ -9,9 +9,12 @@ import (
 	"github.com/purposeinplay/go-commons/otel"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"github.com/purposeinplay/go-commons/grpc/grpcclient"
+	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc"
+	ootel "go.opentelemetry.io/otel"
 )
 
 func TestIntegration(t *testing.T) {
@@ -32,6 +35,12 @@ func TestIntegration(t *testing.T) {
 	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis),
 		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+			greetpb.RegisterGreetServiceServer(server, &greeterService{
+				greetFunc: func() error { return nil },
+			})
+		}),
 	)
 	req.NoError(err)
 
@@ -47,13 +56,65 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
-	conn, err := grpc.NewClient(
+	conn, err := grpcclient.NewConn(
 		"bufnet",
-		grpc.WithContextDialer(bufDialer),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpcclient.WithContextDialer(bufDialer),
+		grpcclient.WithNoTLS(),
+		grpcclient.WithOTEL(),
 	)
 	req.NoError(err)
 
-	err = conn.Close()
+	t.Cleanup(func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("close client conn: %s", err)
+		}
+	})
+
+	greeterClient := greetpb.NewGreetServiceClient(conn)
+
+	resp, err := greeterClient.Greet(ctx, &greetpb.GreetRequest{
+		Greeting: &greetpb.Greeting{
+			FirstName: "test",
+			LastName:  "otel",
+		},
+	})
 	req.NoError(err)
+
+	t.Log(resp)
+}
+
+var _ greetpb.GreetServiceServer = (*greeterService)(nil)
+
+type greeterService struct {
+	greetpb.UnimplementedGreetServiceServer
+	greetFunc func() error
+}
+
+func (s *greeterService) Greet(
+	ctx context.Context,
+	req *greetpb.GreetRequest,
+) (*greetpb.GreetResponse, error) {
+	tracer := ootel.Tracer("test")
+
+	ctx, span := tracer.Start(ctx, "greet")
+	defer span.End()
+
+	if s.greetFunc != nil {
+		err := s.greetFunc()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	res := req.Greeting.FirstName + req.Greeting.LastName
+
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if len(md["custom"]) > 0 {
+			res += md["custom"][0]
+		}
+	}
+
+	return &greetpb.GreetResponse{
+		Result: res,
+	}, nil
 }
