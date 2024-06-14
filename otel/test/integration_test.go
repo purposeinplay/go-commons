@@ -138,7 +138,7 @@ func TestIntegration(t *testing.T) {
 		commonsgrpc.WithOTEL(),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 			greetpb.RegisterGreetServiceServer(server, &greeterService{
-				greetFunc: func(req *greetpb.GreetRequest) (*greetpb.GreetResponse, error) {
+				greetFunc: func(ctx context.Context, req *greetpb.GreetRequest) (*greetpb.GreetResponse, error) {
 					t.Log("greet func server 2")
 
 					return greeterClient1.Greet(ctx, req)
@@ -191,15 +191,15 @@ var _ greetpb.GreetServiceServer = (*greeterService)(nil)
 
 type greeterService struct {
 	greetpb.UnimplementedGreetServiceServer
-	greetFunc func(*greetpb.GreetRequest) (*greetpb.GreetResponse, error)
+	greetFunc func(context.Context, *greetpb.GreetRequest) (*greetpb.GreetResponse, error)
 }
 
 func (s *greeterService) Greet(
-	_ context.Context,
+	ctx context.Context,
 	req *greetpb.GreetRequest,
 ) (*greetpb.GreetResponse, error) {
 	if s.greetFunc != nil {
-		return s.greetFunc(req)
+		return s.greetFunc(ctx, req)
 	}
 
 	res := req.Greeting.FirstName + req.Greeting.LastName
