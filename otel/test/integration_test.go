@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
@@ -11,11 +12,61 @@ import (
 	"github.com/purposeinplay/go-commons/otel"
 	"github.com/stretchr/testify/require"
 	ootel "go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
+
+func TestTracer(t *testing.T) {
+	req := require.New(t)
+
+	ctx := context.Background()
+
+	conn, err := grpc.NewClient(
+		"localhost:4317",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	req.NoError(err)
+
+	exp, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithGRPCConn(conn),
+	)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := exp.Shutdown(shutdownCtx); err != nil {
+			t.Logf("shutdown exporter: %s", err)
+		}
+	})
+
+	ssp := sdktrace.NewBatchSpanProcessor(
+		exp,
+	)
+
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(resource.NewWithAttributes(semconv.SchemaURL)),
+		sdktrace.WithSpanProcessor(ssp),
+	)
+
+	ootel.SetTracerProvider(tracerProvider)
+
+	tracer := ootel.Tracer("test")
+
+	_, sp := tracer.Start(ctx, "test")
+
+	sp.SetAttributes(attribute.String("test", "test"))
+	sp.End()
+}
 
 func TestIntegration(t *testing.T) {
 	req := require.New(t)
@@ -33,52 +84,99 @@ func TestIntegration(t *testing.T) {
 
 	const bufSize = 1024 * 1024
 
-	lis := bufconn.Listen(bufSize)
-	bufDialer := func(context.Context, string) (net.Conn, error) {
-		return lis.Dial()
+	lis1 := bufconn.Listen(bufSize)
+	bufDialer1 := func(context.Context, string) (net.Conn, error) {
+		return lis1.Dial()
 	}
 
-	grpcServer, err := commonsgrpc.NewServer(
-		commonsgrpc.WithGRPCListener(lis),
+	lis2 := bufconn.Listen(bufSize)
+	bufDialer2 := func(context.Context, string) (net.Conn, error) {
+		return lis2.Dial()
+	}
+
+	grpcServer1, err := commonsgrpc.NewServer(
+		commonsgrpc.WithGRPCListener(lis1),
 		commonsgrpc.WithDebug(zap.NewExample(), true),
 		commonsgrpc.WithOTEL(),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
-			greetpb.RegisterGreetServiceServer(server, &greeterService{
-				greetFunc: func() error { return nil },
-			})
+			greetpb.RegisterGreetServiceServer(server, &greeterService{})
 		}),
 	)
 	req.NoError(err)
 
 	go func() {
-		if err := grpcServer.ListenAndServe(); err != nil {
+		if err := grpcServer1.ListenAndServe(); err != nil {
 			t.Logf("listen and serve error: %s", err)
 		}
 	}()
 
 	t.Cleanup(func() {
-		if err := grpcServer.Close(); err != nil {
-			t.Logf("failed to close grpc server: %v", err)
+		if err := grpcServer1.Close(); err != nil {
+			t.Logf("failed to close grpc server1: %v", err)
 		}
 	})
 
-	conn, err := grpcclient.NewConn(
+	conn1, err := grpcclient.NewConn(
 		"bufnet",
-		grpcclient.WithContextDialer(bufDialer),
+		grpcclient.WithContextDialer(bufDialer1),
 		grpcclient.WithNoTLS(),
 		grpcclient.WithOTEL(),
 	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
-		if err := conn.Close(); err != nil {
-			t.Logf("close client conn: %s", err)
+		if err := conn1.Close(); err != nil {
+			t.Logf("close client conn1: %s", err)
 		}
 	})
 
-	greeterClient := greetpb.NewGreetServiceClient(conn)
+	greeterClient1 := greetpb.NewGreetServiceClient(conn1)
 
-	resp, err := greeterClient.Greet(ctx, &greetpb.GreetRequest{
+	grpcServer2, err := commonsgrpc.NewServer(
+		commonsgrpc.WithGRPCListener(lis2),
+		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+			greetpb.RegisterGreetServiceServer(server, &greeterService{
+				greetFunc: func(req *greetpb.GreetRequest) (*greetpb.GreetResponse, error) {
+					t.Log("greet func server 2")
+
+					return greeterClient1.Greet(ctx, req)
+				},
+			})
+		}),
+	)
+	req.NoError(err)
+
+	go func() {
+		if err := grpcServer2.ListenAndServe(); err != nil {
+			t.Logf("listen and serve error: %s", err)
+		}
+	}()
+
+	t.Cleanup(func() {
+		if err := grpcServer2.Close(); err != nil {
+			t.Logf("failed to close grpc server1: %v", err)
+		}
+	})
+
+	conn2, err := grpcclient.NewConn(
+		"bufnet",
+		grpcclient.WithContextDialer(bufDialer2),
+		grpcclient.WithNoTLS(),
+		grpcclient.WithOTEL(),
+	)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		if err := conn2.Close(); err != nil {
+			t.Logf("close client conn1: %s", err)
+		}
+	})
+
+	greeterClient2 := greetpb.NewGreetServiceClient(conn2)
+
+	resp, err := greeterClient2.Greet(ctx, &greetpb.GreetRequest{
 		Greeting: &greetpb.Greeting{
 			FirstName: "test",
 			LastName:  "otel",
@@ -93,32 +191,18 @@ var _ greetpb.GreetServiceServer = (*greeterService)(nil)
 
 type greeterService struct {
 	greetpb.UnimplementedGreetServiceServer
-	greetFunc func() error
+	greetFunc func(*greetpb.GreetRequest) (*greetpb.GreetResponse, error)
 }
 
 func (s *greeterService) Greet(
-	ctx context.Context,
+	_ context.Context,
 	req *greetpb.GreetRequest,
 ) (*greetpb.GreetResponse, error) {
-	tracer := ootel.Tracer("test")
-
-	spanCtx, span := tracer.Start(ctx, "greet")
-	defer span.End()
-
 	if s.greetFunc != nil {
-		err := s.greetFunc()
-		if err != nil {
-			return nil, err
-		}
+		return s.greetFunc(req)
 	}
 
 	res := req.Greeting.FirstName + req.Greeting.LastName
-
-	if md, ok := metadata.FromIncomingContext(spanCtx); ok {
-		if len(md["custom"]) > 0 {
-			res += md["custom"][0]
-		}
-	}
 
 	return &greetpb.GreetResponse{
 		Result: res,

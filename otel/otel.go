@@ -27,33 +27,8 @@ var _ trace.TracerProvider = (*TracerProvider)(nil)
 type TracerProvider struct {
 	embedded.TracerProvider
 
-	conn *grpc.ClientConn
-	tp   *sdktrace.TracerProvider
-}
-
-// Tracer returns a named tracer.
-func (t *TracerProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
-	return t.tp.Tracer(name, options...)
-}
-
-// Close closes the TracerProvider and the GRPC Conn.
-func (t *TracerProvider) Close() error {
-	var errs error
-
-	const timeout = 10 * time.Second
-
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := t.tp.Shutdown(timeoutCtx); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("shutdown: %w", err))
-	}
-
-	if err := t.conn.Close(); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("close connection: %w", err))
-	}
-
-	return errs
+	conn           *grpc.ClientConn
+	tracerProvider *sdktrace.TracerProvider
 }
 
 // Init initializes the OpenTelemetry SDK with the OTLP exporter.
@@ -87,9 +62,34 @@ func Init(
 	)
 
 	return &TracerProvider{
-		tp:   tracerProvider,
-		conn: oltpCollectorConn,
+		tracerProvider: tracerProvider,
+		conn:           oltpCollectorConn,
 	}, nil
+}
+
+// Tracer returns a named tracer.
+func (t *TracerProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
+	return t.tracerProvider.Tracer(name, options...)
+}
+
+// Close closes the TracerProvider and the GRPC Conn.
+func (t *TracerProvider) Close() error {
+	var errs error
+
+	const timeout = 10 * time.Second
+
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := t.tracerProvider.Shutdown(timeoutCtx); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("shutdown tracer provider: %w", err))
+	}
+
+	if err := t.conn.Close(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("close connection: %w", err))
+	}
+
+	return errs
 }
 
 func newOTLPCollectorConn(
@@ -121,7 +121,6 @@ func newTracerProvider(
 	eg.Go(func() error {
 		e, err := otlptracegrpc.New(
 			egCtx,
-			otlptracegrpc.WithInsecure(),
 			otlptracegrpc.WithGRPCConn(otlpCollectorConn),
 		)
 		if err != nil {
@@ -164,8 +163,8 @@ func newTracerProvider(
 				sdktrace.TraceIDRatioBased(alwaysSampleRatio),
 			),
 		),
-		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter)),
 		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter)),
 	)
 
 	return traceProvider, nil
