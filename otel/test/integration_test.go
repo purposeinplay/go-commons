@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 func TestTracer(t *testing.T) {
@@ -130,16 +131,22 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
+	logger, err := zap.NewDevelopment()
+	req.NoError(err)
+
 	greeterClient1 := greetpb.NewGreetServiceClient(conn1)
 
 	grpcServer2, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis2),
 		commonsgrpc.WithDebug(zap.NewExample(), true),
 		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithUnaryServerInterceptorLogger(logger),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 			greetpb.RegisterGreetServiceServer(server, &greeterService{
 				greetFunc: func(ctx context.Context, req *greetpb.GreetRequest) (*greetpb.GreetResponse, error) {
 					t.Log("greet func server 2")
+
+					ctxzap.Info(ctx, "zap log")
 
 					return greeterClient1.Greet(ctx, req)
 				},

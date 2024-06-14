@@ -3,7 +3,7 @@ module github.com/purposeinplay/go-commons/otel
 go 1.22
 
 require (
-	github.com/purposeinplay/go-commons/grpc v0.0.26
+	github.com/purposeinplay/go-commons/grpc v0.0.27
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.52.0
 	go.opentelemetry.io/otel v1.27.0
