@@ -308,11 +308,15 @@ func WithHTTPRoute(method, path string, handler http.HandlerFunc) ServerOption {
 }
 
 // WithOTEL adds the OpenTelemetry instrumentation to the GRPC server.
-func WithOTEL() ServerOption {
+func WithOTEL(handlerOptions ...otelgrpc.Option) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.grpcServerOptions = append(
 			o.grpcServerOptions,
-			grpc.StatsHandler(otelgrpc.NewServerHandler()),
+			grpc.StatsHandler(
+				otelgrpc.NewServerHandler(
+					handlerOptions...,
+				),
+			),
 		)
 	})
 }

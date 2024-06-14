@@ -106,11 +106,15 @@ func WithClientUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) OptionC
 }
 
 // WithOTEL adds OpenTelemetry instrumentation to the client.
-func WithOTEL() OptionConn {
+func WithOTEL(handlerOptions ...otelgrpc.Option) OptionConn {
 	return newFuncConnOption(func(o *connOptions) {
 		o.dialOptions = append(
 			o.dialOptions,
-			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+			grpc.WithStatsHandler(
+				otelgrpc.NewClientHandler(
+					handlerOptions...,
+				),
+			),
 		)
 	})
 }
