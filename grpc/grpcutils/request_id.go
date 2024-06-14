@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Request ID errors.
@@ -18,18 +19,23 @@ const requestIDHeader = "x-request-id"
 
 // GetRequestIDFromCtx returns the request id from the grpc context.
 func GetRequestIDFromCtx(ctx context.Context) (string, error) {
+	requestID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
+	if requestID != (trace.TraceID{}).String() {
+		return requestID, nil
+	}
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return "", ErrMetadataNotFound
 	}
 
-	requestID := md.Get(requestIDHeader)
+	requestIDs := md.Get(requestIDHeader)
 
-	if len(requestID) != 1 {
+	if len(requestIDs) != 1 {
 		return "", ErrRequestIDNotPresent
 	}
 
-	return requestID[0], nil
+	return requestIDs[0], nil
 }
 
 // AppendRequestIDCtx appends a random request id to the ctx.

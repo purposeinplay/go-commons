@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // A ServerOption sets options such as credentials,
@@ -170,7 +171,17 @@ func WithUnaryServerInterceptorLogger(logger *zap.Logger) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
-			grpc_zap.UnaryServerInterceptor(logger),
+			func(
+				ctx context.Context,
+				req any,
+				info *grpc.UnaryServerInfo,
+				handler grpc.UnaryHandler,
+			) (resp any, err error) {
+
+				return grpc_zap.UnaryServerInterceptor(
+					logger.With(zap.String("trace_id", trace.SpanFromContext(ctx).SpanContext().TraceID().String())),
+				)(ctx, req, info, handler)
+			},
 		)
 	})
 }
