@@ -2,15 +2,27 @@ package test
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
 	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
 	"github.com/purposeinplay/go-commons/otel"
+	"github.com/purposeinplay/go-commons/otel/test/graph"
+	"github.com/purposeinplay/go-commons/otel/test/graph/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	ootel "go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -20,8 +32,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/test/bufconn"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 func TestTracer(t *testing.T) {
@@ -69,7 +81,32 @@ func TestTracer(t *testing.T) {
 	sp.End()
 }
 
-func TestIntegration(t *testing.T) {
+func TestGraphQLIntegration(t *testing.T) {
+	req := require.New(t)
+
+	ctx := context.Background()
+
+	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		if err := tp.Close(); err != nil {
+			t.Logf("close tracer provider: %s", err)
+		}
+	})
+
+	s := graph.NewServer(nil)
+
+	http.HandleFunc("POST /query", s.ServeHTTP)
+	http.HandleFunc("GET /playground", playground.Handler("GraphQL playground", "/query"))
+
+	t.Log("starting server")
+
+	err = http.ListenAndServe(":8080", nil)
+	req.ErrorIs(err, http.ErrServerClosed)
+}
+
+func TestGRPCIntegration(t *testing.T) {
 	req := require.New(t)
 
 	ctx := context.Background()
@@ -98,7 +135,9 @@ func TestIntegration(t *testing.T) {
 	grpcServer1, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis1),
 		commonsgrpc.WithDebug(zap.NewExample(), true),
-		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithOTEL(
+			otelgrpc.WithFilter(filters.Not(filters.MethodName("Greet"))),
+		),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 			greetpb.RegisterGreetServiceServer(server, &greeterService{})
 		}),
@@ -121,7 +160,9 @@ func TestIntegration(t *testing.T) {
 		"bufnet",
 		grpcclient.WithContextDialer(bufDialer1),
 		grpcclient.WithNoTLS(),
-		grpcclient.WithOTEL(),
+		grpcclient.WithOTEL(otelgrpc.WithFilter(func(info *stats.RPCTagInfo) bool {
+			return !strings.Contains(info.FullMethodName, "Greet")
+		})),
 	)
 	req.NoError(err)
 
@@ -139,18 +180,26 @@ func TestIntegration(t *testing.T) {
 	grpcServer2, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis2),
 		commonsgrpc.WithDebug(zap.NewExample(), true),
-		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithOTEL(
+			otelgrpc.WithFilter(filters.Not(filters.MethodName("Greet"))),
+		),
 		commonsgrpc.WithUnaryServerInterceptorLogger(logger),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
-			greetpb.RegisterGreetServiceServer(server, &greeterService{
-				greetFunc: func(ctx context.Context, req *greetpb.GreetRequest) (*greetpb.GreetResponse, error) {
-					t.Log("greet func server 2")
+			greetpb.RegisterGreetServiceServer(
+				server,
+				&greeterService{
+					greetFunc: func(
+						ctx context.Context,
+						req *greetpb.GreetRequest,
+					) (*greetpb.GreetResponse, error) {
+						t.Log("greet func server 2")
 
-					ctxzap.Info(ctx, "zap log")
+						ctxzap.Info(ctx, "zap log")
 
-					return greeterClient1.Greet(ctx, req)
+						return greeterClient1.Greet(ctx, req)
+					},
 				},
-			})
+			)
 		}),
 	)
 	req.NoError(err)
@@ -171,7 +220,9 @@ func TestIntegration(t *testing.T) {
 		"bufnet",
 		grpcclient.WithContextDialer(bufDialer2),
 		grpcclient.WithNoTLS(),
-		grpcclient.WithOTEL(),
+		grpcclient.WithOTEL(
+			otelgrpc.WithFilter(filters.Not(filters.MethodName("Greet"))),
+		),
 	)
 	req.NoError(err)
 
@@ -192,6 +243,133 @@ func TestIntegration(t *testing.T) {
 	req.NoError(err)
 
 	t.Log(resp)
+}
+
+func TestGRPCGraphQLIntegration(t *testing.T) {
+	req := require.New(t)
+
+	ctx := context.Background()
+
+	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	req.NoError(err)
+
+	t.Cleanup(func() { tp.Close() })
+
+	const bufSize = 1024 * 1024
+
+	lis1 := bufconn.Listen(bufSize)
+	bufDialer1 := func(context.Context, string) (net.Conn, error) {
+		return lis1.Dial()
+	}
+
+	grpcServer1, err := commonsgrpc.NewServer(
+		commonsgrpc.WithGRPCListener(lis1),
+		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithOTEL(),
+		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
+			greetpb.RegisterGreetServiceServer(server, &greeterService{})
+		}),
+	)
+	req.NoError(err)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		err := grpcServer1.ListenAndServe()
+		assert.NoError(t, err)
+	}()
+
+	conn1, err := grpcclient.NewConn(
+		"bufnet",
+		grpcclient.WithContextDialer(bufDialer1),
+		grpcclient.WithNoTLS(),
+		grpcclient.WithOTEL(),
+	)
+	req.NoError(err)
+
+	t.Cleanup(func() { conn1.Close() })
+
+	greeterClient1 := greetpb.NewGreetServiceClient(conn1)
+
+	s := graph.NewServer(func(ctx context.Context, id string) (*model.User, error) {
+		resp, err := greeterClient1.Greet(
+			ctx,
+			&greetpb.GreetRequest{
+				Greeting: &greetpb.Greeting{
+					FirstName: "test",
+					LastName:  "otel",
+				},
+			},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("greet: %w", err)
+		}
+
+		return &model.User{
+			ID:   id,
+			Name: resp.Result,
+		}, nil
+	})
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(
+		"POST /query",
+		s.ServeHTTP,
+	)
+	mux.HandleFunc(
+		"GET /playground",
+		playground.Handler("GraphQL playground", "/query"),
+	)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	t.Log("starting server")
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		err := server.ListenAndServe()
+		assert.ErrorIs(t, err, http.ErrServerClosed)
+	}()
+
+	resp, err := http.Post(
+		"http://localhost:8080/query",
+		"application/json",
+		strings.NewReader(`{"query": "query GetUserID { getUser(id: \"1\") { id name } }"}`),
+	)
+	req.NoError(err)
+
+	body, err := io.ReadAll(resp.Body)
+	req.NoError(err)
+
+	err = resp.Body.Close()
+	req.NoError(err)
+
+	req.JSONEq(`{"data":{"getUser":{"id":"1","name":"testotel"}}}`, string(body))
+
+	err = server.Shutdown(ctx)
+	req.NoError(err)
+
+	err = conn1.Close()
+	req.NoError(err)
+
+	err = grpcServer1.Close()
+	req.NoError(err)
+
+	err = tp.Close()
+	req.NoError(err)
+
+	wg.Wait()
 }
 
 var _ greetpb.GreetServiceServer = (*greeterService)(nil)

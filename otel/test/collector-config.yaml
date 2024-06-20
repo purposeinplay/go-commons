@@ -4,9 +4,16 @@ receivers:
       grpc:
         endpoint: 0.0.0.0:4317
 
+connectors:
+  datadog/connector:
+
 exporters:
   debug:
     verbosity: detailed
+  datadog/exporter:
+    api:
+      key: 5dcf1369da55b2afea413a9c3dd30403
+      site: "datadoghq.eu"
 
 processors:
   batch:
@@ -21,10 +28,10 @@ service:
 
   pipelines:
     traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [debug]
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [datadog/connector,  datadog/exporter, debug]
     metrics:
-      receivers: [otlp]
+      receivers: [datadog/connector, otlp]
       processors: [batch, resourcedetection]
       exporters: [debug]
