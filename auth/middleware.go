@@ -1,13 +1,14 @@
 package auth
 
 import (
-	"net/http"
 	"context"
+	"net/http"
 )
 
 const (
-	HeaderUserID = "X-USER-ID"
-	HeaderAppID  = "X-APP-ID"
+	HeaderUserID   = "X-USER-ID"
+	HeaderAppID    = "X-APP-ID"
+	HeaderUsername = "X-USERNAME"
 )
 
 type contextKey int
@@ -17,6 +18,7 @@ const (
 
 	userIDCtxKey
 	appIDCtxKey
+	usernameCtxKey
 )
 
 func UserIDMiddlewareFunc(next http.Handler) http.Handler {
@@ -37,6 +39,15 @@ func AppIDMiddlewareFunc(next http.Handler) http.Handler {
 	})
 }
 
+func UsernameMiddlewareFunc(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := r.Header.Get(HeaderUsername)
+		usernameCtx := NewUsernameContext(r.Context(), username)
+
+		next.ServeHTTP(w, r.WithContext(usernameCtx))
+	})
+}
+
 func NewUserIDContext(ctx context.Context, userID string) context.Context {
 	if userID == "" {
 		return ctx
@@ -53,6 +64,14 @@ func NewAppIDContext(ctx context.Context, appID string) context.Context {
 	return context.WithValue(ctx, appIDCtxKey, appID)
 }
 
+func NewUsernameContext(ctx context.Context, username string) context.Context {
+	if username == "" {
+		return ctx
+	}
+
+	return context.WithValue(ctx, usernameCtxKey, usernameCtxKey)
+}
+
 func UserIDFromContext(ctx context.Context) string {
 	userID, _ := ctx.Value(userIDCtxKey).(string)
 
@@ -63,4 +82,10 @@ func AppIDFromContext(ctx context.Context) string {
 	appID, _ := ctx.Value(appIDCtxKey).(string)
 
 	return appID
+}
+
+func UsernameFromContext(ctx context.Context) string {
+	username, _ := ctx.Value(usernameCtxKey).(string)
+
+	return username
 }
