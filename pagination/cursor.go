@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const UUID_Length = 16
+
 // Cursor defines the fields used to compose a cursor.
 type Cursor struct {
 	ID        string
@@ -52,6 +54,28 @@ func (c *Cursor) SetString(text string) (*Cursor, error) {
 	return c, nil
 }
 
+func bytesToUUIDString(b []byte) string {
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
+		b[0:4],
+		b[4:6],
+		b[6:8],
+		b[8:10],
+		b[10:16])
+}
+
+func isUUID(v reflect.Value) bool {
+	if v.Kind() != reflect.Slice {
+		return false
+	}
+	if v.Type().Elem().Kind() != reflect.Uint8 {
+		return false
+	}
+	if len(v.Bytes()) != UUID_Length {
+		return false
+	}
+	return true
+}
+
 // nolint: gocyclo
 func computeItemCursor(obj any) (Cursor, error) {
 	v := reflect.ValueOf(obj)
@@ -71,6 +95,18 @@ func computeItemCursor(obj any) (Cursor, error) {
 	switch idField.Kind() {
 	case reflect.String:
 		cursorID = idField.String()
+	case reflect.Slice:
+		// Check if the slice is a UUID
+		if isUUID(idField) {
+			cursorID = bytesToUUIDString(idField.Bytes())
+		} else {
+			return Cursor{}, fmt.Errorf(
+				"%w: ID: expected slice type to be []byte of length %d, actual: %s",
+				ErrCursorInvalidValueType,
+				UUID_Length,
+				idField.Type(),
+			)
+		}
 	case reflect.Invalid:
 		return Cursor{}, fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
 	default:
