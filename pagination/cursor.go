@@ -84,7 +84,12 @@ func computeItemCursor(obj any) (Cursor, error) {
 		v = v.Elem()
 	}
 
-	idField := v.FieldByName("ID")
+	idFieldName := "ID"
+	if tablerWithCustomId, ok := obj.(TablerWithId); ok {
+		idFieldName = tablerWithCustomId.IdField()
+	}
+
+	idField := v.FieldByName(idFieldName)
 
 	var (
 		cursorID        string
