@@ -158,18 +158,40 @@ func getPageInfo[T Tabler](
 	return getBackwardPaginationPageInfo[T](db, pagination, startCursor)
 }
 
+func hasNextPage[T Tabler](ses *gorm.DB, createdAt time.Time) (bool, error) {
+	var model T
+	condition := fmt.Sprintf("%s.created_at < ?", model.TableName())
+	return hasMoreItems[T](ses, condition, createdAt)
+}
+
+func hasPreviousPage[T Tabler](ses *gorm.DB, createdAt time.Time) (bool, error) {
+	var model T
+	condition := fmt.Sprintf("%s.created_at > ?", model.TableName())
+	return hasMoreItems[T](ses, condition, createdAt)
+}
+
+func hasMoreItems[T Tabler](ses *gorm.DB, condition string, createdAt time.Time) (bool, error) {
+	var model T
+	var result bool
+
+	err := ses.Session(&gorm.Session{}).
+		Model(model).
+		Select("1").
+		Where(condition, createdAt).
+		Limit(1).
+		Find(&result).Error
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func getForwardPaginationPageInfo[T Tabler](
 	db *gorm.DB,
 	pagination Arguments,
 	endCursor *Cursor,
 ) (PageInfo, error) {
-	var (
-		hasItemForward  bool
-		hasItemBackward bool
-	)
-
-	var pageInfo PageInfo
-
 	createdAt := time.Now()
 
 	if endCursor != nil {
@@ -179,32 +201,25 @@ func getForwardPaginationPageInfo[T Tabler](
 		createdAt = pagination.afterCursor.CreatedAt
 	}
 
-	var model T
-	tableName := model.TableName()
+	var (
+		pageInfo PageInfo
+		err      error
+	)
 
-	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
-
-	if err := db.Raw(query, createdAt).Take(&hasItemForward).Error; err != nil {
+	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt)
+	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
-
-	pageInfo.HasNextPage = hasItemForward
 
 	if pagination.afterCursor == nil {
 		pageInfo.HasPreviousPage = false
 		return pageInfo, nil
 	}
 
-	query = fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName)
-
-	if err := db.Raw(
-		query,
-		pagination.afterCursor.CreatedAt,
-	).Take(&hasItemBackward).Error; err != nil {
-		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
+	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt)
+	if err != nil {
+		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
-
-	pageInfo.HasPreviousPage = hasItemBackward
 
 	return pageInfo, nil
 }
@@ -214,13 +229,6 @@ func getBackwardPaginationPageInfo[T Tabler](
 	pagination Arguments,
 	startCursor *Cursor,
 ) (PageInfo, error) {
-	var (
-		hasItemForward  bool
-		hasItemBackward bool
-	)
-
-	var pageInfo PageInfo
-
 	var createdAt time.Time
 
 	if startCursor != nil {
@@ -230,28 +238,25 @@ func getBackwardPaginationPageInfo[T Tabler](
 		createdAt = pagination.beforeCursor.CreatedAt
 	}
 
-	var model T
-	tableName := model.TableName()
+	var (
+		pageInfo PageInfo
+		err      error
+	)
 
-	query := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at > ?)", tableName)
-	if err := db.Raw(query, createdAt).Take(&hasItemBackward).Error; err != nil {
+	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt)
+	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
-
-	pageInfo.HasPreviousPage = hasItemBackward
 
 	if pagination.beforeCursor == nil {
 		pageInfo.HasNextPage = false
 		return pageInfo, nil
 	}
 
-	query = fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE created_at < ?)", tableName)
-	if err := db.Raw(query, pagination.beforeCursor.CreatedAt).
-		Take(&hasItemForward).Error; err != nil {
-		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
+	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt)
+	if err != nil {
+		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
-
-	pageInfo.HasNextPage = hasItemForward
 
 	return pageInfo, nil
 }

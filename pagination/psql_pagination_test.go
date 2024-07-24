@@ -12,6 +12,8 @@ import (
 	"github.com/purposeinplay/go-commons/psqlutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"k8s.io/utils/ptr"
 )
 
@@ -26,11 +28,15 @@ func (*user) TableName() string {
 	return "users"
 }
 
-func TestListPSQLPaginatedItems(t *testing.T) {
-	t.Parallel()
+func userToCursor(u *user) *string {
+	return ptr.To((&pagination.Cursor{
+		ID:        u.ID,
+		CreatedAt: u.CreatedAt,
+	}).String())
+}
 
+func setupPsql(t *testing.T) *gorm.DB {
 	req := require.New(t)
-	ctx := context.Background()
 
 	const (
 		psqlUser     = "postgres"
@@ -62,13 +68,6 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 		req.NoError(err)
 	})
 
-	userToCursor := func(u *user) *string {
-		return ptr.To((&pagination.Cursor{
-			ID:        u.ID,
-			CreatedAt: u.CreatedAt,
-		}).String())
-	}
-
 	db, err := psqlutil.GormOpen(
 		context.Background(),
 		zap.NewExample(),
@@ -85,6 +84,19 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 	)
 	req.NoError(err)
 
+	db.Logger = db.Logger.LogMode(logger.Info)
+
+	return db
+}
+
+func TestListPSQLPaginatedItems(t *testing.T) {
+	t.Parallel()
+
+	req := require.New(t)
+	ctx := context.Background()
+
+	db := setupPsql(t)
+
 	users := make([]*user, 100)
 
 	for i := 0; i < 100; i++ {
@@ -98,7 +110,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 		}
 	}
 
-	err = db.Create(users).Error
+	err := db.Create(users).Error
 	req.NoError(err)
 
 	slices.Reverse(users)
@@ -320,4 +332,68 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 			req.Equal(test.expectedPageInfo, page.Info)
 		})
 	}
+}
+
+func TestListPSQLPaginatedItemsWithWhereCondtion(t *testing.T) {
+	req := require.New(t)
+	ctx := context.Background()
+
+	db := setupPsql(t)
+
+	users := make([]*user, 6)
+
+	first := "First"
+	second := "Second"
+	var name *string
+
+	for i := 0; i < 6; i++ {
+		id := uuid.UUID{}
+		id[0] = byte(i)
+		if i < 3 {
+			name = &second
+		} else {
+			name = &first
+		}
+		users[i] = &user{
+			ID:        id.String(),
+			Name:      name,
+			CreatedAt: time.Now().Add(time.Duration(i) * time.Second),
+		}
+	}
+
+	err := db.Create(users).Error
+	req.NoError(err)
+
+	slices.Reverse(users)
+
+	params := pagination.Arguments{
+		First: ptr.To(3),
+	}
+	db = db.Where("name = 'First'")
+	psqlPaginator := pagination.PSQLPaginator[*user]{
+		DB: db,
+	}
+
+	page, err := psqlPaginator.ListItems(
+		ctx,
+		params,
+	)
+	require.NoError(t, err)
+
+	require.Len(t, page.Items, 3)
+	for _, item := range page.Items {
+		require.NotNil(t, item.Item.Name)
+		require.Equal(t, "First", *item.Item.Name)
+	}
+
+	// First 3 users named "First"
+	// Last 3 users named "Second"
+	// Queried for first 3 users named "First"
+	// Check that there are no next pages (users named "Second" not taken into account)
+	require.Equal(t, page.Info, pagination.PageInfo{
+		HasPreviousPage: false,
+		HasNextPage:     false,
+		StartCursor:     userToCursor(users[0]),
+		EndCursor:       userToCursor(users[2]),
+	})
 }
