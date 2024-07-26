@@ -13,12 +13,12 @@ import (
 // Currently it's an alias for Gorm's schema.Tabler interface.
 type Tabler = schema.Tabler
 
-// TablerWithId extends the Tabler interface to support models with custom identifier fields.
-// The IdField method returns the name of the struct field that should be used as the cursor.
+// TablerWithID extends the Tabler interface to support models with custom identifier fields.
+// The IDField method returns the name of the struct field that should be used as the cursor.
 // Implement this interface for types where the identifier field differs from the default "ID".
-type TablerWithId interface {
+type TablerWithID interface {
 	Tabler
-	IdField() string
+	IDField() string
 }
 
 // Arguments represents pagination arguments.
