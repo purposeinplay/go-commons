@@ -112,9 +112,9 @@ func TestComputeCursor(t *testing.T) {
 			},
 			expectedCursor: "",
 		},
-		"CustomId": {
-			item: ptr.To(StructWithCustomId{
-				IdFieldName: "some_id",
+		"CustomID": {
+			item: ptr.To(StructWithCustomID{
+				IDFieldName: "some_id",
 				CreatedAt:   *timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
 			}),
 			expectedError:  require.NoError,
@@ -138,17 +138,17 @@ func TestComputeCursor(t *testing.T) {
 	}
 }
 
-type StructWithCustomId struct {
-	IdFieldName string
+type StructWithCustomID struct {
+	IDFieldName string
 	CreatedAt   time.Time
 }
 
-func (StructWithCustomId) TableName() string {
+func (StructWithCustomID) TableName() string {
 	return "struct_table"
 }
 
-func (StructWithCustomId) IdField() string {
-	return "IdFieldName"
+func (StructWithCustomID) IDField() string {
+	return "IDFieldName"
 }
 
 func timeMustParse(layout, value string) *time.Time {
