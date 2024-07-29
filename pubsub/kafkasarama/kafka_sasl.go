@@ -33,7 +33,7 @@ func saslConfig(cfg *sarama.Config, username, password string) *sarama.Config {
 	cfg.Net.TLS.Enable = true
 	cfg.Net.TLS.Config = &tls.Config{
 		InsecureSkipVerify: false,
-		MinVersion:         tls.VersionTLS13,
+		MinVersion:         tls.VersionTLS12,
 	}
 
 	cfg.Net.SASL.Enable = true
