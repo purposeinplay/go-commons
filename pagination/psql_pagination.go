@@ -3,6 +3,7 @@ package pagination
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"time"
 
@@ -56,7 +57,22 @@ func (p PSQLPaginator[T]) ListItems(
 	)
 
 	for i := range items {
-		cursor, err := computeItemCursor(items[i])
+		var (
+			cursor Cursor
+			err    error
+		)
+		// Need to pass address of item, otherwise it will not work for structs
+		// containing array, as they will be marked unaddressable.
+		v := reflect.ValueOf(items[i])
+		if v.Kind() == reflect.Ptr {
+			cursor, err = computeItemCursor(items[i])
+		} else {
+			// If obj is not a pointer, create a pointer to it
+			ptr := reflect.New(v.Type())
+			ptr.Elem().Set(v)
+			cursor, err = computeItemCursor(ptr.Interface())
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("compute cursor: %w", err)
 		}

@@ -87,7 +87,7 @@ func TestComputeCursor(t *testing.T) {
 			// nolint: revive
 			expectedCursor: "M2Y2ZThkNWEtYjk3Mi00Y2I3LWE3NDEtY2UwM2ZlNzkxNDM5OjIwMjMtMTItMjBUMTM6NTY6MDNa",
 		},
-		"UUID": {
+		"UUIDSlice": {
 			item: ptr.To(struct {
 				ID        []byte
 				CreatedAt *time.Time
@@ -105,6 +105,31 @@ func TestComputeCursor(t *testing.T) {
 				CreatedAt *time.Time
 			}{
 				ID:        []int{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0},
+				CreatedAt: timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
+			}),
+			expectedError: func(t require.TestingT, err error, i ...any) {
+				require.ErrorIs(t, err, ErrCursorInvalidValueType)
+			},
+			expectedCursor: "",
+		},
+		"UUIDArray": {
+			item: ptr.To(struct {
+				ID        [16]byte
+				CreatedAt *time.Time
+			}{
+				ID:        [16]byte{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0},
+				CreatedAt: timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
+			}),
+			expectedError: require.NoError,
+			// nolint: revive
+			expectedCursor: "MTIzNDU2NzgtOWFiYy1kZWYwLTEyMzQtNTY3ODlhYmNkZWYwOjIwMjMtMTItMjBUMTM6NTY6MDNa",
+		},
+		"arrayNotUUID": {
+			item: ptr.To(struct {
+				ID        [15]byte
+				CreatedAt *time.Time
+			}{
+				ID:        [15]byte{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde},
 				CreatedAt: timeMustParse(time.RFC3339, "2023-12-20T13:56:03Z"),
 			}),
 			expectedError: func(t require.TestingT, err error, i ...any) {
