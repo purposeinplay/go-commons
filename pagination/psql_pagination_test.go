@@ -28,6 +28,17 @@ func (*user) TableName() string {
 	return "users"
 }
 
+type machine struct {
+	ID   uuid.UUID `gorm:"column:id;type:uuid;primaryKey"`
+	Name *string   `gorm:"column:name;type:text"`
+	// nolint: revive
+	CreatedAt time.Time `gorm:"column:created_at;type:timestamp with time zone;not null;default:now()"`
+}
+
+func (machine) TableName() string {
+	return "machines"
+}
+
 func userToCursor(u *user) *string {
 	return ptr.To((&pagination.Cursor{
 		ID:        u.ID,
@@ -46,6 +57,11 @@ func setupPsql(t *testing.T) *gorm.DB {
 
 	const schema = `
 	CREATE TABLE users (
+	    id 			UUID PRIMARY KEY,
+	    name 		TEXT,
+	    created_at 	TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	);
+	CREATE TABLE machines (
 	    id 			UUID PRIMARY KEY,
 	    name 		TEXT,
 	    created_at 	TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -396,4 +412,37 @@ func TestListPSQLPaginatedItemsWithWhereCondtion(t *testing.T) {
 		StartCursor:     userToCursor(users[0]),
 		EndCursor:       userToCursor(users[2]),
 	})
+}
+
+func TestListPSQLNonPointer(t *testing.T) {
+	req := require.New(t)
+	ctx := context.Background()
+
+	db := setupPsql(t)
+
+	name := "macbook"
+
+	macbook := machine{
+		Name:      &name,
+		CreatedAt: time.Now().Add(time.Duration(1) * time.Second),
+	}
+
+	err := db.Create(&macbook).Error
+	req.NoError(err)
+
+	psqlPaginator := pagination.PSQLPaginator[machine]{
+		DB: db,
+	}
+
+	page, err := psqlPaginator.ListItems(
+		ctx,
+		pagination.Arguments{
+			First: ptr.To(1),
+		},
+	)
+	require.NoError(t, err)
+
+	require.Len(t, page.Items, 1)
+	require.NotNil(t, page.Items[0].Item.Name)
+	require.Equal(t, "macbook", *(page.Items[0].Item.Name))
 }

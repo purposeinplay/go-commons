@@ -64,7 +64,7 @@ func bytesToUUIDString(b []byte) string {
 }
 
 func isUUID(v reflect.Value) bool {
-	if v.Kind() != reflect.Slice {
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
 		return false
 	}
 	if v.Type().Elem().Kind() != reflect.Uint8 {
@@ -100,7 +100,7 @@ func computeItemCursor(obj any) (Cursor, error) {
 	switch idField.Kind() {
 	case reflect.String:
 		cursorID = idField.String()
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		// Check if the slice is a UUID
 		if isUUID(idField) {
 			cursorID = bytesToUUIDString(idField.Bytes())
@@ -116,9 +116,11 @@ func computeItemCursor(obj any) (Cursor, error) {
 		return Cursor{}, fmt.Errorf("%w: ID", ErrCursorFieldNotFound)
 	default:
 		return Cursor{}, fmt.Errorf(
-			"%w: ID: expected: %s, actual: %s",
+			"%w: ID: expected: %s/%s/%s, actual: %s",
 			ErrCursorInvalidValueType,
 			reflect.String,
+			reflect.Slice,
+			reflect.Array,
 			idField.Kind(),
 		)
 	}
