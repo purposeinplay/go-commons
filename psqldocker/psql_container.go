@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"strings"
 )
 
 // ensure Container implements the io.Closer interface.
@@ -102,6 +103,12 @@ func NewContainer(
 		opts[i].apply(&options)
 	}
 
+	exposedPSQLPort := options.dbPort
+
+	if !strings.Contains(exposedPSQLPort, "/tcp") {
+		exposedPSQLPort = exposedPSQLPort + "/tcp"
+	}
+
 	return &Container{
 		user:     user,
 		password: password,
@@ -113,7 +120,7 @@ func NewContainer(
 			Cmd:          []string{"-p " + options.dbPort},
 			Repository:   "postgres",
 			Tag:          options.imageTag,
-			ExposedPorts: []string{options.dbPort},
+			ExposedPorts: []string{exposedPSQLPort},
 			Env:          envVars(user, password, dbName),
 		},
 		expiration:       options.expirationSeconds,
