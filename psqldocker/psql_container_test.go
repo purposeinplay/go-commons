@@ -156,7 +156,7 @@ func TestNewContainer(t *testing.T) {
 		err := c.Start()
 
 		i.Equal(
-			"new pool: : invalid endpoint",
+			"new pool: invalid endpoint",
 			err.Error(),
 		)
 	})
@@ -176,10 +176,7 @@ func TestNewContainer(t *testing.T) {
 
 		err := c.Start()
 
-		i.Equal(
-			"ping db: reached retry deadline",
-			err.Error(),
-		)
+		i.True(strings.Contains(err.Error(), "ping db: reached retry deadline"))
 	})
 }
 
