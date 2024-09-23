@@ -29,7 +29,7 @@ func NewConsumerGroup(
 
 	kafkaCfg.ClientID = clientID
 	kafkaCfg.Consumer.Offsets.Initial = sarama.OffsetNewest
-	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = false
+	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = true
 	kafkaCfg.Consumer.Group.Session.Timeout = time.Duration(sessionTimeoutMS) * time.Millisecond
 	kafkaCfg.Consumer.Group.Heartbeat.Interval = time.Duration(
 		heartbeatIntervalMS,
