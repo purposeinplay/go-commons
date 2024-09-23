@@ -177,16 +177,9 @@ func (s *Subscription) ConsumeClaim(
 			}
 		}
 
-		// Create a closure for committing the message
-		markFunc := func() {
-			session.MarkMessage(msg, "")
-			session.Commit()
-		}
-
 		s.eventCh <- pubsub.Event[string, []byte]{
 			Type:    typ,
 			Payload: msg.Value,
-			Ack:     markFunc,
 		}
 	}
 
