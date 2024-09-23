@@ -29,7 +29,7 @@ func NewConsumerGroup(
 
 	kafkaCfg.ClientID = clientID
 	kafkaCfg.Consumer.Offsets.Initial = sarama.OffsetNewest
-	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = false
+	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = true
 	kafkaCfg.Consumer.Group.Session.Timeout = time.Duration(sessionTimeoutMS) * time.Millisecond
 	kafkaCfg.Consumer.Group.Heartbeat.Interval = time.Duration(
 		heartbeatIntervalMS,
@@ -177,16 +177,9 @@ func (s *Subscription) ConsumeClaim(
 			}
 		}
 
-		// Create a closure for committing the message
-		markFunc := func() {
-			session.MarkMessage(msg, "")
-			session.Commit()
-		}
-
 		s.eventCh <- pubsub.Event[string, []byte]{
 			Type:    typ,
 			Payload: msg.Value,
-			Ack:     markFunc,
 		}
 	}
 
