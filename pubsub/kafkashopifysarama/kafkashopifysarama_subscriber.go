@@ -15,16 +15,24 @@ import (
 
 var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
 
-// NewConsumerGroup generates a new kafka consumer to be used by the subscriber,
-// allowing for dependency injection for testing with a Sarama mock.
-func NewConsumerGroup(
+// Subscriber represents a kafka subscriber.
+type Subscriber struct {
+	logger        *slog.Logger
+	cfg           *sarama.Config
+	brokers       []string
+	consumerGroup string
+}
+
+// NewSubscriber creates a new kafka subscriber.
+func NewSubscriber(
+	slogHandler slog.Handler,
 	tlsConfig *tls.Config,
 	clientID string,
 	sessionTimeoutMS int,
 	heartbeatIntervalMS int,
 	brokers []string,
 	groupID string,
-) (sarama.ConsumerGroup, error) {
+) (*Subscriber, error) {
 	kafkaCfg := NewTLSSubscriberConfig(tlsConfig)
 
 	kafkaCfg.ClientID = clientID
@@ -35,153 +43,142 @@ func NewConsumerGroup(
 		heartbeatIntervalMS,
 	) * time.Millisecond
 
-	consumerGroup, err := sarama.NewConsumerGroup(brokers, groupID, kafkaCfg)
-	if err != nil {
-		return nil, fmt.Errorf("new sarama consumer group: %w", err)
-	}
-
-	return consumerGroup, nil
-}
-
-// Subscriber represents a kafka subscriber.
-type Subscriber struct {
-	logger        *slog.Logger
-	consumerGroup sarama.ConsumerGroup
-}
-
-// NewSubscriber creates a new kafka subscriber.
-func NewSubscriber(
-	slogHandler slog.Handler,
-	consumerGroup sarama.ConsumerGroup,
-) (*Subscriber, error) {
 	return &Subscriber{
 		logger:        slog.New(slogHandler),
-		consumerGroup: consumerGroup,
+		cfg:           kafkaCfg,
+		brokers:       brokers,
+		consumerGroup: groupID,
 	}, nil
 }
 
 // Subscribe creates a new subscription that runs in the background.
 func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
-	return newSubscription(s.logger, s.consumerGroup, channels)
+	if len(channels) != 1 {
+		return nil, pubsub.ErrExactlyOneChannelAllowed
+	}
+
+	if _, err := sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg); err != nil {
+		return nil, fmt.Errorf("new sarama consumer group: %w", err)
+	}
+
+	consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new sarama consumer: %w", err)
+	}
+
+	topic := channels[0]
+
+	return newSubscription(s.logger, consumer, topic)
 }
 
 var _ pubsub.Subscription[string, []byte] = (*Subscription)(nil)
 
 // Subscription represents a stream of events published to a kafka topic.
 type Subscription struct {
-	logger        *slog.Logger
-	consumerGroup sarama.ConsumerGroup
-	eventCh       chan pubsub.Event[string, []byte]
-	cancelFunc    context.CancelFunc
-	wg            *sync.WaitGroup
-	ready         chan bool
+	eventCh    chan pubsub.Event[string, []byte]
+	cancelFunc context.CancelFunc
+	wg         *sync.WaitGroup
+	consumer   sarama.Consumer
 }
 
 func newSubscription(
 	logger *slog.Logger,
-	consumerGroup sarama.ConsumerGroup,
-	topics []string,
+	consumer sarama.Consumer,
+	topic string,
 ) (*Subscription, error) {
+	partitions, err := consumer.Partitions(topic)
+	if err != nil {
+		return nil, fmt.Errorf("get topic %q partitions: %w", topic, err)
+	}
+
 	eventCh := make(chan pubsub.Event[string, []byte])
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wg := new(sync.WaitGroup)
 
-	wg.Add(1)
+	wg.Add(len(partitions))
 
-	sub := &Subscription{
-		logger:        logger,
-		consumerGroup: consumerGroup,
-		eventCh:       eventCh,
-		cancelFunc:    cancel,
-		wg:            wg,
-		ready:         make(chan bool),
+	for _, partition := range partitions {
+		partitionConsumer, err := consumer.ConsumePartition(topic, partition, sarama.OffsetNewest)
+		if err != nil {
+			cancel()
+
+			return nil, fmt.Errorf("consume partition %d for topic %q: %w", partition, topic, err)
+		}
+
+		go func() {
+			defer wg.Done()
+
+			// consume partition in the background, stop when the context is
+			// cancelled.
+			consumePartition(ctx, logger, partitionConsumer, eventCh)
+		}()
 	}
 
-	go func() {
-		defer wg.Done()
+	return &Subscription{
+		eventCh:    eventCh,
+		cancelFunc: cancel,
+		wg:         wg,
+		consumer:   consumer,
+	}, nil
+}
 
-		for {
-			if err := consumerGroup.Consume(ctx, topics, sub); err != nil {
-				// When setup fails, error will be returned here
-				logger.Error("Error from consumer group:", slog.String("error", err.Error()))
-				return
-			}
-			// check if context was cancelled, signaling that the consumer should stop
-			if ctx.Err() != nil {
-				logger.Info("context cancelled:", slog.String("error", ctx.Err().Error()))
-				return
+func consumePartition(
+	ctx context.Context,
+	logger *slog.Logger,
+	partitionConsumer sarama.PartitionConsumer,
+	eventCh chan<- pubsub.Event[string, []byte],
+) {
+	for {
+		select {
+		case m := <-partitionConsumer.Messages():
+			var typ string
+
+			for _, h := range m.Headers {
+				if bytes.Equal(h.Key, []byte("type")) {
+					typ = string(h.Value)
+
+					break
+				}
 			}
 
-			sub.ready = make(chan bool)
+			eventCh <- pubsub.Event[string, []byte]{
+				Type:    typ,
+				Payload: m.Value,
+			}
+
+		case err := <-partitionConsumer.Errors():
+			eventCh <- pubsub.Event[string, []byte]{
+				Type:  pubsub.EventTypeError,
+				Error: err,
+			}
+
+		case <-ctx.Done():
+			if err := partitionConsumer.Close(); err != nil {
+				logger.Error(
+					"close partition consumer error",
+					slog.String("error", err.Error()),
+				)
+			}
+
+			return
 		}
-	}()
-	<-sub.ready
-	logger.Info("Sarama consumer up and running!...")
-
-	return sub, nil
+	}
 }
 
 // C returns a receive-only go channel of events published.
-func (s *Subscription) C() <-chan pubsub.Event[string, []byte] {
+func (s Subscription) C() <-chan pubsub.Event[string, []byte] {
 	return s.eventCh
 }
 
 // Close closes the subscription.
-func (s *Subscription) Close() error {
+func (s Subscription) Close() error {
 	s.cancelFunc()
 
 	s.wg.Wait()
 
 	close(s.eventCh)
 
-	return s.consumerGroup.Close()
-}
-
-// Setup is run at the beginning of a new session, before ConsumeClaim.
-func (s *Subscription) Setup(session sarama.ConsumerGroupSession) error {
-	s.logger.Info("setup")
-	s.logger.Info("setup claims:", slog.Any("claims", session.Claims()))
-	// Mark the consumer as Ready
-	close(s.ready)
-
-	return nil
-}
-
-// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have
-// exited.
-func (s *Subscription) Cleanup(sarama.ConsumerGroupSession) error {
-	s.logger.Info("cleanup")
-	return nil
-}
-
-// ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
-func (s *Subscription) ConsumeClaim(
-	session sarama.ConsumerGroupSession,
-	claim sarama.ConsumerGroupClaim,
-) error {
-	// NOTE:
-	// Do not move the code below to a goroutine.
-	// The `ConsumeClaim` itself is called within a goroutine, see:
-	// <https://github.com/Shopify/sarama/blob/master/consumer_group.go#L27-L29>
-	// Specific consumption news
-	for msg := range claim.Messages() {
-		var typ string
-
-		for _, h := range msg.Headers {
-			if bytes.Equal(h.Key, []byte("type")) {
-				typ = string(h.Value)
-
-				break
-			}
-		}
-
-		s.eventCh <- pubsub.Event[string, []byte]{
-			Type:    typ,
-			Payload: msg.Value,
-		}
-	}
-
-	return nil
+	return s.consumer.Close()
 }

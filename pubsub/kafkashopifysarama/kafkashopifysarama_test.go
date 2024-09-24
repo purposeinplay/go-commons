@@ -38,23 +38,8 @@ func TestConsumerGroups(t *testing.T) {
 		groupID             = "test_groupd_id"
 	)
 
-	consumerGroup1, err := kafkashopifysarama.NewConsumerGroup(
-		tlsCfg,
-		clientID,
-		sessionTimeoutMS,
-		heartbeatIntervalMS,
-		brokers,
-		groupID,
-	)
-	is.NoErr(err)
-
 	suber1, err := kafkashopifysarama.NewSubscriber(
 		slogHandler,
-		consumerGroup1,
-	)
-	is.NoErr(err)
-
-	consumerGroup2, err := kafkashopifysarama.NewConsumerGroup(
 		tlsCfg,
 		clientID,
 		sessionTimeoutMS,
@@ -66,7 +51,12 @@ func TestConsumerGroups(t *testing.T) {
 
 	suber2, err := kafkashopifysarama.NewSubscriber(
 		slogHandler,
-		consumerGroup2,
+		tlsCfg,
+		clientID,
+		sessionTimeoutMS,
+		heartbeatIntervalMS,
+		brokers,
+		groupID,
 	)
 	is.NoErr(err)
 
@@ -111,8 +101,8 @@ func TestConsumerGroups(t *testing.T) {
 	kafkaServer.SendMessage(t, "test", "test message")
 
 	t.Cleanup(func() {
-		is.NoErr(consumerGroup1.Close())
-		is.NoErr(consumerGroup2.Close())
+		// is.NoErr(consumerGroup1.Close())
+		// is.NoErr(consumerGroup2.Close())
 		is.NoErr(kafkaServer.Close())
 	})
 
