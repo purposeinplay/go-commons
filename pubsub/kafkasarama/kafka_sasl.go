@@ -3,29 +3,44 @@ package kafkasarama
 import (
 	"crypto/tls"
 	"fmt"
-	"time"
-
 	"github.com/IBM/sarama"
 	"github.com/xdg-go/scram"
+	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 )
+
+// NewSASLPlainSubscriberConfig creates a new kafka
+// subscriber config with Plain SASL authentication.
+func NewSASLPlainSubscriberConfig(username, password string) *sarama.Config {
+	return saslPlainConfig(kafka.DefaultSaramaSubscriberConfig(), username, password)
+}
+
+// NewSASLPlainPublisherConfig creates a new kafka publisher config with Plain SASL authentication.
+func NewSASLPlainPublisherConfig(username, password string) *sarama.Config {
+	return saslPlainConfig(kafka.DefaultSaramaSyncPublisherConfig(), username, password)
+}
 
 // NewSASLSubscriberConfig creates a new kafka subscriber config with SASL authentication.
 func NewSASLSubscriberConfig(username, password string) *sarama.Config {
-	cfg := sarama.NewConfig()
-	cfg.Consumer.Return.Errors = true
-
-	return saslConfig(cfg, username, password)
+	return saslConfig(kafka.DefaultSaramaSubscriberConfig(), username, password)
 }
 
 // NewSASLPublisherConfig creates a new kafka publisher config with SASL authentication.
 func NewSASLPublisherConfig(username, password string) *sarama.Config {
-	cfg := sarama.NewConfig()
+	return saslConfig(kafka.DefaultSaramaSyncPublisherConfig(), username, password)
+}
 
-	cfg.Producer.Retry.Max = 10
-	cfg.Producer.Return.Successes = true
-	cfg.Metadata.Retry.Backoff = time.Second * 2
+// saslConfig configures the sarama config for SASL authentication.
+func saslPlainConfig(cfg *sarama.Config, username, password string) *sarama.Config {
+	cfg.Version = sarama.V3_6_0_0
 
-	return saslConfig(cfg, username, password)
+	cfg.Net.SASL.Enable = true
+	cfg.Net.SASL.Handshake = true
+	cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	cfg.Net.SASL.User = username
+	cfg.Net.SASL.Version = sarama.SASLHandshakeV1
+	cfg.Net.SASL.Password = password
+
+	return cfg
 }
 
 // saslConfig configures the sarama config for SASL authentication.

@@ -51,10 +51,6 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, [
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
 
-	if _, err := sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg); err != nil {
-		return nil, fmt.Errorf("new sarama consumer group: %w", err)
-	}
-
 	consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("new sarama consumer: %w", err)

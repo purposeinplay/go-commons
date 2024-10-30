@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Shopify/sarama"
-	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
+	"github.com/IBM/sarama"
+	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"go.uber.org/zap"
