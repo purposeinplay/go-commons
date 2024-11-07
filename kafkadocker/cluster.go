@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -100,18 +99,6 @@ func (c *Cluster) Stop(ctx context.Context) error {
 
 	for i := range c.brokerContainers {
 		eg.Go(func() error {
-			rc, err := c.brokerContainers[i].Logs(ctx)
-			if err != nil {
-				return fmt.Errorf("get broker container %d logs: %w", i, err)
-			}
-
-			logs, err := io.ReadAll(rc)
-			if err != nil {
-				return fmt.Errorf("read broker container %d logs: %w", i, err)
-			}
-
-			log.Println(string(logs))
-
 			if err := c.brokerContainers[i].Terminate(egCtx); err != nil {
 				return fmt.Errorf("terminate broker container %d: %w", i, err)
 			}
