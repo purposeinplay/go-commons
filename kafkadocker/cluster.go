@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"golang.org/x/sync/errgroup"
 )
@@ -24,11 +26,12 @@ type Cluster struct {
 	Brokers     int      // For specifying the number of brokers to start.
 	Topics      []string // For specifying the topics to create.
 	HealthProbe bool     // For specifying whether to health-probe the brokers after creation.
+	Kraft       bool     // For specifying whether to use the Kafka Raft protocol.
 
 	zookeeperContainer testcontainers.Container
 	brokerContainers   []brokerContainer
 	started            atomic.Bool
-	network            testcontainers.Network
+	network            *testcontainers.DockerNetwork
 }
 
 // BrokerAddresses returns the addresses of the brokers in the cluster.
@@ -54,20 +57,252 @@ func (c *Cluster) Start(ctx context.Context) error {
 		return ErrBrokerAlreadyStarted
 	}
 
-	const networkName = "kafkadocker"
-
-	network, err := testcontainers.GenericNetwork(ctx, testcontainers.GenericNetworkRequest{
-		NetworkRequest: testcontainers.NetworkRequest{
-			Name:           networkName,
-			CheckDuplicate: true,
-		},
-	})
+	kafkaNetwork, err := network.New(ctx)
 	if err != nil {
 		return fmt.Errorf("create network: %w", err)
 	}
 
-	c.network = network
+	c.network = kafkaNetwork
 
+	if !c.Kraft {
+		if err := c.startZookeeperCluster(ctx, kafkaNetwork.Name); err != nil {
+			return fmt.Errorf("start zookeeper cluster: %w", err)
+		}
+
+		return nil
+	}
+
+	if err := c.startKraftCluster(ctx, kafkaNetwork.Name); err != nil {
+		return fmt.Errorf("start kraft cluster: %w", err)
+	}
+
+	return nil
+}
+
+// Stop removes all the containers and the network concerning the cluster.
+// nolint: gocognit, gocyclo
+func (c *Cluster) Stop(ctx context.Context) error {
+	if !c.started.Load() {
+		return ErrBrokerWasNotStarted
+	}
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	if c.zookeeperContainer != nil {
+		eg.Go(func() error {
+			if err := c.zookeeperContainer.Terminate(egCtx); err != nil {
+				return fmt.Errorf("terminate zookeeper container: %w", err)
+			}
+
+			return nil
+		})
+	}
+
+	for i := range c.brokerContainers {
+		eg.Go(func() error {
+			rc, err := c.brokerContainers[i].Logs(ctx)
+			if err != nil {
+				return fmt.Errorf("get broker container %d logs: %w", i, err)
+			}
+
+			logs, err := io.ReadAll(rc)
+			if err != nil {
+				return fmt.Errorf("read broker container %d logs: %w", i, err)
+			}
+
+			log.Println(string(logs))
+
+			if err := c.brokerContainers[i].Terminate(egCtx); err != nil {
+				return fmt.Errorf("terminate broker container %d: %w", i, err)
+			}
+
+			return nil
+		})
+	}
+
+	var errs error
+
+	if err := eg.Wait(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("terminate containers: %w", err))
+	}
+
+	if c.network != nil {
+		if err := c.network.Remove(ctx); err != nil {
+			errs = errors.Join(errs, fmt.Errorf("remove network: %w", err))
+		}
+	}
+
+	c.started.Store(false)
+
+	return errs
+}
+
+func (c *Cluster) startKraftCluster(ctx context.Context, networkName string) error {
+	const starterScriptName = "/testcontainers_start.sh"
+
+	brokerControllerContainerReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:    "confluentinc/cp-kafka",
+			Name:     "kafkadocker",
+			Hostname: "kafkadocker",
+			ExposedPorts: []string{
+				"9092/tcp",
+			},
+			// nolint: revive // line too long
+			Env: map[string]string{
+				"KAFKA_PROCESS_ROLES":                        "controller,broker",
+				"KAFKA_NODE_ID":                              "1",
+				"CLUSTER_ID":                                 "h6EwvA-jRU6omVykKrSg1w",
+				"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":       "CONTROLLER:PLAINTEXT,BROKER:SASL_PLAINTEXT",
+				"KAFKA_LISTENERS":                            "BROKER://kafkadocker:9092,CONTROLLER://kafkadocker:9093",
+				"KAFKA_CONTROLLER_LISTENER_NAMES":            "CONTROLLER",
+				"KAFKA_CONTROLLER_QUORUM_VOTERS":             "1@kafkadocker:9093",
+				"KAFKA_INTER_BROKER_LISTENER_NAME":           "BROKER",
+				"KAFKA_SASL_ENABLED_MECHANISMS":              "PLAIN",
+				"KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL": "PLAIN",
+				"KAFKA_OPTS":                                 "-Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf",
+			},
+			Networks: []string{networkName},
+			NetworkAliases: map[string][]string{
+				networkName: {"kafkadocker"},
+			},
+			WaitingFor: wait.ForLog("Kafka Server started"),
+			HostConfigModifier: func(config *container.HostConfig) {
+				config.RestartPolicy = container.RestartPolicy{Name: "unless-stopped"}
+			},
+			Cmd: []string{
+				"sh",
+				"-c",
+				fmt.Sprintf(
+					`while [ ! -f %[1]s ]; do sleep 0.1; done; %[1]s`,
+					starterScriptName,
+				),
+			},
+			LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
+				{
+					PostStarts: []testcontainers.ContainerHook{
+						func(ctx context.Context, container testcontainers.Container) error {
+							var (
+								advertisedListenerAddress = "BROKER://localhost:"
+								startScript               string
+							)
+
+							const (
+								retryAttempts = 5
+								retryDelay    = time.Second / 10
+							)
+
+							if err := retry.Do(func() error {
+								p, err := container.MappedPort(ctx, "9092/tcp")
+								if err != nil {
+									return fmt.Errorf("get hook mapped port: %w", err)
+								}
+
+								advertisedListenerAddress += p.Port()
+
+								return nil
+							}, retry.Attempts(retryAttempts), retry.Delay(retryDelay)); err != nil {
+								return fmt.Errorf("get advertised listener address: %w", err)
+							}
+
+							startScriptReader, err := container.CopyFileFromContainer(
+								ctx,
+								"/etc/confluent/docker/run",
+							)
+							if err != nil {
+								// nolint: revive // line too long
+								return fmt.Errorf(
+									"copy start script from container: %w",
+									err,
+								)
+							}
+
+							ss, err := io.ReadAll(startScriptReader)
+							if err != nil {
+								return fmt.Errorf("read start script: %w", err)
+							}
+
+							if err := startScriptReader.Close(); err != nil {
+								return fmt.Errorf("close start script reader: %w", err)
+							}
+
+							startScript = string(ss)
+
+							lastFiIdx := strings.LastIndex(startScript, "fi\n")
+
+							startScript = startScript[:lastFiIdx+3] + fmt.Sprintf(
+								"\nexport KAFKA_ADVERTISED_LISTENERS=%s;env\n",
+								advertisedListenerAddress,
+							) + startScript[lastFiIdx+3:]
+
+							const fileMode = 0o755
+
+							if err := container.CopyToContainer(
+								ctx,
+								[]byte(startScript),
+								starterScriptName,
+								fileMode,
+							); err != nil {
+								return fmt.Errorf("copy start script to container: %w", err)
+							}
+
+							return nil
+						},
+					},
+				},
+			},
+		},
+		Reuse:   true,
+		Started: false,
+	}
+
+	brokContContainer, err := testcontainers.GenericContainer(ctx, brokerControllerContainerReq)
+	if err != nil {
+		return fmt.Errorf("create broker controller container: %w", err)
+	}
+
+	const fileMode755 = 0o755
+
+	if err := brokContContainer.CopyToContainer(
+		ctx,
+		[]byte(`KafkaServer {
+  org.apache.kafka.common.security.plain.PlainLoginModule required
+  username="admin"
+  password="admin-secret"
+  user_admin="admin-secret"
+  user_user1="user1-secret"
+  user_user2="user2-secret";
+};`),
+		"/etc/kafka/kafka_server_jaas.conf",
+		fileMode755,
+	); err != nil {
+		return fmt.Errorf("copy jaas config to container: %w", err)
+	}
+
+	if err := brokContContainer.Start(ctx); err != nil {
+		return fmt.Errorf("start broker controller container: %w", err)
+	}
+
+	c.brokerContainers = []brokerContainer{{Container: brokContContainer}}
+
+	for i, bc := range c.brokerContainers {
+		containerIP, err := bc.Host(ctx)
+		if err != nil {
+			return fmt.Errorf("get broker container %d ip: %w", i, err)
+		}
+
+		port, err := bc.MappedPort(ctx, "9092/tcp")
+		if err != nil {
+			return fmt.Errorf("get broker container %d mapped port: %w", i, err)
+		}
+
+		c.brokerContainers[i].hostAddress = fmt.Sprintf("%s:%s", containerIP, port.Port())
+	}
+
+	return nil
+}
+
+func (c *Cluster) startZookeeperCluster(ctx context.Context, networkName string) error {
 	zookeeperReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image: "confluentinc/cp-zookeeper",
@@ -229,7 +464,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 								)
 
 								startScript = startScript[:lastFiIdx+3] + fmt.Sprintf(
-									"\necho wtf;export KAFKA_ADVERTISED_LISTENERS=%s;env\n",
+									"\nexport KAFKA_ADVERTISED_LISTENERS=%s;env\n",
 									advListeners,
 								) + startScript[lastFiIdx+3:]
 
@@ -295,8 +530,6 @@ func (c *Cluster) Start(ctx context.Context) error {
 		eg, egCtx := errgroup.WithContext(ctx)
 
 		for i := range c.brokerContainers {
-			i := i
-
 			eg.Go(func() error {
 				return probeBroker(egCtx, c.brokerContainers[i])
 			})
@@ -308,54 +541,6 @@ func (c *Cluster) Start(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// Stop removes all the containers and the network concerning the cluster.
-// nolint: gocognit, gocyclo
-func (c *Cluster) Stop(ctx context.Context) error {
-	if !c.started.Load() {
-		return ErrBrokerWasNotStarted
-	}
-
-	eg, egCtx := errgroup.WithContext(ctx)
-
-	if c.zookeeperContainer != nil {
-		eg.Go(func() error {
-			if err := c.zookeeperContainer.Terminate(egCtx); err != nil {
-				return fmt.Errorf("terminate zookeeper container: %w", err)
-			}
-
-			return nil
-		})
-	}
-
-	for i := range c.brokerContainers {
-		i := i
-
-		eg.Go(func() error {
-			if err := c.brokerContainers[i].Terminate(egCtx); err != nil {
-				return fmt.Errorf("terminate broker container %d: %w", i, err)
-			}
-
-			return nil
-		})
-	}
-
-	var errs error
-
-	if err := eg.Wait(); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("terminate containers: %w", err))
-	}
-
-	if c.network != nil {
-		if err := c.network.Remove(ctx); err != nil {
-			errs = errors.Join(errs, fmt.Errorf("remove network: %w", err))
-		}
-	}
-
-	c.started.Store(false)
-
-	return errs
 }
 
 func probeBroker(ctx context.Context, c brokerContainer) error {

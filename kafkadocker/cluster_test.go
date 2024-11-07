@@ -10,72 +10,104 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBroker(t *testing.T) {
-	t.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
-
-	req := require.New(t)
+func TestKafka(t *testing.T) {
 	ctx := context.Background()
 
-	cluster := &kafkadocker.Cluster{
-		Brokers:     2,
-		HealthProbe: true,
+	tests := map[string]struct {
+		cluster *kafkadocker.Cluster
+	}{
+		"Zookeeper": {
+			cluster: &kafkadocker.Cluster{
+				Brokers:     2,
+				HealthProbe: true,
+				Kraft:       false,
+			},
+		},
+		"Kraft": {
+			cluster: &kafkadocker.Cluster{
+				Brokers:     1,
+				HealthProbe: true,
+				Kraft:       true,
+			},
+		},
 	}
 
-	t.Cleanup(func() {
-		cluster.Stop(ctx)
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	err := cluster.Start(ctx)
-	req.NoError(err)
+			req := require.New(t)
 
-	t.Logf("cluster started successfully")
+			cluster := test.cluster
 
-	brokerAddresses := cluster.BrokerAddresses()
+			t.Logf("starting cluster")
 
-	t.Logf("broker addresses: %s", brokerAddresses)
+			err := cluster.Start(ctx)
+			req.NoError(err)
 
-	cfg := sarama.NewConfig()
+			t.Logf("cluster started successfully")
 
-	cfg.Producer.Return.Successes = true
+			t.Cleanup(func() {
+				cluster.Stop(ctx)
+			})
 
-	client, err := sarama.NewClient(brokerAddresses, cfg)
-	req.NoError(err)
+			brokerAddresses := cluster.BrokerAddresses()
 
-	t.Cleanup(func() {
-		err := client.Close()
-		req.NoError(err)
-	})
+			t.Logf("broker addresses: %s", brokerAddresses)
 
-	producer, err := sarama.NewSyncProducerFromClient(client)
-	req.NoError(err)
+			cfg := sarama.NewConfig()
 
-	const topic = "test"
+			if test.cluster.Kraft {
+				cfg.Net.SASL.Enable = true
+				cfg.Net.SASL.Handshake = true
+				cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+				cfg.Net.SASL.User = "admin"
+				cfg.Net.SASL.Version = sarama.SASLHandshakeV1
+				cfg.Net.SASL.Password = "admin-secret"
+			}
 
-	partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.StringEncoder(topic),
-	})
-	req.NoError(err)
+			cfg.Producer.Return.Successes = true
 
-	t.Logf("message partition: %d, message offset: %d", partition, offset)
+			client, err := sarama.NewClient(brokerAddresses, cfg)
+			req.NoError(err)
 
-	consumer, err := sarama.NewConsumerFromClient(client)
-	req.NoError(err)
+			t.Cleanup(func() {
+				err := client.Close()
+				req.NoError(err)
+			})
 
-	partConsumer, err := consumer.ConsumePartition(topic, partition, sarama.OffsetOldest)
-	req.NoError(err)
+			producer, err := sarama.NewSyncProducerFromClient(client)
+			req.NoError(err)
 
-	select {
-	case mes := <-partConsumer.Messages():
-		t.Logf("message: %+v", mes)
-		req.Equal(topic, string(mes.Value))
+			const topic = "test"
 
-	case <-time.After(20 * time.Second):
-		req.Fail("timeout")
+			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
+				Topic: topic,
+				Value: sarama.StringEncoder(topic),
+			})
+			req.NoError(err)
+
+			t.Logf("message partition: %d, message offset: %d", partition, offset)
+
+			consumer, err := sarama.NewConsumerFromClient(client)
+			req.NoError(err)
+
+			partConsumer, err := consumer.ConsumePartition(topic, partition, sarama.OffsetOldest)
+			req.NoError(err)
+
+			select {
+			case mes := <-partConsumer.Messages():
+				t.Logf("message: %+v", mes)
+				req.Equal(topic, string(mes.Value))
+
+			case <-time.After(20 * time.Second):
+				req.Fail("timeout")
+			}
+
+			topics, err := client.Topics()
+			req.NoError(err)
+
+			req.Equal([]string{topic}, topics)
+		})
 	}
-
-	topics, err := client.Topics()
-	req.NoError(err)
-
-	req.Equal([]string{topic}, topics)
 }
