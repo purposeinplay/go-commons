@@ -2,41 +2,41 @@ package httpserver_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/httpserver"
-	"go.uber.org/atomic"
-	"go.uber.org/zap"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer_ShutdownWithoutCallingListenAndServe(t *testing.T) {
-	i := is.New(t)
+	req := require.New(t)
 
-	s := httpserver.New(zap.NewExample(), nil)
+	s := httpserver.New(slog.NewJSONHandler(os.Stdout, nil), nil)
 
 	err := s.Shutdown(0)
-	i.NoErr(err)
+	req.NoError(err)
 }
 
 func TestServer_DoubleShutdown(t *testing.T) {
-	i := is.New(t)
+	req := require.New(t)
 
-	s := httpserver.New(zap.NewExample(), nil)
+	s := httpserver.New(slog.NewJSONHandler(os.Stdout, nil), nil)
 
 	err := s.Shutdown(0)
-	i.NoErr(err)
+	req.NoError(err)
 
 	err = s.Shutdown(0)
-	i.NoErr(err)
+	req.NoError(err)
 }
 
 func TestServer(t *testing.T) {
@@ -91,7 +91,7 @@ func TestServer(t *testing.T) {
 
 	// holds server options
 	type serverOptions struct {
-		logger  *zap.Logger
+		logger  slog.Handler
 		handler http.Handler
 		options []httpserver.Option
 	}
@@ -118,7 +118,7 @@ func TestServer(t *testing.T) {
 		// server will shutdown after request finishes due to increased timeout
 		"ShutdownWithoutClosingLongLivedConnectionContext": {
 			serverOptions: serverOptions{
-				logger:  zap.NewExample(),
+				logger:  slog.NewJSONHandler(os.Stdout, nil),
 				handler: defaultHandler(),
 			},
 
@@ -132,7 +132,7 @@ func TestServer(t *testing.T) {
 		// request finishes due to the timeout
 		"ShutdownDeadlineExceeded": {
 			serverOptions: serverOptions{
-				logger:  zap.NewExample(),
+				logger:  slog.NewJSONHandler(os.Stdout, nil),
 				handler: defaultHandler(),
 			},
 
@@ -145,7 +145,7 @@ func TestServer(t *testing.T) {
 		// server shutdown wll also close the request context
 		"ShutdownWithClosingBaseContext": {
 			serverOptions: serverOptions{
-				logger:  zap.NewExample(),
+				logger:  slog.NewJSONHandler(os.Stdout, nil),
 				handler: defaultHandler(),
 				options: []httpserver.Option{httpserver.WithBaseContext(
 					context.Background(),
@@ -161,7 +161,7 @@ func TestServer(t *testing.T) {
 
 		"ShutdownWithSignals": {
 			serverOptions: serverOptions{
-				logger:  zap.NewExample(),
+				logger:  slog.NewJSONHandler(os.Stdout, nil),
 				handler: defaultHandler(),
 				options: []httpserver.Option{
 					httpserver.WithShutdownSignalsOption(syscall.SIGINT),
@@ -175,7 +175,7 @@ func TestServer(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			i := is.New(t)
+			req := require.New(t)
 
 			// initialize the shutdown server chan everytime a test is run
 			shutdownServer = make(chan struct{})
@@ -193,14 +193,14 @@ func TestServer(t *testing.T) {
 
 			// create a new listener for the given addres
 			ln, err := net.Listen("tcp", httpServer.Info().Addr)
-			i.NoErr(err)
+			req.NoError(err)
 
 			go func() {
 				defer wg.Done()
 
 				// start accepting requests
 				err := httpServer.Serve(ln)
-				i.NoErr(err)
+				assert.NoError(t, err)
 
 				t.Logf("server complete")
 			}()
@@ -217,25 +217,26 @@ func TestServer(t *testing.T) {
 
 				// send a request to the server
 				resp, err := http.Get(address)
-				i.NoErr(err)
+				assert.NoError(t, err)
 
 				switch handlerExitStatus.Load() {
 				// due to http.TimeoutHandler 503 is returned when
 				// request'httpServer context is cancelled.
 				case exitContext:
-					i.Equal(
+					assert.Equal(
+						t,
 						http.StatusServiceUnavailable,
 						resp.StatusCode,
 					)
 
 				case exitTimeAfter:
-					i.Equal(http.StatusOK, resp.StatusCode)
+					assert.Equal(t, http.StatusOK, resp.StatusCode)
 				default:
-					i.Equal(http.StatusOK, resp.StatusCode)
+					assert.Equal(t, http.StatusOK, resp.StatusCode)
 				}
 
 				err = resp.Body.Close()
-				i.NoErr(err)
+				assert.NoError(t, err)
 
 				t.Logf("request complete")
 			}()
@@ -249,13 +250,13 @@ func TestServer(t *testing.T) {
 
 				// send the shutdown signals
 				err := sendSignals(test.shutdownSignals...)
-				i.NoErr(err)
+				req.NoError(err)
 			} else {
 				t.Logf("calling server.Shutdown()")
 
 				// shutdown the server
 				err := httpServer.Shutdown(test.shutdownTimeout)
-				i.True(errors.Is(err, test.expectedShutdownError))
+				req.ErrorIs(err, test.expectedShutdownError)
 			}
 
 			t.Logf("shutdown complete")
@@ -264,7 +265,7 @@ func TestServer(t *testing.T) {
 			wg.Wait()
 
 			if test.serverOptions.handler != nil {
-				i.Equal(
+				req.Equal(
 					test.expectedHandlerExitStatus,
 					handlerExitStatus.Load(),
 				)

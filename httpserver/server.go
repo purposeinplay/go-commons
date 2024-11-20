@@ -3,16 +3,15 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const (
-	defaultAddr = ":8080"
+	defaultAddr = ":80"
 )
 
 // Info holds relevant information about the Server.
@@ -29,7 +28,7 @@ type Server struct {
 	// underlying http server
 	httpServer *http.Server
 
-	log *zap.Logger
+	log *slog.Logger
 
 	// chan to signal that the server was shutdown which means that either the
 	// Server() or ListenAndServe() methods returned.
@@ -46,7 +45,7 @@ type Server struct {
 // You can use Options to override the defaults.
 // Default list:
 // - Address: ":8080".
-func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
+func New(logHandler slog.Handler, handler http.Handler, options ...Option) *Server {
 	const (
 		handlerTimeout    = 10 * time.Second
 		readHeaderTimeout = 5 * time.Second
@@ -71,7 +70,7 @@ func New(log *zap.Logger, handler http.Handler, options ...Option) *Server {
 			WriteTimeout:      writeTimeout,
 			IdleTimeout:       idleTimeout,
 		},
-		log:  log,
+		log:  slog.New(logHandler),
 		done: make(chan struct{}),
 	}
 
@@ -91,6 +90,8 @@ func (s *Server) Shutdown(timeout time.Duration) error {
 	defer s.closeDoneOnce.Do(func() {
 		close(s.done)
 	})
+
+	s.httpServer.Close()
 
 	err := s.httpServer.Shutdown(ctx)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -117,7 +118,7 @@ func (s *Server) Serve(ln net.Listener) error {
 // that logs basic information
 // and blocks execution until the Server.Shutdown() method is called.
 func (s *Server) ListenAndServe() error {
-	s.log.Info("starting server", zap.String("address", s.httpServer.Addr))
+	s.log.Info("starting server", slog.String("address", s.httpServer.Addr))
 
 	err := s.httpServer.ListenAndServe()
 
