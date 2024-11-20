@@ -10,10 +10,6 @@ connectors:
 exporters:
   debug:
     verbosity: detailed
-  datadog/exporter:
-    api:
-      key: 5dcf1369da55b2afea413a9c3dd30403
-      site: "datadoghq.eu"
 
 processors:
   batch:
@@ -30,7 +26,7 @@ service:
     traces:
       receivers: [ otlp ]
       processors: [ batch ]
-      exporters: [datadog/connector,  datadog/exporter, debug]
+      exporters: [datadog/connector, debug]
     metrics:
       receivers: [datadog/connector, otlp]
       processors: [batch, resourcedetection]

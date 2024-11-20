@@ -34,6 +34,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/test/bufconn"
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/ravilushqa/otelgqlgen"
 )
 
 func TestTracer(t *testing.T) {
@@ -316,6 +318,26 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 	})
 
 	mux := http.NewServeMux()
+
+	s.AroundOperations(func(
+		ctx context.Context,
+		next graphql.OperationHandler,
+	) graphql.ResponseHandler {
+		t.Logf("op: %+v", graphql.GetOperationContext(ctx).Operation.Name)
+
+		oc := graphql.GetOperationContext(ctx)
+		if oc == nil {
+			t.Log("no operation context")
+			return next(ctx)
+		}
+
+		return next(otelgqlgen.SetOperationName(ctx, oc.OperationName))
+	})
+
+	s.Use(otelgqlgen.Middleware(otelgqlgen.WithCreateSpanFromFields(
+		func(*graphql.FieldContext) bool {
+			return false
+		})))
 
 	mux.HandleFunc(
 		"POST /query",
