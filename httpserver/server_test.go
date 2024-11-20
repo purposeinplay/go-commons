@@ -21,7 +21,7 @@ import (
 func TestServer_ShutdownWithoutCallingListenAndServe(t *testing.T) {
 	req := require.New(t)
 
-	s := httpserver.New(slog.NewJSONHandler(os.Stdout, nil), nil)
+	s := httpserver.New(slog.Default(), nil)
 
 	err := s.Shutdown(0)
 	req.NoError(err)
@@ -30,7 +30,7 @@ func TestServer_ShutdownWithoutCallingListenAndServe(t *testing.T) {
 func TestServer_DoubleShutdown(t *testing.T) {
 	req := require.New(t)
 
-	s := httpserver.New(slog.NewJSONHandler(os.Stdout, nil), nil)
+	s := httpserver.New(slog.Default(), nil)
 
 	err := s.Shutdown(0)
 	req.NoError(err)
@@ -91,7 +91,7 @@ func TestServer(t *testing.T) {
 
 	// holds server options
 	type serverOptions struct {
-		logger  slog.Handler
+		logger  *slog.Logger
 		handler http.Handler
 		options []httpserver.Option
 	}
@@ -118,7 +118,7 @@ func TestServer(t *testing.T) {
 		// server will shutdown after request finishes due to increased timeout
 		"ShutdownWithoutClosingLongLivedConnectionContext": {
 			serverOptions: serverOptions{
-				logger:  slog.NewJSONHandler(os.Stdout, nil),
+				logger:  slog.Default(),
 				handler: defaultHandler(),
 			},
 
@@ -132,7 +132,7 @@ func TestServer(t *testing.T) {
 		// request finishes due to the timeout
 		"ShutdownDeadlineExceeded": {
 			serverOptions: serverOptions{
-				logger:  slog.NewJSONHandler(os.Stdout, nil),
+				logger:  slog.Default(),
 				handler: defaultHandler(),
 			},
 
@@ -145,7 +145,7 @@ func TestServer(t *testing.T) {
 		// server shutdown wll also close the request context
 		"ShutdownWithClosingBaseContext": {
 			serverOptions: serverOptions{
-				logger:  slog.NewJSONHandler(os.Stdout, nil),
+				logger:  slog.Default(),
 				handler: defaultHandler(),
 				options: []httpserver.Option{httpserver.WithBaseContext(
 					context.Background(),
@@ -161,7 +161,7 @@ func TestServer(t *testing.T) {
 
 		"ShutdownWithSignals": {
 			serverOptions: serverOptions{
-				logger:  slog.NewJSONHandler(os.Stdout, nil),
+				logger:  slog.Default(),
 				handler: defaultHandler(),
 				options: []httpserver.Option{
 					httpserver.WithShutdownSignalsOption(syscall.SIGINT),

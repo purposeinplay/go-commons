@@ -45,7 +45,7 @@ type Server struct {
 // You can use Options to override the defaults.
 // Default list:
 // - Address: ":8080".
-func New(logHandler slog.Handler, handler http.Handler, options ...Option) *Server {
+func New(logger *slog.Logger, handler http.Handler, options ...Option) *Server {
 	const (
 		handlerTimeout    = 10 * time.Second
 		readHeaderTimeout = 5 * time.Second
@@ -70,7 +70,7 @@ func New(logHandler slog.Handler, handler http.Handler, options ...Option) *Serv
 			WriteTimeout:      writeTimeout,
 			IdleTimeout:       idleTimeout,
 		},
-		log:  slog.New(logHandler),
+		log:  logger,
 		done: make(chan struct{}),
 	}
 
@@ -90,8 +90,6 @@ func (s *Server) Shutdown(timeout time.Duration) error {
 	defer s.closeDoneOnce.Do(func() {
 		close(s.done)
 	})
-
-	s.httpServer.Close()
 
 	err := s.httpServer.Shutdown(ctx)
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
