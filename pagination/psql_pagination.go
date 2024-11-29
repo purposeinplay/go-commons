@@ -113,7 +113,10 @@ func (p PSQLPaginator[T]) ListItems(
 }
 
 // nolint: gocognit, gocyclo
-func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
+func queryItems[T Tabler](ses *gorm.DB, pagination Arguments) ([]T, error) {
+	var model T
+	table := model.TableName()
+
 	var items []T
 
 	pagSession := ses.Session(&gorm.Session{})
@@ -122,7 +125,10 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 		pagSession = pagSession.Order("created_at DESC")
 
 		if pagination.afterCursor != nil {
-			pagSession = pagSession.Where("created_at < ?", pagination.afterCursor.CreatedAt)
+			pagSession = pagSession.Where(
+				fmt.Sprintf("%s.created_at < ?", table),
+				pagination.afterCursor.CreatedAt,
+			)
 		}
 
 		if err := pagSession.Find(&items).Error; err != nil {
@@ -132,10 +138,15 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 
 	// First/After
 	if pagination.First != nil {
-		pagSession = pagSession.Order("created_at DESC").Limit(*pagination.First)
+		pagSession = pagSession.Order(
+			fmt.Sprintf("%s.created_at DESC", table),
+		).Limit(*pagination.First)
 
 		if pagination.afterCursor != nil {
-			pagSession = pagSession.Where("created_at < ?", pagination.afterCursor.CreatedAt)
+			pagSession = pagSession.Where(
+				fmt.Sprintf("%s.created_at < ?", table),
+				pagination.afterCursor.CreatedAt,
+			)
 		}
 
 		if err := pagSession.Find(&items).Error; err != nil {
@@ -145,10 +156,15 @@ func queryItems[T any](ses *gorm.DB, pagination Arguments) ([]T, error) {
 
 	// Last/Before
 	if pagination.Last != nil {
-		pagSession = pagSession.Order("created_at ASC").Limit(*pagination.Last)
+		pagSession = pagSession.Order(
+			fmt.Sprintf("%s.created_at ASC", table),
+		).Limit(*pagination.Last)
 
 		if pagination.beforeCursor != nil {
-			pagSession = pagSession.Where("created_at > ?", pagination.beforeCursor.CreatedAt)
+			pagSession = pagSession.Where(
+				fmt.Sprintf("%s.created_at > ?", table),
+				pagination.beforeCursor.CreatedAt,
+			)
 		}
 
 		if err := pagSession.Find(&items).Error; err != nil {
