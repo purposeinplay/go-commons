@@ -1,18 +1,24 @@
 package psqlutil
 
 import (
-	"gorm.io/gorm"
-	"github.com/lib/pq"
 	"database/sql"
+
+	"github.com/lib/pq"
 	"github.com/purposeinplay/go-commons/errors"
+	"gorm.io/gorm"
 )
 
+var _ gorm.ErrorTranslator
+
+// GORMErrorsPlugin is a plugin for GORM that handles postgres specific errors.
 type GORMErrorsPlugin struct{}
 
-func (p GORMErrorsPlugin) Name() string {
+// Name returns the name of the plugin.
+func (GORMErrorsPlugin) Name() string {
 	return "psqlerrors"
 }
 
+// Initialize registers the plugin with the GORM db.
 func (p GORMErrorsPlugin) Initialize(db *gorm.DB) (err error) {
 	cb := db.Callback()
 
@@ -26,7 +32,7 @@ func (p GORMErrorsPlugin) Initialize(db *gorm.DB) (err error) {
 	)
 }
 
-func (p GORMErrorsPlugin) handleError(tx *gorm.DB) {
+func (GORMErrorsPlugin) handleError(tx *gorm.DB) {
 	err := tx.Error
 
 	if err == nil {
