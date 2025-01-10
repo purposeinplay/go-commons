@@ -18,11 +18,11 @@ func (p GORMErrorsPlugin) Initialize(db *gorm.DB) (err error) {
 
 	return errors.Join(
 		cb.Create().After("gorm:create").Register("errors:after:create", p.handleError),
-		cb.Create().After("gorm:query").Register("errors:after:select", p.handleError),
-		cb.Create().After("gorm:delete").Register("errors:after:delete", p.handleError),
-		cb.Create().After("gorm:update").Register("errors:after:update", p.handleError),
-		cb.Create().After("gorm:row").Register("errors:after:row", p.handleError),
-		cb.Create().After("gorm:raw").Register("errors:after:raw", p.handleError),
+		cb.Query().After("gorm:query").Register("errors:after:select", p.handleError),
+		cb.Delete().After("gorm:delete").Register("errors:after:delete", p.handleError),
+		cb.Update().After("gorm:update").Register("errors:after:update", p.handleError),
+		cb.Row().After("gorm:row").Register("errors:after:row", p.handleError),
+		cb.Raw().After("gorm:raw").Register("errors:after:raw", p.handleError),
 	)
 }
 
