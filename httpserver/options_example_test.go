@@ -35,7 +35,7 @@ func ExampleWithBaseContext() {
 
 	fmt.Println(opt)
 	// Output:
-	// server.BaseContext: context.Background.WithValue(type httpserver_test.key, val example)
+	// server.BaseContext: context.Background.WithValue(httpserver_test.key, example)
 	// server.CancelContextOnShutdown: true
 }
 

@@ -23,7 +23,7 @@ func TestPubSub(t *testing.T) {
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
-		topic     = username + ".test"
+		topic     = os.Getenv("KAFKA_TEST_TOPIC")
 	)
 
 	suber1, err := kafka.NewSubscriber(

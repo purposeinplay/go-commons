@@ -3,12 +3,11 @@ package httpserver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 // An Option configures an App using the functional options paradigm
@@ -31,7 +30,7 @@ func (o addressOption) apply(s *Server) {
 }
 
 func (o addressOption) String() string {
-	return fmt.Sprintf("server.Address: %s", string(o))
+	return "server.Address: " + string(o)
 }
 
 // WithAddress will set the address field of the server.
@@ -171,24 +170,21 @@ func (o shutdownSignalsOption) apply(server *Server) {
 
 		server.log.Debug(
 			"waiting for shutdown signals",
-			zap.Stringer("signals", o),
+			slog.String("signals", o.String()),
 		)
 
 		sig := <-sigC
 
 		server.log.Info(
 			"received shut down signal",
-			zap.String(
-				"signal",
-				sig.String(),
-			),
+			slog.String("signal", sig.String()),
 		)
 
 		err := server.Shutdown(shutdownTimeout)
 		if err != nil {
 			server.log.Error(
 				"failed to shutdown server in time",
-				zap.Error(err),
+				slog.String("error", err.Error()),
 			)
 		}
 	}()

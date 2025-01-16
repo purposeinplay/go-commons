@@ -1,16 +1,23 @@
 package auth
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
 
+// GRPC Metadata auth errors.
+var (
+	ErrAuthTokenMissing = errors.New("auth token is missing")
+	ErrBadAuthString    = errors.New("bad authorization string")
+)
+
+// ExtractTokenFromMetadata extracts the token from the grpc metadata.
 func ExtractTokenFromMetadata(md metadata.MD) (string, error) {
 	meta, ok := md["authorization"]
 	if !ok {
-		return "", fmt.Errorf("auth token is missing")
+		return "", ErrAuthTokenMissing
 	}
 
 	auth := meta[0]
@@ -18,7 +25,7 @@ func ExtractTokenFromMetadata(md metadata.MD) (string, error) {
 	const prefix = "Bearer "
 
 	if !strings.HasPrefix(auth, prefix) {
-		return "", fmt.Errorf("bad authorization string")
+		return "", ErrBadAuthString
 	}
 
 	return auth[len(prefix):], nil

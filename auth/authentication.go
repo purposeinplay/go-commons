@@ -5,24 +5,26 @@ import (
 	"log"
 
 	"go.uber.org/zap"
-
-	"google.golang.org/grpc/codes"
-
-	"google.golang.org/grpc/status"
-
-	"google.golang.org/grpc/metadata"
-
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
-type AuthInterceptor struct {
+// Interceptor is a server interceptor to authenticate and authorize requests.
+type Interceptor struct {
 	logger     *zap.Logger
 	jwtManager *JWTManager
 	authRoles  map[string][]string
 }
 
-func NewAuthInterceptor(logger *zap.Logger, jwtManager *JWTManager, authRoles map[string][]string) *AuthInterceptor {
-	return &AuthInterceptor{
+// NewAuthInterceptor creates a new authorizer interceptor.
+func NewAuthInterceptor(
+	logger *zap.Logger,
+	jwtManager *JWTManager,
+	authRoles map[string][]string,
+) *Interceptor {
+	return &Interceptor{
 		logger:     logger,
 		jwtManager: jwtManager,
 		authRoles:  authRoles,
@@ -30,13 +32,13 @@ func NewAuthInterceptor(logger *zap.Logger, jwtManager *JWTManager, authRoles ma
 }
 
 // Unary returns a server interceptor function to authenticate and authorize unary RPC.
-func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
+func (i *Interceptor) Unary() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		log.Println("--> unary interceptor: ", info.FullMethod)
 
 		ctxAuth, err := i.authorize(ctx, info.FullMethod)
@@ -48,7 +50,7 @@ func (i *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
-func (i *AuthInterceptor) authorize(ctx context.Context, method string) (context.Context, error) {
+func (i *Interceptor) authorize(ctx context.Context, method string) (context.Context, error) {
 	authRoles, ok := i.authRoles[method]
 	if !ok {
 		// public route

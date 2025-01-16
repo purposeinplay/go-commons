@@ -1,11 +1,10 @@
 module github.com/purposeinplay/go-commons/httpserver
 
-go 1.17
+go 1.21
 
 require (
-	github.com/matryer/is v1.4.0
-	go.uber.org/atomic v1.11.0
-	go.uber.org/zap v1.25.0
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/testify v1.8.1
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-require go.uber.org/multierr v1.11.0 // indirect

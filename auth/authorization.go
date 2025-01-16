@@ -4,35 +4,39 @@ import (
 	"context"
 
 	"github.com/dgrijalva/jwt-go"
-
 	"go.uber.org/zap"
-
-	"google.golang.org/grpc/codes"
-
-	"google.golang.org/grpc/status"
-
-	"google.golang.org/grpc/metadata"
-
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
+// AuthorizerConfig is the configuration for the authorizer interceptor.
 type AuthorizerConfig struct {
 	Secret string
 }
 
+// AuthorizerInterceptor is a server interceptor to authenticate and authorize requests.
 type AuthorizerInterceptor struct {
 	logger     *zap.Logger
 	jwtManager *JWTManager
 	config     *AuthorizerConfig
 }
 
+// ProviderClaims is a custom JWT claims that contains some provider's information.
 type ProviderClaims struct {
 	jwt.StandardClaims
 }
 
+// CtxProviderClaimsKey is a context key for provider claims.
 type CtxProviderClaimsKey struct{}
 
-func NewAuthorizerInterceptor(logger *zap.Logger, jwtManager *JWTManager, config *AuthorizerConfig) *AuthorizerInterceptor {
+// NewAuthorizerInterceptor creates a new authorizer interceptor.
+func NewAuthorizerInterceptor(
+	logger *zap.Logger,
+	jwtManager *JWTManager,
+	config *AuthorizerConfig,
+) *AuthorizerInterceptor {
 	return &AuthorizerInterceptor{
 		logger:     logger,
 		jwtManager: jwtManager,
@@ -44,10 +48,10 @@ func NewAuthorizerInterceptor(logger *zap.Logger, jwtManager *JWTManager, config
 func (i *AuthorizerInterceptor) Unary() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 		authorize, err := i.authorize(ctx, info.FullMethod)
 		if err != nil {
 			return nil, err
@@ -57,7 +61,7 @@ func (i *AuthorizerInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
-func (i *AuthorizerInterceptor) authorize(ctx context.Context, method string) (context.Context, error) {
+func (i *AuthorizerInterceptor) authorize(ctx context.Context, _ string) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
@@ -74,14 +78,13 @@ func (i *AuthorizerInterceptor) authorize(ctx context.Context, method string) (c
 
 	p := jwt.Parser{ValidMethods: []string{jwt.SigningMethodHS256.Name}}
 
-	_, err := p.ParseWithClaims(signature[0], &claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := p.ParseWithClaims(signature[0], &claims, func(*jwt.Token) (any, error) {
 		return []byte(i.config.Secret), nil
 	})
 	if err != nil {
+		// nolint: revive
 		return nil, status.Errorf(codes.Unauthenticated, "you are not authorized to access this resource")
 	}
 
-	ctx = context.WithValue(ctx, CtxProviderClaimsKey{}, claims)
-
-	return ctx, nil
+	return context.WithValue(ctx, CtxProviderClaimsKey{}, claims), nil
 }

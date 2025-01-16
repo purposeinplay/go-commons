@@ -27,12 +27,12 @@ func TestPubSub(t *testing.T) {
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
-		topic     = username + ".test"
+		topic     = os.Getenv("KAFKA_TEST_TOPIC")
 	)
 
 	suber1, err := kafkasarama.NewSubscriber(
 		slogHandler,
-		kafkasarama.NewSASLSubscriberConfig(
+		kafkasarama.NewSASLPlainSubscriberConfig(
 			username,
 			password,
 		),
@@ -43,7 +43,7 @@ func TestPubSub(t *testing.T) {
 
 	pub, err := kafkasarama.NewPublisher(
 		slogHandler,
-		kafkasarama.NewSASLPublisherConfig(
+		kafkasarama.NewSASLPlainPublisherConfig(
 			username,
 			password,
 		),
@@ -80,10 +80,29 @@ func TestPubSub(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		receivedMes := <-sub1.C()
-		is.Equal(receivedMes, mes)
+		timeout := time.After(3 * time.Second)
 
-		t.Logf("sub1 received the message in %s", time.Since(now))
+		var count int
+
+	loop:
+		for {
+			select {
+			case receivedMes := <-sub1.C():
+				if count > 0 {
+					t.Errorf("more than one message received: %+v", mes)
+					return
+				}
+
+				t.Logf("sub1 received the message: %+v in %s", mes, time.Since(now))
+
+				is.Equal(receivedMes, mes)
+
+				count++
+
+			case <-timeout:
+				break loop
+			}
+		}
 	}()
 
 	go func() {

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,15 +41,21 @@ func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
 	return &JWTManager{secretKey, tokenDuration}
 }
 
+// JWT parsing errors.
+var (
+	ErrInvalidTokenClaims           = errors.New("invalid token claims")
+	ErrUnexpectedTokenSigningMethod = errors.New("unexpected token signing method")
+)
+
 // Verify verifies the access token string and return a user claim if the token is valid.
 func (m *JWTManager) Verify(accessToken string) (*UserClaims, error) {
 	token, err := jwt.ParseWithClaims(
 		accessToken,
 		&UserClaims{},
-		func(token *jwt.Token) (interface{}, error) {
+		func(token *jwt.Token) (any, error) {
 			_, ok := token.Method.(*jwt.SigningMethodHMAC)
 			if !ok {
-				return nil, fmt.Errorf("unexpected token signing method")
+				return nil, ErrUnexpectedTokenSigningMethod
 			}
 
 			return []byte(m.secretKey), nil
@@ -60,7 +67,7 @@ func (m *JWTManager) Verify(accessToken string) (*UserClaims, error) {
 
 	claims, ok := token.Claims.(*UserClaims)
 	if !ok {
-		return nil, fmt.Errorf("invalid token claims")
+		return nil, ErrInvalidTokenClaims
 	}
 
 	return claims, nil

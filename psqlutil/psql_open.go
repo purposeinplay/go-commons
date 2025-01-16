@@ -53,6 +53,10 @@ func GormOpen(
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
+	if err := db.Use(GORMErrorsPlugin{}); err != nil {
+		return nil, fmt.Errorf("use gorm errors plugin: %w", err)
+	}
+
 	return db, nil
 }
 

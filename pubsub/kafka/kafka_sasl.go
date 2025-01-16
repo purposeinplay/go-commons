@@ -1,13 +1,24 @@
 package kafka
 
 import (
-	"crypto/tls"
 	"fmt"
 
-	"github.com/Shopify/sarama"
-	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
+	"github.com/IBM/sarama"
+	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/xdg-go/scram"
+	"crypto/tls"
 )
+
+// NewSASLPlainSubscriberConfig creates a new kafka
+// subscriber config with Plain SASL authentication.
+func NewSASLPlainSubscriberConfig(username, password string) *sarama.Config {
+	return saslPlainConfig(kafka.DefaultSaramaSubscriberConfig(), username, password)
+}
+
+// NewSASLPlainPublisherConfig creates a new kafka publisher config with Plain SASL authentication.
+func NewSASLPlainPublisherConfig(username, password string) *sarama.Config {
+	return saslPlainConfig(kafka.DefaultSaramaSyncPublisherConfig(), username, password)
+}
 
 // NewSASLSubscriberConfig creates a new kafka subscriber config with SASL authentication.
 func NewSASLSubscriberConfig(username, password string) *sarama.Config {
@@ -20,6 +31,20 @@ func NewSASLPublisherConfig(username, password string) *sarama.Config {
 }
 
 // saslConfig configures the sarama config for SASL authentication.
+func saslPlainConfig(cfg *sarama.Config, username, password string) *sarama.Config {
+	cfg.Version = sarama.V3_6_0_0
+
+	cfg.Net.SASL.Enable = true
+	cfg.Net.SASL.Handshake = true
+	cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	cfg.Net.SASL.User = username
+	cfg.Net.SASL.Version = sarama.SASLHandshakeV1
+	cfg.Net.SASL.Password = password
+
+	return cfg
+}
+
+// saslConfig configures the sarama config for SASL authentication.
 func saslConfig(cfg *sarama.Config, username, password string) *sarama.Config {
 	cfg.Net.TLS.Enable = true
 	cfg.Net.TLS.Config = &tls.Config{
@@ -27,11 +52,12 @@ func saslConfig(cfg *sarama.Config, username, password string) *sarama.Config {
 		MinVersion:         tls.VersionTLS12,
 	}
 
-	cfg.Version = sarama.V3_3_1_0
+	cfg.Version = sarama.V3_6_0_0
 
 	cfg.Net.SASL.Enable = true
 	cfg.Net.SASL.Handshake = true
 	cfg.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+	cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 	cfg.Net.SASL.User = username
 	cfg.Net.SASL.Version = sarama.SASLHandshakeV1
 	cfg.Net.SASL.Password = password
