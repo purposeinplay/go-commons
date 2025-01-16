@@ -3,7 +3,6 @@ package kafkashopifysarama
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -26,33 +25,45 @@ type Subscriber struct {
 // NewSubscriber creates a new kafka subscriber.
 func NewSubscriber(
 	slogHandler slog.Handler,
-	tlsConfig *tls.Config,
+	saramaConfig *sarama.Config,
 	clientID string,
+	initialOffset int64,
+	autoCommit bool,
 	sessionTimeoutMS int,
 	heartbeatIntervalMS int,
 	brokers []string,
 	groupID string,
 ) (*Subscriber, error) {
-	kafkaCfg := NewTLSSubscriberConfig(tlsConfig)
+	cfg := saramaConfig
 
-	kafkaCfg.ClientID = clientID
-	kafkaCfg.Consumer.Offsets.Initial = sarama.OffsetNewest
-	kafkaCfg.Consumer.Offsets.AutoCommit.Enable = true
-	kafkaCfg.Consumer.Group.Session.Timeout = time.Duration(sessionTimeoutMS) * time.Millisecond
-	kafkaCfg.Consumer.Group.Heartbeat.Interval = time.Duration(
+	if cfg == nil {
+		cfg = sarama.NewConfig()
+
+		cfg.Consumer.Return.Errors = true
+	}
+
+	cfg.ClientID = clientID
+	cfg.Consumer.Offsets.Initial = initialOffset
+	cfg.Consumer.Offsets.AutoCommit.Enable = autoCommit
+	cfg.Consumer.Group.Session.Timeout = time.Duration(
+		sessionTimeoutMS,
+	) * time.Millisecond
+	cfg.Consumer.Group.Heartbeat.Interval = time.Duration(
 		heartbeatIntervalMS,
 	) * time.Millisecond
 
 	return &Subscriber{
 		logger:        slog.New(slogHandler),
-		cfg:           kafkaCfg,
+		cfg:           cfg,
 		brokers:       brokers,
 		consumerGroup: groupID,
 	}, nil
 }
 
 // Subscribe creates a new subscription that runs in the background.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
+func (s Subscriber) Subscribe(
+	channels ...string,
+) (pubsub.Subscription[string, []byte], error) {
 	if len(channels) != 1 {
 		return nil, pubsub.ErrExactlyOneChannelAllowed
 	}
@@ -100,11 +111,20 @@ func newSubscription(
 	wg.Add(len(partitions))
 
 	for _, partition := range partitions {
-		partitionConsumer, err := consumer.ConsumePartition(topic, partition, sarama.OffsetNewest)
+		partitionConsumer, err := consumer.ConsumePartition(
+			topic,
+			partition,
+			sarama.OffsetNewest,
+		)
 		if err != nil {
 			cancel()
 
-			return nil, fmt.Errorf("consume partition %d for topic %q: %w", partition, topic, err)
+			return nil, fmt.Errorf(
+				"consume partition %d for topic %q: %w",
+				partition,
+				topic,
+				err,
+			)
 		}
 
 		go func() {
