@@ -5,23 +5,40 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Shopify/sarama"
 )
 
 // NewTLSSubscriberConfig creates a new kafka subscriber config with TLS
 // authentication.
-func NewTLSSubscriberConfig(tlsCfg *tls.Config) *sarama.Config {
+func NewTLSSubscriberConfig(
+	cerfFilePath, keyFilePath, caFilePath string,
+) (*sarama.Config, error) {
 	cfg := sarama.NewConfig()
+	cfg.Consumer.Return.Errors = true
 
-	cfg.Net.TLS.Enable = true
-	cfg.Net.TLS.Config = tlsCfg
-
-	return cfg
+	return loadTLSConfig(cfg, cerfFilePath, keyFilePath, caFilePath)
 }
 
-// LoadTLSConfig loads the TLS config from the given folder.
-func LoadTLSConfig(cerfFilePath, keyFilePath, caFilePath string) (*tls.Config, error) {
+// NewTLSPublisherConfig creates a new kafka publisher config with TLS
+// authentication.
+func NewTLSPublisherConfig(
+	cerfFilePath, keyFilePath, caFilePath string,
+) (*sarama.Config, error) {
+	cfg := sarama.NewConfig()
+
+	cfg.Producer.Retry.Max = 10
+	cfg.Producer.Return.Successes = true
+	cfg.Metadata.Retry.Backoff = time.Second * 2
+
+	return loadTLSConfig(cfg, cerfFilePath, keyFilePath, caFilePath)
+}
+
+func loadTLSConfig(
+	cfg *sarama.Config,
+	cerfFilePath, keyFilePath, caFilePath string,
+) (*sarama.Config, error) {
 	// Load client cert
 	cert, err := tls.LoadX509KeyPair(
 		cerfFilePath,
@@ -48,5 +65,8 @@ func LoadTLSConfig(cerfFilePath, keyFilePath, caFilePath string) (*tls.Config, e
 		InsecureSkipVerify: false,
 	}
 
-	return tlsCfg, nil
+	cfg.Net.TLS.Enable = true
+	cfg.Net.TLS.Config = tlsCfg
+
+	return cfg, nil
 }

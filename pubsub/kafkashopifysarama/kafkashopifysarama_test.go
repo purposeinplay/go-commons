@@ -2,110 +2,260 @@ package kafkashopifysarama_test
 
 import (
 	"context"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"github.com/matryer/is"
+	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafkashopifysarama"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 )
 
-func TestConsumerGroups(t *testing.T) {
-	// nolint: gocritic, revive
-	is := is.New(t)
-
+func TestPubSub(t *testing.T) {
 	logger := zap.NewExample()
+
+	i := is.New(t)
+
 	slogHandler := zapslog.NewHandler(logger.Core(), nil)
-	topic := "test"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
+	var (
+		clientID            = "test_client_id"
+		initialOffset       = sarama.OffsetNewest
+		autoCommit          = true
+		sessionTimeoutMS    = 45000
+		heartbeatIntervalMS = 15000
+		brokers             = []string{os.Getenv("KAFKA_BROKER_URL")}
+		groupID             = "test_groupd_id"
+		topic               = "test_topic"
+	)
 
-	tlsCfg, err := kafkashopifysarama.LoadTLSConfig(
+	cfg1, err := kafkashopifysarama.NewTLSSubscriberConfig(
 		"./config/test.crt",
 		"./config/test.key",
 		"./config/ca_test.crt",
 	)
-	is.NoErr(err)
-
-	var (
-		clientID            = "test_client_id"
-		sessionTimeoutMS    = 45000
-		heartbeatIntervalMS = 15000
-		brokers             = []string{"localhost:9092"}
-		groupID             = "test_groupd_id"
-	)
+	i.NoErr(err)
 
 	suber1, err := kafkashopifysarama.NewSubscriber(
 		slogHandler,
-		tlsCfg,
+		cfg1,
 		clientID,
+		initialOffset,
+		autoCommit,
 		sessionTimeoutMS,
 		heartbeatIntervalMS,
 		brokers,
 		groupID,
 	)
-	is.NoErr(err)
+	i.NoErr(err)
 
-	suber2, err := kafkashopifysarama.NewSubscriber(
-		slogHandler,
-		tlsCfg,
-		clientID,
-		sessionTimeoutMS,
-		heartbeatIntervalMS,
-		brokers,
-		groupID,
+	pubCfg, err := kafkashopifysarama.NewTLSPublisherConfig(
+		"./config/test.crt",
+		"./config/test.key",
+		"./config/ca_test.crt",
 	)
-	is.NoErr(err)
+	i.NoErr(err)
+
+	pub, err := kafkashopifysarama.NewPublisher(
+		slogHandler,
+		pubCfg,
+		brokers,
+	)
+	i.NoErr(err)
+
+	t.Cleanup(func() { i.NoErr(pub.Close()) })
+
+	sub1, err := suber1.Subscribe(topic)
+	i.NoErr(err)
+
+	t.Cleanup(func() { i.NoErr(sub1.Close()) })
+
+	sub2, err := suber1.Subscribe(topic)
+	i.NoErr(err)
+
+	t.Cleanup(func() { i.NoErr(sub2.Close()) })
+
+	mes := pubsub.Event[string, []byte]{
+		Type:    "test",
+		Payload: []byte("test_payload"),
+	}
+
+	err = pub.Publish(mes, topic)
+	i.NoErr(err)
 
 	var wg sync.WaitGroup
 
 	wg.Add(2)
 
-	startSubscriber := func(t *testing.T, subscriber *kafkashopifysarama.Subscriber) {
-		t.Helper()
+	now := time.Now()
 
+	go func() {
 		defer wg.Done()
 
-		//nolint: contextcheck // The subscription is closed in the test
-		// cleanup.
-		sub, err := subscriber.Subscribe(topic)
-		is.NoErr(err)
+		receivedMes := <-sub1.C()
+		i.Equal(receivedMes, mes)
+
+		t.Logf("sub1 received the message in %s", time.Since(now))
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		receivedMes := <-sub2.C()
+		i.Equal(receivedMes, mes)
+
+		t.Logf("sub2 received the message in %s", time.Since(now))
+	}()
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
+}
+
+func TestConsumerGroups(t *testing.T) {
+	logger := zap.NewExample()
+
+	i := is.New(t)
+
+	slogHandler := zapslog.NewHandler(logger.Core(), nil)
+
+	var (
+		clientID            = "test_client_id"
+		initialOffset       = sarama.OffsetNewest
+		autoCommit          = true
+		sessionTimeoutMS    = 45000
+		heartbeatIntervalMS = 15000
+		brokers             = []string{os.Getenv("KAFKA_BROKER_URL")}
+		groupID             = "test_groupd_id"
+		topic               = "test_topic"
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cfg1, err := kafkashopifysarama.NewTLSSubscriberConfig(
+		"./config/test.crt",
+		"./config/test.key",
+		"./config/ca_test.crt",
+	)
+	i.NoErr(err)
+
+	suber1, err := kafkashopifysarama.NewSubscriber(
+		slogHandler,
+		cfg1,
+		clientID,
+		initialOffset,
+		autoCommit,
+		sessionTimeoutMS,
+		heartbeatIntervalMS,
+		brokers,
+		groupID,
+	)
+	i.NoErr(err)
+
+	mes := pubsub.Event[string, []byte]{
+		Type:    "test",
+		Payload: []byte("test_payload"),
+	}
+
+	sub1, err := suber1.Subscribe(topic)
+	i.NoErr(err)
+
+	t.Cleanup(func() { i.NoErr(sub1.Close()) })
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
 
 		for {
 			select {
-			case mes := <-sub.C():
-				is.Equal(mes.Type, "test")
-				is.Equal(string(mes.Payload), "test message")
-				mes.Ack()
+			case receivedMes := <-sub1.C():
+				i.Equal(receivedMes, mes)
 
-				return
+				t.Logf("sub 1: %s", mes.Payload)
 			case <-ctx.Done():
-				is.NoErr(ctx.Err())
 				return
 			}
 		}
-	}
+	}()
 
-	// Start both subscribers in separate goroutines
-	go startSubscriber(t, suber1)
-	go startSubscriber(t, suber2)
+	cfg2, err := kafkashopifysarama.NewTLSSubscriberConfig(
+		"./config/test.crt",
+		"./config/test.key",
+		"./config/ca_test.crt",
+	)
+	i.NoErr(err)
 
-	// Initialize Kafka server and send message
-	kafkaServer := initialize(tlsCfg, brokers)
+	suber2, err := kafkashopifysarama.NewSubscriber(
+		slogHandler,
+		cfg2,
+		clientID,
+		initialOffset,
+		autoCommit,
+		sessionTimeoutMS,
+		heartbeatIntervalMS,
+		brokers,
+		groupID,
+	)
+	i.NoErr(err)
 
-	time.Sleep(17 * time.Second)
-	kafkaServer.SendMessage(t, "test", "test message")
-	kafkaServer.SendMessage(t, "test", "test message")
+	sub2, err := suber2.Subscribe(topic)
+	i.NoErr(err)
 
-	t.Cleanup(func() {
-		// is.NoErr(consumerGroup1.Close())
-		// is.NoErr(consumerGroup2.Close())
-		is.NoErr(kafkaServer.Close())
-	})
+	t.Cleanup(func() { i.NoErr(sub2.Close()) })
 
-	// Wait for all goroutines to finish
+	go func() {
+		defer wg.Done()
+
+		for {
+			select {
+			case receivedMes := <-sub2.C():
+				i.Equal(receivedMes, mes)
+
+				t.Logf("sub 2: %s", mes.Payload)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	pubCfg, err := kafkashopifysarama.NewTLSPublisherConfig(
+		"./config/test.crt",
+		"./config/test.key",
+		"./config/ca_test.crt",
+	)
+	i.NoErr(err)
+
+	pub, err := kafkashopifysarama.NewPublisher(
+		slogHandler,
+		pubCfg,
+		brokers,
+	)
+	i.NoErr(err)
+
+	t.Cleanup(func() { i.NoErr(pub.Close()) })
+
+	err = pub.Publish(mes, topic)
+	i.NoErr(err)
+
+	time.Sleep(5 * time.Second)
+
+	cancel()
+
 	wg.Wait()
 }
