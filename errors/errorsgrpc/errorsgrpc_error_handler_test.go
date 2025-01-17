@@ -1,8 +1,7 @@
 package errorsgrpc_test
 
-import "fmt"
-
 import (
+	"strconv"
 	"testing"
 
 	// nolint: staticcheck
@@ -18,7 +17,7 @@ func TestRetrieveDetails(t *testing.T) {
 
 	appErr := &errors.Error{
 		Type:    errors.ErrorTypeInvalid,
-		Code:    errors.ErrorCode(fmt.Sprint(rune(1)),
+		Code:    errors.ErrorCode(strconv.Itoa(int(rune(1)))),
 		Message: "message",
 	}
 

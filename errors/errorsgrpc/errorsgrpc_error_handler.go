@@ -140,6 +140,7 @@ func errorToErrorResponse(err *errors.Error) *commonserr.ErrorResponse {
 	c, _ := strconv.Atoi(err.Code.String())
 
 	return &commonserr.ErrorResponse{
+		//nolint:gosec // disable G115
 		ErrorCode: commonserr.ErrorResponse_ErrorCode(c),
 		Message:   err.Message,
 	}

@@ -23,6 +23,9 @@ type (
 
 func (c ErrorCode) String() string { return string(c) }
 
+// StringPtr returns the ErrorCode as a string pointer.
+func (c ErrorCode) StringPtr() *string { p := string(c); return &p }
+
 func (t ErrorType) String() string {
 	return string(t)
 }
@@ -49,6 +52,7 @@ func (t ErrorType) HTTPStatus() int {
 
 // HTTPStatusInt32Ptr returns the corresponding HTTP Status as an int32 pointer.
 func (t ErrorType) HTTPStatusInt32Ptr() *int32 {
+	//nolint:gosec // disable G115
 	sts := int32(t.HTTPStatus())
 
 	return &sts
