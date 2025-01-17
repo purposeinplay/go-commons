@@ -1,5 +1,7 @@
 package errorsgrpc_test
 
+import "fmt"
+
 import (
 	"testing"
 
@@ -16,8 +18,8 @@ func TestRetrieveDetails(t *testing.T) {
 
 	appErr := &errors.Error{
 		Type:    errors.ErrorTypeInvalid,
-		Code:    errors.ErrorCode(1),
-		Details: "message",
+		Code:    errors.ErrorCode(fmt.Sprint(rune(1)),
+		Message: "message",
 	}
 
 	sts, err := (&errorsgrpc.PanicErrorHandler{}).ErrorToGRPCStatus(appErr)

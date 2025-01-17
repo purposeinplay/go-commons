@@ -90,8 +90,8 @@ func TestErrors(t *testing.T) {
 	req.Equal(
 		&errors.Error{
 			Type:    errors.ErrorTypeNotFound,
-			Code:    1,
-			Details: "not found",
+			Code:    "1",
+			Message: "not found",
 		},
 		appErr,
 	)

@@ -63,7 +63,7 @@ func (ErrorResponse_ErrorCode) EnumDescriptor() ([]byte, []int) {
 	return file_commons_error_v1_error_proto_rawDescGZIP(), []int{0, 0}
 }
 
-// Data returned in the Error Details.
+// Data returned in the Error Message.
 type ErrorResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

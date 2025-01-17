@@ -18,8 +18,10 @@ type (
 	// ErrorType is mapped to HTTP codes.
 	ErrorType string
 	// ErrorCode represents application error codes.
-	ErrorCode int
+	ErrorCode string
 )
+
+func (c ErrorCode) String() string { return string(c) }
 
 func (t ErrorType) String() string {
 	return string(t)
@@ -45,6 +47,13 @@ func (t ErrorType) HTTPStatus() int {
 	}
 }
 
+// HTTPStatusInt32Ptr returns the corresponding HTTP Status as an int32 pointer.
+func (t ErrorType) HTTPStatusInt32Ptr() *int32 {
+	sts := int32(t.HTTPStatus())
+
+	return &sts
+}
+
 // Available error types.
 const (
 	ErrorTypeInvalid              ErrorType = "invalid"
@@ -58,13 +67,14 @@ const (
 
 // Error object.
 type Error struct {
-	Type    ErrorType
-	Code    ErrorCode
-	Details string
+	Type         ErrorType
+	Code         ErrorCode
+	Message      string
+	ErrorDetails []ErrorDetail
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("type: %s, code: %d, details: %s", e.Type, e.Code, e.Details)
+	return fmt.Sprintf("type: %s, code: %s, details: %s", e.Type, e.Code, e.Message)
 }
 
 // IsErrorType checks if the error is of the given type.
@@ -85,4 +95,13 @@ func IsErrorCode(err error, code ErrorCode) bool {
 	}
 
 	return false
+}
+
+// ErrorDetailCode contains additional specific codes to provide context to the error.
+type ErrorDetailCode string
+
+// ErrorDetail provides explicit details on an Error.
+type ErrorDetail struct {
+	Code    ErrorDetailCode
+	Message string
 }
