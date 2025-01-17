@@ -104,6 +104,11 @@ func IsErrorCode(err error, code ErrorCode) bool {
 // ErrorDetailCode contains additional specific codes to provide context to the error.
 type ErrorDetailCode string
 
+func (c ErrorDetailCode) String() string { return string(c) }
+
+// StringPtr returns the ErrorDetailCode as a string pointer.
+func (c ErrorDetailCode) StringPtr() *string { p := string(c); return &p }
+
 // ErrorDetail provides explicit details on an Error.
 type ErrorDetail struct {
 	Code    ErrorDetailCode
