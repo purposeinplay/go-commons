@@ -1,4 +1,4 @@
-package kafkashopifysarama
+package kafkasarama
 
 import (
 	"crypto/tls"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 // NewTLSSubscriberConfig creates a new kafka subscriber config with TLS
