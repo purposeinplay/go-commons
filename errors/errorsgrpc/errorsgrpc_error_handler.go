@@ -3,6 +3,7 @@ package errorsgrpc
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	// nolint: staticcheck
 	"github.com/golang/protobuf/proto"
@@ -119,7 +120,7 @@ func (h PanicErrorHandler) ReportPanic(
 		ctx,
 		&errors.Error{
 			Type:    errors.ErrorTypePanic,
-			Details: fmt.Sprintf("%+v", p),
+			Message: fmt.Sprintf("%+v", p),
 		},
 	)
 }
@@ -136,8 +137,11 @@ func (h PanicErrorHandler) ReportError(
 }
 
 func errorToErrorResponse(err *errors.Error) *commonserr.ErrorResponse {
+	c, _ := strconv.Atoi(err.Code.String())
+
 	return &commonserr.ErrorResponse{
-		ErrorCode: commonserr.ErrorResponse_ErrorCode(err.Code),
-		Message:   err.Details,
+		//nolint:gosec // disable G115
+		ErrorCode: commonserr.ErrorResponse_ErrorCode(c),
+		Message:   err.Message,
 	}
 }

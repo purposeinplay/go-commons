@@ -41,8 +41,8 @@ func UnmarshalErrorUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 
 		return &errors.Error{
 			Type:    errors.ErrorType(sts.Message()),
-			Code:    errors.ErrorCode(errResp.ErrorCode),
-			Details: errResp.Message,
+			Code:    errors.ErrorCode(errResp.ErrorCode.String()),
+			Message: errResp.Message,
 		}
 	}
 }

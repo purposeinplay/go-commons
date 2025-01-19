@@ -10,6 +10,7 @@ import (
 	"github.com/purposeinplay/go-commons/errors"
 	"github.com/purposeinplay/go-commons/errors/errorsgrpc"
 	commonserr "github.com/purposeinplay/go-commons/errors/proto/commons/error/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -64,11 +65,11 @@ func TestErrors(t *testing.T) {
 		defer close(done)
 
 		serveErr := grpcServer.Serve(lis)
-		req.NoError(serveErr)
+		assert.NoError(t, serveErr)
 	}()
 
-	clientConn, err := grpc.Dial(
-		"bufnet",
+	clientConn, err := grpc.NewClient(
+		"passthrough://bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(errorsgrpc.UnmarshalErrorUnaryClientInterceptor()),
@@ -90,8 +91,8 @@ func TestErrors(t *testing.T) {
 	req.Equal(
 		&errors.Error{
 			Type:    errors.ErrorTypeNotFound,
-			Code:    1,
-			Details: "not found",
+			Code:    "1",
+			Message: "not found",
 		},
 		appErr,
 	)
