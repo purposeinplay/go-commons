@@ -74,7 +74,7 @@ type Error struct {
 	Type         ErrorType
 	Code         ErrorCode
 	Message      string
-	ErrorDetails []ErrorDetail
+	ErrorDetails ErrorDetails
 }
 
 func (e *Error) Error() string {
@@ -113,4 +113,18 @@ func (c ErrorDetailCode) StringPtr() *string { p := string(c); return &p }
 type ErrorDetail struct {
 	Code    ErrorDetailCode
 	Message string
+}
+
+// ErrorDetails is a collection of ErrorDetail.
+type ErrorDetails []ErrorDetail
+
+// ContainsErrorCode checks if the ErrorDetails contains a specific ErrorDetailCode.
+func (e ErrorDetails) ContainsErrorCode(code ErrorDetailCode) bool {
+	for _, d := range e {
+		if d.Code == code {
+			return true
+		}
+	}
+
+	return false
 }
