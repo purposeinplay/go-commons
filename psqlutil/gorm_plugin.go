@@ -48,22 +48,22 @@ func (GORMErrorsPlugin) handleError(tx *gorm.DB) {
 	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, sql.ErrNoRows):
 		tx.Error = &errors.Error{
 			Type:    errors.ErrorTypeNotFound,
-			Details: "record not found",
+			Message: "record not found",
 		}
 	case isErrorCode(err, errCodeInvalidInput):
 		tx.Error = &errors.Error{
 			Type:    errors.ErrorTypeInvalid,
-			Details: "invalid input",
+			Message: "invalid input",
 		}
 	case isErrorCode(err, errCodeUniqueViolation):
 		tx.Error = &errors.Error{
 			Type:    errors.ErrorTypeInvalid,
-			Details: "object already exists",
+			Message: "object already exists",
 		}
 	default:
 		tx.Error = &errors.Error{
 			Type:    errors.ErrorTypeInternalError,
-			Details: tx.Error.Error(),
+			Message: tx.Error.Error(),
 		}
 	}
 }
