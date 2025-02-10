@@ -1,3 +1,6 @@
+// Package errors provides a custom error handling system that extends the standard library errors package.
+// It includes support for typed errors with HTTP status code mapping, error codes, and detailed error information.
+// This package is designed to provide consistent error handling and reporting across applications.
 package errors
 
 import (
@@ -14,10 +17,12 @@ var (
 	New  = errors.New
 )
 
+// ErrorType represents a categorical classification of errors that can be mapped to HTTP status codes.
+// It helps in providing consistent error responses across the application.
 type (
-	// ErrorType is mapped to HTTP codes.
 	ErrorType string
-	// ErrorCode represents application error codes.
+	// ErrorCode is a unique identifier for specific error scenarios within the application.
+	// It allows for precise error identification and handling.
 	ErrorCode string
 )
 
@@ -58,22 +63,38 @@ func (t ErrorType) HTTPStatusInt32Ptr() *int32 {
 	return &sts
 }
 
-// Available error types.
+// Available error types mapped to their corresponding string representations.
+// These types are designed to align with common HTTP status codes for consistent API responses.
 const (
-	ErrorTypeInvalid              ErrorType = "invalid"
-	ErrorTypeNotFound             ErrorType = "not-found"
+	// ErrorTypeInvalid represents validation errors or invalid input
+	ErrorTypeInvalid ErrorType = "invalid"
+	// ErrorTypeNotFound represents resource not found errors
+	ErrorTypeNotFound ErrorType = "not-found"
+	// ErrorTypeUnprocessableContent represents semantic errors in the request content
 	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
-	ErrorTypeUnauthorized         ErrorType = "unauthorzied"
-	ErrorTypeUnauthenticated      ErrorType = "unauthenticated"
-	ErrorTypeInternalError        ErrorType = "internal-error"
-	ErrorTypePanic                ErrorType = "panic"
+	// ErrorTypeUnauthorized represents permission denied errors
+	ErrorTypeUnauthorized ErrorType = "unauthorzied"
+	// ErrorTypeUnauthenticated represents authentication failures
+	ErrorTypeUnauthenticated ErrorType = "unauthenticated"
+	// ErrorTypeInternalError represents unexpected internal server errors
+	ErrorTypeInternalError ErrorType = "internal-error"
+	// ErrorTypePanic represents errors from recovered panics
+	ErrorTypePanic ErrorType = "panic"
 )
 
-// Error object.
+// Error represents a structured error with additional context and details.
+// It implements the error interface while providing rich error information
+// that can be used for both logging and client responses.
 type Error struct {
-	Type         ErrorType
-	Code         ErrorCode
-	Message      string
+	// Type categorizes the error and determines its HTTP status code
+	Type ErrorType
+	// Code identifies the specific error scenario
+	Code ErrorCode
+	// Message is a user-friendly error description
+	Message string
+	// InternalMessage contains technical details (not intended for client response)
+	InternalMessage string
+	// ErrorDetails provides additional structured information about the error
 	ErrorDetails ErrorDetails
 }
 
@@ -109,13 +130,17 @@ func (c ErrorDetailCode) String() string { return string(c) }
 // StringPtr returns the ErrorDetailCode as a string pointer.
 func (c ErrorDetailCode) StringPtr() *string { p := string(c); return &p }
 
-// ErrorDetail provides explicit details on an Error.
+// ErrorDetail provides additional context for an error through a code and message.
+// It can be used to communicate multiple specific issues within a single error.
 type ErrorDetail struct {
-	Code    ErrorDetailCode
+	// Code identifies the specific detail type
+	Code ErrorDetailCode
+	// Message provides a description of the specific detail
 	Message string
 }
 
-// ErrorDetails is a collection of ErrorDetail.
+// ErrorDetails is a collection of ErrorDetail that allows for reporting multiple
+// related issues within a single error response.
 type ErrorDetails []ErrorDetail
 
 // ContainsErrorCode checks if the ErrorDetails contains a specific ErrorDetailCode.
