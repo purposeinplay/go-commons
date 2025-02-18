@@ -23,6 +23,11 @@ func TestPubSub(t *testing.T) {
 
 	slogHandler := zapslog.NewHandler(logger.Core(), nil)
 
+	os.Setenv("KAFKA_USERNAME", "win-kafka")
+	os.Setenv("KAFKA_PASSWORD", "WigCHHFjpAOllDj")
+	os.Setenv("KAFKA_BROKER_URL", "b-1-public.winkafkacluster.5y0luk.c3.kafka.eu-central-1.amazonaws.com:9196")
+	os.Setenv("KAFKA_TEST_TOPIC", "openmatch_complete_tournament")
+
 	var (
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
@@ -32,7 +37,7 @@ func TestPubSub(t *testing.T) {
 
 	suber1, err := kafkasarama.NewSubscriber(
 		slogHandler,
-		kafkasarama.NewSASLPlainSubscriberConfig(
+		kafkasarama.NewSASLSubscriberConfig(
 			username,
 			password,
 		),
@@ -43,7 +48,7 @@ func TestPubSub(t *testing.T) {
 
 	pub, err := kafkasarama.NewPublisher(
 		slogHandler,
-		kafkasarama.NewSASLPlainPublisherConfig(
+		kafkasarama.NewSASLPublisherConfig(
 			username,
 			password,
 		),

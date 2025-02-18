@@ -4,22 +4,14 @@ import (
 	"reflect"
 
 	"google.golang.org/grpc"
+	"slices"
 )
 
-func prependServerOption(
+func prependServerOptions(
 	newInterceptor grpc.UnaryServerInterceptor,
 	interceptors []grpc.UnaryServerInterceptor,
 ) []grpc.UnaryServerInterceptor {
-	newInterceptors := make(
-		[]grpc.UnaryServerInterceptor,
-		len(interceptors)+1,
-	)
-
-	copy(newInterceptors[1:], interceptors)
-
-	newInterceptors[0] = newInterceptor
-
-	return newInterceptors
+	return slices.Insert(interceptors, 0, newInterceptor)
 }
 
 func isErrorHandlerNil(errorHandler ErrorHandler) bool {

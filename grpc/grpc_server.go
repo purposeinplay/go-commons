@@ -192,7 +192,7 @@ func prependDebugInterceptor(
 		"Watch",
 	)
 
-	return prependServerOption(
+	return prependServerOptions(
 		func(
 			ctx context.Context,
 			req any,
@@ -297,7 +297,7 @@ func prependPanicHandler(
 	interceptors []grpc.UnaryServerInterceptor,
 	panicHandler PanicHandler,
 ) []grpc.UnaryServerInterceptor {
-	return prependServerOption(
+	return prependServerOptions(
 		grpcrecovery.UnaryServerInterceptor(
 			grpcrecovery.WithRecoveryHandler(newRecoveryFunc(panicHandler)),
 		),
@@ -410,7 +410,7 @@ func prependErrorHandler(
 	interceptors []grpc.UnaryServerInterceptor,
 	errorHandler ErrorHandler,
 ) []grpc.UnaryServerInterceptor {
-	return prependServerOption(
+	return prependServerOptions(
 		func(
 			ctx context.Context,
 			req any,

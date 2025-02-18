@@ -3,7 +3,6 @@
   <component name="Go" enabled="true">
     <buildTags>
       <option name="arch" value="arm64" />
-      <option name="cgo" value="NO" />
     </buildTags>
   </component>
   <component name="NewModuleRootManager">

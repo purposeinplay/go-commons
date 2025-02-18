@@ -48,6 +48,8 @@ func (t ErrorType) HTTPStatus() int {
 		return http.StatusUnauthorized
 	case ErrorTypeUnauthenticated:
 		return http.StatusUnauthorized
+	case ErrorTypeConflict:
+		return http.StatusConflict
 	case ErrorTypeInternalError, ErrorTypePanic:
 		return http.StatusInternalServerError
 	default:
@@ -70,6 +72,8 @@ const (
 	ErrorTypeInvalid ErrorType = "invalid"
 	// ErrorTypeNotFound represents resource not found errors
 	ErrorTypeNotFound ErrorType = "not-found"
+	// ErrorTypeConflict represents resource already exists errors
+	ErrorTypeConflict ErrorType = "conflict"
 	// ErrorTypeUnprocessableContent represents semantic errors in the request content
 	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
 	// ErrorTypeUnauthorized represents permission denied errors

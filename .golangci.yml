@@ -150,7 +150,7 @@ linters:
     - err113 # Golang linter to check the errors handling expressions
     - gocritic # Provides many diagnostics that check for bugs, performance and style issues.
     - exhaustive # Check exhaustiveness of enum switch statements
-    - exportloopref	# checks for pointers to enclosing loop variables -- VERY IMPORTANT TO USE
+    - copyloopvar	# checks for pointers to enclosing loop variables -- VERY IMPORTANT TO USE
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error.
     - forcetypeassert #	finds forced type assertions
     - importas # Enforces consistent import aliases
@@ -187,7 +187,6 @@ linters:
     - gochecksumtype # run exhaustiveness checks on Go "sum types".
     - perfsprint # checks that fmt.Sprintf can be replaced with a faster alternative.
     - spancheck # checks for mistakes with OpenTelemetry/Census spans.
-    - copyloopvar # detects places where loop variables are copied.
     - intrange # find places where for loops could make use of an integer range.
     - fatcontext # detects nested contexts in loops.
     - canonicalheader # checks for canonical header names.
