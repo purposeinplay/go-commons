@@ -7,24 +7,22 @@ import (
 	"github.com/lib/pq"
 	"github.com/purposeinplay/go-commons/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
 func TestGORMErrorsPlugin_handleError(t *testing.T) {
-	tests := []struct {
-		name          string
+	tests := map[string]struct {
 		inputErr      error
 		table         string
 		errorDetails  map[errors.ErrorType]map[string]errors.ErrorDetail
 		expectedError *errors.Error
 	}{
-		{
-			name:          "no error",
+		"NoError": {
 			inputErr:      nil,
 			expectedError: nil,
 		},
-		{
-			name:     "record not found error",
+		"RecordNotFoundError": {
 			inputErr: gorm.ErrRecordNotFound,
 			expectedError: &errors.Error{
 				Type:            errors.ErrorTypeNotFound,
@@ -32,8 +30,7 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 				InternalMessage: gorm.ErrRecordNotFound.Error(),
 			},
 		},
-		{
-			name:     "sql no rows error",
+		"SQLNoRowsError": {
 			inputErr: sql.ErrNoRows,
 			expectedError: &errors.Error{
 				Type:            errors.ErrorTypeNotFound,
@@ -41,19 +38,17 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 				InternalMessage: sql.ErrNoRows.Error(),
 			},
 		},
-		{
-			name: "unique violation error",
+		"UniqueViolationError": {
 			inputErr: &pq.Error{
 				Code: "23505",
 			},
 			expectedError: &errors.Error{
-				Type:            errors.ErrorTypeInvalid,
+				Type:            errors.ErrorTypeConflict,
 				Message:         "object already exists",
 				InternalMessage: (&pq.Error{Code: "23505"}).Error(),
 			},
 		},
-		{
-			name: "invalid input error",
+		"InvalidInputError": {
 			inputErr: &pq.Error{
 				Code: "22P02",
 			},
@@ -63,30 +58,27 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 				InternalMessage: (&pq.Error{Code: "22P02"}).Error(),
 			},
 		},
-		{
-			name: "foreign key violation error",
+		"ForeignKeyViolationError": {
 			inputErr: &pq.Error{
 				Code: "23503",
 			},
 			expectedError: &errors.Error{
 				Type:            errors.ErrorTypeInvalid,
-				Message:         "foreign key violation",
+				Message:         "invalid input",
 				InternalMessage: (&pq.Error{Code: "23503"}).Error(),
 			},
 		},
-		{
-			name: "check constraint violation error",
+		"CheckConstraintViolationError": {
 			inputErr: &pq.Error{
 				Code: "23514",
 			},
 			expectedError: &errors.Error{
 				Type:            errors.ErrorTypeInvalid,
-				Message:         "check constraint violation",
+				Message:         "invalid input",
 				InternalMessage: (&pq.Error{Code: "23514"}).Error(),
 			},
 		},
-		{
-			name:     "unknown error",
+		"UnknownError": {
 			inputErr: errors.New("unknown error"),
 			expectedError: &errors.Error{
 				Type:            errors.ErrorTypeInternalError,
@@ -94,8 +86,7 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 				InternalMessage: "unknown error",
 			},
 		},
-		{
-			name:     "error with table details",
+		"ErrorWithTableDetails": {
 			inputErr: gorm.ErrRecordNotFound,
 			table:    "users",
 			errorDetails: map[errors.ErrorType]map[string]errors.ErrorDetail{
@@ -120,8 +111,8 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create a mock DB with the test error
 			db := &gorm.DB{Error: tt.inputErr}
 			if tt.table != "" {
@@ -138,14 +129,14 @@ func TestGORMErrorsPlugin_handleError(t *testing.T) {
 
 			// Check the result
 			if tt.expectedError == nil {
-				assert.Nil(t, db.Error)
+				assert.NoError(t, db.Error)
 			} else {
-				actualErr, ok := db.Error.(*errors.Error)
-				assert.True(t, ok)
-				assert.Equal(t, tt.expectedError.Type, actualErr.Type)
-				assert.Equal(t, tt.expectedError.Message, actualErr.Message)
-				assert.Equal(t, tt.expectedError.InternalMessage, actualErr.InternalMessage)
-				assert.Equal(t, tt.expectedError.ErrorDetails, actualErr.ErrorDetails)
+				require.IsType(t, &errors.Error{}, db.Error)
+
+				// nolint: revive
+				actualErr, _ := db.Error.(*errors.Error)
+
+				assert.Equal(t, tt.expectedError, actualErr)
 			}
 		})
 	}

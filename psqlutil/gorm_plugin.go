@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Ensure GORMErrorsPlugin implements gorm.Plugin interface
+// Ensure GORMErrorsPlugin implements gorm.Plugin interface.
 var _ gorm.Plugin = (*GORMErrorsPlugin)(nil)
 
 // GORMErrorsPlugin is a plugin for GORM that handles PostgreSQL-specific errors.
@@ -24,14 +24,15 @@ type GORMErrorsPlugin struct {
 
 // PostgreSQL error codes as defined in
 // https://www.postgresql.org/docs/current/errcodes-appendix.html
+// nolint: revive
 const (
-	// errCodeUniqueViolation is returned when a unique constraint is violated (error code 23505)
+	// errCodeUniqueViolation is returned when a unique constraint is violated (error code 23505).
 	errCodeUniqueViolation = pq.ErrorCode("23505")
-	// errCodeInvalidInput is returned when the input syntax is invalid (error code 22P02)
+	// errCodeInvalidInput is returned when the input syntax is invalid (error code 22P02).
 	errCodeInvalidInput = pq.ErrorCode("22P02")
-	// errCodeForeignKeyViolation is returned when a foreign key constraint is violated (error code 23503)
+	// errCodeForeignKeyViolation is returned when a foreign key constraint is violated (error code 23503).
 	errCodeForeignKeyViolation = pq.ErrorCode("23503")
-	// errCodeCheckViolation is returned when a check constraint is violated (error code 23514)
+	// errCodeCheckViolation is returned when a check constraint is violated (error code 23514).
 	errCodeCheckViolation = pq.ErrorCode("23514")
 )
 
@@ -42,7 +43,8 @@ func (GORMErrorsPlugin) Name() string {
 }
 
 // Initialize registers the plugin's error handling callbacks with the GORM db.
-// It adds error handling after all major database operations (create, query, delete, update, row, raw).
+// It adds error handling after all major database operations
+// (create, query, delete, update, row, raw).
 // Returns an error if any callback registration fails.
 func (p GORMErrorsPlugin) Initialize(db *gorm.DB) (err error) {
 	cb := db.Callback()
@@ -88,7 +90,7 @@ func (p GORMErrorsPlugin) handleError(tx *gorm.DB) {
 		txErr.Message = "invalid input"
 
 	case isErrorCode(err, errCodeUniqueViolation):
-		txErr.Type = errors.ErrorTypeUnprocessableContent
+		txErr.Type = errors.ErrorTypeConflict
 		txErr.Message = "object already exists"
 
 	default:
