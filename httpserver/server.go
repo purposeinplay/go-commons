@@ -47,7 +47,7 @@ type Server struct {
 // - Address: ":8080".
 func New(logger *slog.Logger, handler http.Handler, options ...Option) *Server {
 	const (
-		handlerTimeout    = 10 * time.Second
+		handlerTimeout    = 120 * time.Second
 		readHeaderTimeout = 5 * time.Second
 		wiggleRoom        = 200 * time.Millisecond
 		readTimeout       = handlerTimeout + readHeaderTimeout + wiggleRoom
