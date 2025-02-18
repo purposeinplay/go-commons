@@ -22,6 +22,7 @@ func GormOpen(
 	zapLogger *zap.Logger,
 	postgresDSN string,
 	ignoreRecordNotFoundErr bool,
+	errorPlugin GORMErrorsPlugin,
 ) (*gorm.DB, error) {
 	const (
 		connectionAttempts = 5
@@ -53,7 +54,7 @@ func GormOpen(
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	if err := db.Use(GORMErrorsPlugin{}); err != nil {
+	if err := db.Use(errorPlugin); err != nil {
 		return nil, fmt.Errorf("use gorm errors plugin: %w", err)
 	}
 
