@@ -1,5 +1,7 @@
-// Package errors provides a custom error handling system that extends the standard library errors package.
-// It includes support for typed errors with HTTP status code mapping, error codes, and detailed error information.
+// Package errors provides a custom error handling system that extends the
+// standard library errors package.
+// It includes support for typed errors with HTTP status code mapping, error codes,
+// and detailed error information.
 // This package is designed to provide consistent error handling and reporting across applications.
 package errors
 
@@ -17,7 +19,8 @@ var (
 	New  = errors.New
 )
 
-// ErrorType represents a categorical classification of errors that can be mapped to HTTP status codes.
+// ErrorType represents a categorical classification of errors that can be mapped to
+// HTTP status codes.
 // It helps in providing consistent error responses across the application.
 type (
 	ErrorType string
@@ -68,21 +71,21 @@ func (t ErrorType) HTTPStatusInt32Ptr() *int32 {
 // Available error types mapped to their corresponding string representations.
 // These types are designed to align with common HTTP status codes for consistent API responses.
 const (
-	// ErrorTypeInvalid represents validation errors or invalid input
+	// ErrorTypeInvalid represents validation errors or invalid input.
 	ErrorTypeInvalid ErrorType = "invalid"
-	// ErrorTypeNotFound represents resource not found errors
+	// ErrorTypeNotFound represents resource not found errors.
 	ErrorTypeNotFound ErrorType = "not-found"
-	// ErrorTypeConflict represents resource already exists errors
+	// ErrorTypeConflict represents resource already exists errors.
 	ErrorTypeConflict ErrorType = "conflict"
-	// ErrorTypeUnprocessableContent represents semantic errors in the request content
+	// ErrorTypeUnprocessableContent represents semantic errors in the request content.
 	ErrorTypeUnprocessableContent ErrorType = "unprocessable-content"
-	// ErrorTypeUnauthorized represents permission denied errors
+	// ErrorTypeUnauthorized represents permission denied errors.
 	ErrorTypeUnauthorized ErrorType = "unauthorzied"
-	// ErrorTypeUnauthenticated represents authentication failures
+	// ErrorTypeUnauthenticated represents authentication failures.
 	ErrorTypeUnauthenticated ErrorType = "unauthenticated"
-	// ErrorTypeInternalError represents unexpected internal server errors
+	// ErrorTypeInternalError represents unexpected internal server errors.
 	ErrorTypeInternalError ErrorType = "internal-error"
-	// ErrorTypePanic represents errors from recovered panics
+	// ErrorTypePanic represents errors from recovered panics.
 	ErrorTypePanic ErrorType = "panic"
 )
 
@@ -121,6 +124,17 @@ func IsErrorCode(err error, code ErrorCode) bool {
 	var e *Error
 	if errors.As(err, &e) {
 		return e.Code == code
+	}
+
+	return false
+}
+
+// IsErrorDetailCode checks if the error contains a specific ErrorDetailCode.
+func IsErrorDetailCode(err error, code ErrorDetailCode) bool {
+	var e *Error
+
+	if errors.As(err, &e) {
+		return e.ErrorDetails.ContainsErrorCode(code)
 	}
 
 	return false
