@@ -106,7 +106,13 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("type: %s, code: %s, details: %s", e.Type, e.Code, e.Message)
+	return fmt.Sprintf(
+		"type: %s, code: %s, message: %s, internal message: %s",
+		e.Type,
+		e.Code,
+		e.Message,
+		e.InternalMessage,
+	)
 }
 
 // IsErrorType checks if the error is of the given type.
