@@ -177,3 +177,14 @@ func (e ErrorDetails) ContainsErrorCode(code ErrorDetailCode) bool {
 
 	return false
 }
+
+// FirstWithErrorCode returns the first ErrorDetail with the given ErrorDetailCode.
+func (e ErrorDetails) FirstWithErrorCode(code ErrorDetailCode) *ErrorDetail {
+	for _, d := range e {
+		if d.Code == code {
+			return &d
+		}
+	}
+
+	return nil
+}
