@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/getsentry/sentry-go v0.17.0
-	github.com/matryer/is v1.4.0
+	github.com/matryer/is v1.4.1
 )
 
 require (
