@@ -363,7 +363,7 @@ func HandleError(
 
 		_ = errorHandler.ReportError(ctx, errs)
 
-		grpcStatus = status.New(codes.Internal, "internal error.")
+		grpcStatus = status.New(codes.Internal, errs.Error())
 
 	default: // error is not an app error or a context cancelled error.
 		// if the error is a grpc status, forward it, because it was already handled elsewhere.
@@ -374,7 +374,7 @@ func HandleError(
 		}
 
 		// If the error is not an application error and not a grpc status, it's an internal error.
-		grpcStatus = status.New(codes.Internal, "internal error.")
+		grpcStatus = status.New(codes.Internal, targetErr.Error())
 
 		// report the internal error.
 		_ = errorHandler.ReportError(ctx, targetErr)
