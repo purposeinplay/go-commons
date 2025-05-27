@@ -19,7 +19,7 @@ type Publisher struct {
 
 // NewPublisher creates a new kafka publisher.
 func NewPublisher(
-	slogHandler slog.Handler,
+	logger *slog.Logger,
 	saramaConfig *sarama.Config,
 	brokers []string,
 ) (*Publisher, error) {
@@ -39,7 +39,7 @@ func NewPublisher(
 	}
 
 	return &Publisher{
-		logger:       slog.New(slogHandler),
+		logger:       logger.With(slog.String("component", "kafkasarama")),
 		syncProducer: producer,
 	}, nil
 }
@@ -66,6 +66,8 @@ func (p Publisher) Publish(event pubsub.Event[string, []byte], channels ...strin
 	if _, _, err := p.syncProducer.SendMessage(mes); err != nil {
 		return fmt.Errorf("publish: %w", err)
 	}
+
+	p.logger.Debug("published message", slog.String("topic", topic), slog.String("type", event.Type))
 
 	return nil
 }

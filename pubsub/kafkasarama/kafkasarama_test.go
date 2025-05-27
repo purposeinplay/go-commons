@@ -2,18 +2,28 @@ package kafkasarama_test
 
 import (
 	"context"
+	"log"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/pubsub"
-	"github.com/purposeinplay/go-commons/pubsub/kafka"
 	"github.com/purposeinplay/go-commons/pubsub/kafkasarama"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 )
+
+func TestMain(m *testing.M) {
+	if err := godotenv.Load(".env.test"); err != nil {
+		log.Fatalf("failed to load .env.test file: %v", err)
+	}
+
+	m.Run()
+}
 
 func TestPubSub(t *testing.T) {
 	logger := zap.NewExample()
@@ -21,7 +31,7 @@ func TestPubSub(t *testing.T) {
 	// nolint: gocritic, revive
 	is := is.New(t)
 
-	slogHandler := zapslog.NewHandler(logger.Core(), nil)
+	slogLogger := slog.New(zapslog.NewHandler(logger.Core(), nil))
 
 	var (
 		username  = os.Getenv("KAFKA_USERNAME")
@@ -31,7 +41,7 @@ func TestPubSub(t *testing.T) {
 	)
 
 	suber1, err := kafkasarama.NewSubscriber(
-		slogHandler,
+		slogLogger,
 		kafkasarama.NewSASLSubscriberConfig(
 			username,
 			password,
@@ -42,7 +52,7 @@ func TestPubSub(t *testing.T) {
 	is.NoErr(err)
 
 	pub, err := kafkasarama.NewPublisher(
-		slogHandler,
+		slogLogger,
 		kafkasarama.NewSASLPublisherConfig(
 			username,
 			password,
@@ -129,9 +139,13 @@ func TestPubSub(t *testing.T) {
 }
 
 func TestConsumerGroups(t *testing.T) {
-	t.Skip("consumer group is failing at the moment")
+	//t.Skip("consumer group is failing at the moment")
 
-	logger := zap.NewExample()
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+
+	slogLogger.Debug("starting test")
 
 	// nolint: gocritic, revive
 	is := is.New(t)
@@ -140,16 +154,16 @@ func TestConsumerGroups(t *testing.T) {
 		username  = os.Getenv("KAFKA_USERNAME")
 		password  = os.Getenv("KAFKA_PASSWORD")
 		brokerURL = os.Getenv("KAFKA_BROKER_URL")
-		topic     = username + ".consumer"
+		topic     = os.Getenv("KAFKA_TEST_TOPIC")
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	consumerGroup := username + "-consumer"
 
-	suber1, err := kafka.NewSubscriber(
-		logger,
-		kafka.NewSASLSubscriberConfig(
+	suber1, err := kafkasarama.NewSubscriber(
+		slogLogger,
+		kafkasarama.NewSASLSubscriberConfig(
 			username,
 			password,
 		),
@@ -158,10 +172,10 @@ func TestConsumerGroups(t *testing.T) {
 	)
 	is.NoErr(err)
 
-	t.Cleanup(func() { is.NoErr(suber1.Close()) })
-
 	sub1, err := suber1.Subscribe(topic)
 	is.NoErr(err)
+
+	t.Cleanup(func() { is.NoErr(sub1.Close()) })
 
 	var wg sync.WaitGroup
 
@@ -175,14 +189,15 @@ func TestConsumerGroups(t *testing.T) {
 			case mes := <-sub1.C():
 				t.Logf("sub 1: %s", mes.Payload)
 			case <-ctx.Done():
+				t.Log("sub 1: context done")
 				return
 			}
 		}
 	}()
 
-	suber2, err := kafka.NewSubscriber(
-		logger,
-		kafka.NewSASLSubscriberConfig(
+	suber2, err := kafkasarama.NewSubscriber(
+		slogLogger,
+		kafkasarama.NewSASLSubscriberConfig(
 			username,
 			password,
 		),
@@ -191,10 +206,10 @@ func TestConsumerGroups(t *testing.T) {
 	)
 	is.NoErr(err)
 
-	t.Cleanup(func() { is.NoErr(suber2.Close()) })
-
 	sub2, err := suber2.Subscribe(topic)
 	is.NoErr(err)
+
+	t.Cleanup(func() { is.NoErr(sub2.Close()) })
 
 	go func() {
 		defer wg.Done()
@@ -204,14 +219,15 @@ func TestConsumerGroups(t *testing.T) {
 			case mes := <-sub2.C():
 				t.Logf("sub 2: %s", mes.Payload)
 			case <-ctx.Done():
+				t.Log("sub 2: context done")
 				return
 			}
 		}
 	}()
 
-	pub, err := kafka.NewPublisher(
-		logger,
-		kafka.NewSASLPublisherConfig(
+	pub, err := kafkasarama.NewPublisher(
+		slogLogger,
+		kafkasarama.NewSASLPublisherConfig(
 			username,
 			password,
 		),
@@ -223,9 +239,11 @@ func TestConsumerGroups(t *testing.T) {
 
 	err = pub.Publish(pubsub.Event[string, []byte]{
 		Type:    "",
-		Payload: []byte("brad"),
+		Payload: []byte("test"),
 	}, topic)
 	is.NoErr(err)
+
+	t.Logf("published message to topic %s", topic)
 
 	time.Sleep(5 * time.Second)
 
