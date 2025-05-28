@@ -46,24 +46,23 @@ func NewSubscriber(
 }
 
 // Subscribe creates a new subscription that runs in the background.
-func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, []byte], error) {
-	if len(channels) != 1 {
-		return nil, pubsub.ErrExactlyOneChannelAllowed
-	}
-
-	topic := channels[0]
-
-	logger := s.logger.With(slog.String("topic", topic))
+func (s Subscriber) Subscribe(topics ...string) (pubsub.Subscription[string, []byte], error) {
+	logger := s.logger.With(slog.Any("topics", topics))
 
 	switch s.consumerGroup {
 	case "":
+		if len(topics) != 1 {
+			return nil, pubsub.ErrExactlyOneChannelAllowed
+		}
+
+		topic := topics[0]
+
 		consumer, err := sarama.NewConsumer(s.brokers, s.cfg)
 		if err != nil {
 			return nil, fmt.Errorf("new sarama consumer: %w", err)
 		}
 
 		return newConsumerSubscription(logger, consumer, topic)
-
 	default:
 		consumerGroup, err := sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg)
 		if err != nil {
@@ -73,7 +72,7 @@ func (s Subscriber) Subscribe(channels ...string) (pubsub.Subscription[string, [
 		return newConsumerGroupSubscription(
 			logger.With(slog.String("consumer_group", s.consumerGroup)),
 			consumerGroup,
-			topic,
+			topics,
 		)
 	}
 }
@@ -179,6 +178,10 @@ func processMessage(
 		}
 	}
 
+	if typ == "" {
+		typ = m.Topic
+	}
+
 	eventCh <- pubsub.Event[string, []byte]{
 		Type:    typ,
 		Payload: m.Value,
@@ -212,7 +215,7 @@ func (s Subscription) Close() error {
 func newConsumerGroupSubscription(
 	logger *slog.Logger,
 	consumerGroup sarama.ConsumerGroup,
-	topic string,
+	topics []string,
 ) (*Subscription, error) {
 	eventCh := make(chan pubsub.Event[string, []byte])
 
@@ -237,7 +240,7 @@ func newConsumerGroupSubscription(
 		// recreated to get the new claims
 		for {
 			// Consume starts a blocking process that will consume messages.
-			if err := consumerGroup.Consume(ctx, []string{topic}, consumer); err != nil {
+			if err := consumerGroup.Consume(ctx, topics, consumer); err != nil {
 				// If the consumer group is closed, we can exit the loop.
 				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
 					return
