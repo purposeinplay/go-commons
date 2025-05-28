@@ -237,11 +237,11 @@ func newConsumerGroupSubscription(
 		// recreated to get the new claims
 		for {
 			if err := consumerGroup.Consume(ctx, []string{topic}, consumer); err != nil {
-				if !errors.Is(err, sarama.ErrClosedConsumerGroup) {
-					logger.Error("unexpected consume error", slog.String("error", err.Error()))
+				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
+					return
 				}
 
-				return
+				logger.Error("unexpected consume error", slog.String("error", err.Error()))
 			}
 
 			// check if context was cancelled, signaling that the consumer should stop
