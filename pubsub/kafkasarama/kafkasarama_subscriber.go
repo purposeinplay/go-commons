@@ -236,15 +236,20 @@ func newConsumerGroupSubscription(
 		// server-side rebalance happens, the consumer session will need to be
 		// recreated to get the new claims
 		for {
+			// Consume starts a blocking process that will consume messages.
 			if err := consumerGroup.Consume(ctx, []string{topic}, consumer); err != nil {
+				// If the consumer group is closed, we can exit the loop.
 				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
 					return
 				}
 
-				logger.Error("unexpected consume error", slog.String("error", err.Error()))
+				// If the error is not a closed consumer group, we continue and
+				// try to consume again.
 			}
 
-			// check if context was cancelled, signaling that the consumer should stop
+			// If the context is done, we exit the loop, this returns
+			// two errors either context.Canceled or context.DeadlineExceeded
+			// which we can ignore.
 			if ctx.Err() != nil {
 				return
 			}
