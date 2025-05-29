@@ -13,7 +13,7 @@ import (
 	"log"
 )
 
-func initSigNozTracer(
+func InitSigNozTracer(
 	serviceName string,
 	collectorURL string,
 	withTLS bool,
