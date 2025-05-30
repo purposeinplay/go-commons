@@ -8,6 +8,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/lib/pq v1.10.9
+	github.com/orandin/slog-gorm v1.4.0
 	github.com/purposeinplay/go-commons/errors v0.0.9
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0

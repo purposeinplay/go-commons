@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"gorm.io/gorm/logger"
+	"log/slog"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -13,13 +15,25 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"moul.io/zapgorm2"
+	slogGorm "github.com/orandin/slog-gorm"
 )
+
+func NewZapLogger(logger *zap.Logger) logger.Interface {
+	return zapgorm2.New(logger)
+}
+
+func NewSlogLogger(logger *slog.Logger) logger.Interface {
+	return slogGorm.New(slogGorm.WithHandler(logger.Handler()),
+		slogGorm.WithTraceAll(), // trace all messages
+		slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.Level(32)),
+	)
+}
 
 // GormOpen opens a new db connection
 // and returns a *gorm.DB.
 func GormOpen(
 	ctx context.Context,
-	zapLogger *zap.Logger,
+	logger logger.Interface,
 	postgresDSN string,
 	ignoreRecordNotFoundErr bool,
 	errorPlugin *GORMErrorsPlugin,
@@ -30,9 +44,6 @@ func GormOpen(
 	)
 
 	var db *gorm.DB
-
-	logger := zapgorm2.New(zapLogger)
-	logger.IgnoreRecordNotFoundError = ignoreRecordNotFoundErr
 
 	err := retry.Do(func() error {
 		var err error
