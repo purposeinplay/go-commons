@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
@@ -19,6 +21,7 @@ import (
 	"github.com/purposeinplay/go-commons/otel"
 	"github.com/purposeinplay/go-commons/otel/test/graph"
 	"github.com/purposeinplay/go-commons/otel/test/graph/model"
+	"github.com/ravilushqa/otelgqlgen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -34,8 +37,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/test/bufconn"
-	"github.com/99designs/gqlgen/graphql"
-	"github.com/ravilushqa/otelgqlgen"
 )
 
 func TestTracer(t *testing.T) {
@@ -105,6 +106,32 @@ func TestGraphQLIntegration(t *testing.T) {
 	t.Log("starting server")
 
 	err = http.ListenAndServe(":8080", nil)
+	req.ErrorIs(err, http.ErrServerClosed)
+}
+
+func TestHTTPIntegration(t *testing.T) {
+	req := require.New(t)
+
+	ctx := context.Background()
+
+	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		if err := tp.Close(); err != nil {
+			t.Logf("close tracer provider: %s", err)
+		}
+	})
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("hello"))
+	})
+
+	t.Log("starting server")
+
+	err = http.ListenAndServe(":8080", otelhttp.NewHandler(mux, "test-service"))
 	req.ErrorIs(err, http.ErrServerClosed)
 }
 

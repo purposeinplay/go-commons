@@ -2,11 +2,15 @@ package otel
 
 import (
 	"context"
+	"errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
+	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
+	otellog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
@@ -63,5 +67,21 @@ func InitSigNozTracer(
 		),
 	)
 
-	return exporter.Shutdown
+	exp, err := stdoutlog.New()
+	if err != nil {
+		log.Fatalf("Failed to create stdout exporter: %v", err)
+	}
+
+	processor := otellog.NewSimpleProcessor(exp)
+
+	provider := otellog.NewLoggerProvider(
+		otellog.WithProcessor(processor),
+		otellog.WithResource(resources),
+	)
+
+	global.SetLoggerProvider(provider)
+
+	return func(ctx context.Context) error {
+		return errors.Join(provider.Shutdown(ctx), exporter.Shutdown(ctx))
+	}
 }
