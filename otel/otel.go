@@ -4,55 +4,84 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	logembedded "go.opentelemetry.io/otel/log/embedded"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/embedded"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	traceembedded "go.opentelemetry.io/otel/trace/embedded"
 )
 
-var _ trace.TracerProvider = (*TracerProvider)(nil)
+var (
+	_ log.LoggerProvider   = (*TelemetryProvider)(nil)
+	_ trace.TracerProvider = (*TelemetryProvider)(nil)
+)
 
-// TracerProvider is a wrapper around the GRPC OpenTelemetry TracerProvider.
-type TracerProvider struct {
-	embedded.TracerProvider
+// TelemetryProvider is a wrapper around the GRPC OpenTelemetry TelemetryProvider.
+type TelemetryProvider struct {
+	traceembedded.TracerProvider
+	logembedded.LoggerProvider
 
-	conn           *grpc.ClientConn
 	tracerProvider *sdktrace.TracerProvider
+	loggerProvider *sdklog.LoggerProvider
 }
 
 // Init initializes the OpenTelemetry SDK with the OTLP exporter.
 func Init(
 	ctx context.Context,
-	otelCollectorEndpoint string,
+	otlpCollectorEndpoint string,
+	logCollectorEndpoint string,
 	serviceName string,
-) (*TracerProvider, error) {
-	oltpCollectorConn, err := newOTLPCollectorConn(otelCollectorEndpoint)
+	version string,
+) (*TelemetryProvider, error) {
+	traceExporter, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithEndpoint(otlpCollectorEndpoint),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("new otlp collector connection: %w", err)
+		return nil, fmt.Errorf("create trace exporter: %w", err)
 	}
 
-	tracerProvider, err := newTracerProvider(ctx, oltpCollectorConn, serviceName)
+	res, err := resource.New(
+		ctx,
+		resource.WithAttributes(
+			semconv.ServiceName(serviceName),
+			semconv.ServiceVersion(version),
+		),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("new trace provider: %w", err)
+		return nil, fmt.Errorf("create resource: %w", err)
 	}
+
+	const alwaysSampleRatio = 1
+
+	// Create a TelemetryProvider with the traceExporter.
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(
+			sdktrace.ParentBased(
+				sdktrace.TraceIDRatioBased(alwaysSampleRatio),
+			),
+		),
+		sdktrace.WithResource(res),
+		sdktrace.WithBatcher(traceExporter),
+	)
 
 	// report runtime metrics
 	if err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
 		return nil, fmt.Errorf("start runtime instrumentation: %w", err)
 	}
 
-	// Set the global TracerProvider.
+	// Set the global TelemetryProvider.
 	otel.SetTracerProvider(tracerProvider)
 
 	otel.SetTextMapPropagator(
@@ -61,19 +90,40 @@ func Init(
 		),
 	)
 
-	return &TracerProvider{
+	logExproter, err := otlploggrpc.New(
+		context.Background(),
+		otlploggrpc.WithEndpoint(logCollectorEndpoint),
+		otlploggrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create otlp log grpc exporter: %w", err)
+	}
+
+	loggerProvider := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExproter)),
+		sdklog.WithResource(res),
+	)
+
+	global.SetLoggerProvider(loggerProvider)
+
+	return &TelemetryProvider{
 		tracerProvider: tracerProvider,
-		conn:           oltpCollectorConn,
+		loggerProvider: loggerProvider,
 	}, nil
 }
 
 // Tracer returns a named tracer.
-func (t *TracerProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
+func (t *TelemetryProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
 	return t.tracerProvider.Tracer(name, options...)
 }
 
-// Close closes the TracerProvider and the GRPC Conn.
-func (t *TracerProvider) Close() error {
+// Logger creates and returns a named logger with optional configuration options.
+func (t *TelemetryProvider) Logger(name string, opts ...log.LoggerOption) log.Logger {
+	return t.loggerProvider.Logger(name, opts...)
+}
+
+// Close closes the TelemetryProvider and the GRPC Conn.
+func (t *TelemetryProvider) Close() error {
 	var errs error
 
 	const timeout = 10 * time.Second
@@ -85,87 +135,9 @@ func (t *TracerProvider) Close() error {
 		errs = errors.Join(errs, fmt.Errorf("shutdown tracer provider: %w", err))
 	}
 
-	if err := t.conn.Close(); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("close connection: %w", err))
+	if err := t.loggerProvider.Shutdown(timeoutCtx); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("shutdown logger provider: %w", err))
 	}
 
 	return errs
-}
-
-func newOTLPCollectorConn(
-	otlpCollectorEndpoint string,
-) (*grpc.ClientConn, error) {
-	conn, err := grpc.NewClient(
-		otlpCollectorEndpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create new grpc client: %w", err)
-	}
-
-	return conn, err
-}
-
-func newTracerProvider(
-	ctx context.Context,
-	otlpCollectorConn *grpc.ClientConn,
-	serviceName string,
-) (*sdktrace.TracerProvider, error) {
-	var (
-		exporter *otlptrace.Exporter
-		res      *resource.Resource
-	)
-
-	eg, egCtx := errgroup.WithContext(ctx)
-
-	eg.Go(func() error {
-		e, err := otlptracegrpc.New(
-			egCtx,
-			otlptracegrpc.WithGRPCConn(otlpCollectorConn),
-		)
-		if err != nil {
-			return fmt.Errorf("create trace exporter: %w", err)
-		}
-
-		exporter = e
-
-		return nil
-	})
-
-	eg.Go(func() error {
-		// Create resource, which describes the service that will generate traces.
-		r, err := resource.New(
-			egCtx,
-			resource.WithAttributes(
-				// the service name used to display traces in backends
-				semconv.ServiceNameKey.String(serviceName),
-			),
-		)
-		if err != nil {
-			return fmt.Errorf("create resource: %w", err)
-		}
-
-		res = r
-
-		return nil
-	})
-
-	if err := eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	const alwaysSampleRatio = 1
-
-	// Create a TracerProvider with the exporter.
-	traceProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(
-			sdktrace.ParentBased(
-				sdktrace.TraceIDRatioBased(alwaysSampleRatio),
-			),
-		),
-		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter)),
-	)
-
-	return traceProvider, nil
 }
