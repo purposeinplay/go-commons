@@ -47,6 +47,7 @@ func Init(
 	traceExporter, err := otlptracegrpc.New(
 		ctx,
 		otlptracegrpc.WithEndpoint(otlpCollectorEndpoint),
+		otlptracegrpc.WithInsecure(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create trace exporter: %w", err)
