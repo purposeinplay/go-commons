@@ -11,11 +11,11 @@ import (
 	"github.com/avast/retry-go"
 	// import for init function.
 	_ "github.com/jackc/pgx/v5/stdlib"
+	slogGorm "github.com/orandin/slog-gorm"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"moul.io/zapgorm2"
-	slogGorm "github.com/orandin/slog-gorm"
 )
 
 func NewZapLogger(logger *zap.Logger) logger.Interface {
@@ -25,7 +25,7 @@ func NewZapLogger(logger *zap.Logger) logger.Interface {
 func NewSlogLogger(logger *slog.Logger) logger.Interface {
 	return slogGorm.New(slogGorm.WithHandler(logger.Handler()),
 		slogGorm.WithTraceAll(), // trace all messages
-		slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.Level(32)),
+		slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
 	)
 }
 
