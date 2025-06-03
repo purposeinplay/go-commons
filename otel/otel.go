@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.0"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
@@ -17,7 +19,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 	traceembedded "go.opentelemetry.io/otel/trace/embedded"
 )
@@ -36,12 +37,19 @@ type TelemetryProvider struct {
 	loggerProvider *sdklog.LoggerProvider
 }
 
+func BaseAttributes(serviceName, serviceNamespace, version string) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		semconv.ServiceName(serviceName),
+		semconv.ServiceNamespace(serviceNamespace),
+		semconv.ServiceVersion(version),
+	}
+}
+
 // Init initializes the OpenTelemetry SDK with the OTLP exporter.
 func Init(
 	ctx context.Context,
 	otelCollectorEndpoint string,
-	serviceName string,
-	version string,
+	attributes ...attribute.KeyValue,
 ) (*TelemetryProvider, error) {
 	traceExporter, err := otlptracegrpc.New(
 		ctx,
@@ -55,8 +63,7 @@ func Init(
 	res, err := resource.New(
 		ctx,
 		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(version),
+			attributes...,
 		),
 	)
 	if err != nil {
