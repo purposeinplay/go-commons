@@ -39,14 +39,13 @@ type TelemetryProvider struct {
 // Init initializes the OpenTelemetry SDK with the OTLP exporter.
 func Init(
 	ctx context.Context,
-	otlpCollectorEndpoint string,
-	logCollectorEndpoint string,
+	otelCollectorEndpoint string,
 	serviceName string,
 	version string,
 ) (*TelemetryProvider, error) {
 	traceExporter, err := otlptracegrpc.New(
 		ctx,
-		otlptracegrpc.WithEndpoint(otlpCollectorEndpoint),
+		otlptracegrpc.WithEndpoint(otelCollectorEndpoint),
 		otlptracegrpc.WithInsecure(),
 	)
 	if err != nil {
@@ -93,7 +92,7 @@ func Init(
 
 	logExproter, err := otlploggrpc.New(
 		context.Background(),
-		otlploggrpc.WithEndpoint(logCollectorEndpoint),
+		otlploggrpc.WithEndpoint(otelCollectorEndpoint),
 		otlploggrpc.WithInsecure(),
 	)
 	if err != nil {
