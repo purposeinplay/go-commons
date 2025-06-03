@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/purposeinplay/go-commons/pubsub"
+	"github.com/dnwe/otelsarama"
 	"log/slog"
 	"sync"
 )
@@ -62,7 +63,7 @@ func (s Subscriber) Subscribe(topics ...string) (pubsub.Subscription[string, []b
 			return nil, fmt.Errorf("new sarama consumer: %w", err)
 		}
 
-		return newConsumerSubscription(logger, consumer, topic)
+		return newConsumerSubscription(logger, otelsarama.WrapConsumer(consumer), topic)
 	default:
 		consumerGroup, err := sarama.NewConsumerGroup(s.brokers, s.consumerGroup, s.cfg)
 		if err != nil {
@@ -240,7 +241,11 @@ func newConsumerGroupSubscription(
 		// recreated to get the new claims
 		for {
 			// Consume starts a blocking process that will consume messages.
-			if err := consumerGroup.Consume(ctx, topics, consumer); err != nil {
+			if err := consumerGroup.Consume(
+				ctx,
+				topics,
+				otelsarama.WrapConsumerGroupHandler(consumer),
+			); err != nil {
 				// If the consumer group is closed, we can exit the loop.
 				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
 					return

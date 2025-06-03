@@ -2,6 +2,7 @@ package kafkasarama
 
 import (
 	"fmt"
+	"github.com/dnwe/otelsarama"
 	"log/slog"
 	"time"
 
@@ -38,9 +39,11 @@ func NewPublisher(
 		return nil, fmt.Errorf("new kafka publisher: %w", err)
 	}
 
+	p := otelsarama.WrapSyncProducer(cfg, producer)
+
 	return &Publisher{
 		logger:       logger.With(slog.String("component", "kafkasarama")),
-		syncProducer: producer,
+		syncProducer: p,
 	}, nil
 }
 

@@ -8,6 +8,7 @@ require (
 	github.com/IBM/sarama v1.45.1
 	github.com/ThreeDotsLabs/watermill v1.4.0
 	github.com/ThreeDotsLabs/watermill-kafka/v3 v3.0.5
+	github.com/dnwe/otelsarama v0.0.0-20240308230250-9388d9d40bc0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/matryer/is v1.4.1
@@ -18,7 +19,6 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dnwe/otelsarama v0.0.0-20240308230250-9388d9d40bc0 // indirect
 	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
