@@ -5,12 +5,8 @@ option go_package = "github.com/purposeinplay/go-commons/errors/proto/commons/er
 
 // Data returned in the Error Details.
 message ErrorResponse {
-  enum ErrorCode {
-    ERROR_CODE_UNSPECIFIED = 0;
-  }
-
-  // An enum value that indicates which error occurred.
-  ErrorCode error_code = 1;
+  // The application error code
+  string error_code = 1;
 
   // A field containing extra details about the error.
   string message = 2;
