@@ -36,7 +36,7 @@ type ErrorReporter struct {
 //   - err: The error to report (must not be nil)
 //
 // The function is safe to call even when tracing is not configured.
-func (r *ErrorReporter) ReportError(ctx context.Context, err error) {
+func (r ErrorReporter) ReportError(ctx context.Context, err error) {
 	if err == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func (r *ErrorReporter) ReportError(ctx context.Context, err error) {
 
 // recordErrorInSpan handles the OpenTelemetry span operations for error reporting.
 // It will either use an existing active span or create a new one if a TraceProvider is available.
-func (r *ErrorReporter) recordErrorInSpan(ctx context.Context, err error) {
+func (r ErrorReporter) recordErrorInSpan(ctx context.Context, err error) {
 	span := trace.SpanFromContext(ctx)
 
 	// Check if we have a valid active span
@@ -91,7 +91,7 @@ const scopeName = "github.com/purposeinplay/go-commons/otel"
 
 // newTracer creates a new OpenTelemetry tracer using the configured TraceProvider.
 // This is a helper method to encapsulate tracer creation with the correct scope.
-func (r *ErrorReporter) newTracer() trace.Tracer {
+func (r ErrorReporter) newTracer() trace.Tracer {
 	return r.TraceProvider.Tracer(scopeName)
 }
 
