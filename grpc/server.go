@@ -3,11 +3,11 @@ package grpc
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/oklog/run"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -137,7 +137,7 @@ func (s *Server) ListenAndServe() error {
 func (s *Server) runGRPCServer() error {
 	s.logDebug(
 		"starting gRPC server",
-		zap.String(
+		slog.String(
 			"address",
 			s.grpcServer.addr(),
 		),
@@ -156,7 +156,7 @@ func (s *Server) closeGRPCServer() error {
 func (s *Server) runGatewayServer() error {
 	s.logDebug(
 		"starting gRPC gateway server for HTTP requests",
-		zap.String(
+		slog.String(
 			"address",
 			s.gatewayServer.addr(),
 		),
@@ -200,10 +200,10 @@ func (s *Server) Close() error {
 	return nil
 }
 
-func (s *Server) logDebug(msg string, fields ...zap.Field) {
+func (s *Server) logDebug(msg string, args ...any) {
 	if s.logging == nil {
 		return
 	}
 
-	s.logging.logger.Debug(msg, fields...)
+	s.logging.logger.Debug(msg, args...)
 }

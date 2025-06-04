@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path"
@@ -18,7 +19,6 @@ import (
 	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -214,13 +214,13 @@ func prependDebugInterceptor(
 				requestID = uuid.Nil.String()
 			}
 
-			loggingFields := []zap.Field{
-				zap.String("trace_id", requestID),
-				zap.String("method", method),
+			loggingFields := []any{
+				slog.String("trace_id", requestID),
+				slog.String("method", method),
 			}
 
 			if logging.logRequest {
-				loggingFields = append(loggingFields, zap.Any("request", req))
+				loggingFields = append(loggingFields, slog.Any("request", req))
 			}
 
 			logging.logger.Debug(
@@ -235,12 +235,12 @@ func prependDebugInterceptor(
 			if err != nil {
 				logging.logger.Debug(
 					"request completed with error",
-					zap.String("trace_id", requestID),
-					zap.String("method", method),
-					zap.Error(err),
-					zap.String("error dump", spew.Sdump(err)),
-					zap.String("code", code.String()),
-					zap.Duration("duration", time.Since(start)),
+					slog.String("trace_id", requestID),
+					slog.String("method", method),
+					"error", err,
+					slog.String("error dump", spew.Sdump(err)),
+					slog.String("code", code.String()),
+					"duration", time.Since(start),
 				)
 
 				return resp, err
@@ -248,11 +248,11 @@ func prependDebugInterceptor(
 
 			logging.logger.Debug(
 				"request completed successfully",
-				zap.String("trace_id", requestID),
-				zap.String("method", method),
-				zap.String("code", code.String()),
-				zap.Duration("duration", time.Since(start)),
-				zap.Any("response", resp),
+				slog.String("trace_id", requestID),
+				slog.String("method", method),
+				slog.String("code", code.String()),
+				"duration", time.Since(start),
+				slog.Any("response", resp),
 			)
 
 			return resp, err

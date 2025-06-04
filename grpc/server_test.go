@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
 	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
 	"github.com/purposeinplay/go-commons/grpc/test_data/mock"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -40,7 +40,7 @@ func TestGateway(t *testing.T) {
 		header := "test"
 
 		grpcServer, err := commonsgrpc.NewServer(
-			commonsgrpc.WithDebug(zap.NewExample(), true),
+			commonsgrpc.WithDebug(slog.Default(), true),
 			commonsgrpc.WithMuxOptions([]runtime.ServeMuxOption{
 				runtime.WithErrorHandler(func(
 					_ context.Context,
@@ -303,7 +303,7 @@ func TestBufnet(t *testing.T) {
 
 	grpcServer, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithDebug(slog.Default(), true),
 	)
 	i.NoErr(err)
 
@@ -618,7 +618,7 @@ func newBufnetServer(
 
 	opts := []commonsgrpc.ServerOption{
 		commonsgrpc.WithGRPCListener(lis),
-		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithDebug(slog.Default(), true),
 	}
 
 	if greeter != nil {

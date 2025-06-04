@@ -2,22 +2,21 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+	grpclogging "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // A ServerOption sets options such as credentials,
@@ -49,7 +48,7 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 }
 
 type logging struct {
-	logger         *zap.Logger
+	logger         *slog.Logger
 	ignoredMethods []string
 	logRequest     bool
 }
@@ -155,7 +154,7 @@ func WithNoGateway() ServerOption {
 }
 
 // WithDebug enables logging for the servers.
-func WithDebug(logger *zap.Logger, logRequest bool, ignoredMethods ...string) ServerOption {
+func WithDebug(logger *slog.Logger, logRequest bool, ignoredMethods ...string) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.logging = &logging{
 			logger:         logger,
@@ -167,21 +166,20 @@ func WithDebug(logger *zap.Logger, logRequest bool, ignoredMethods ...string) Se
 
 // WithUnaryServerInterceptorLogger adds an interceptor to the GRPC server
 // that adds the given zap.Logger to the context.
-func WithUnaryServerInterceptorLogger(logger *zap.Logger) ServerOption {
+func WithUnaryServerInterceptorLogger(logger *slog.Logger) ServerOption {
 	return newFuncServerOption(func(o *serverOptions) {
 		o.unaryServerInterceptors = append(
 			o.unaryServerInterceptors,
-			func(
-				ctx context.Context,
-				req any,
-				info *grpc.UnaryServerInfo,
-				handler grpc.UnaryHandler,
-			) (resp any, err error) {
-
-				return grpc_zap.UnaryServerInterceptor(
-					logger.With(zap.String("trace_id", trace.SpanFromContext(ctx).SpanContext().TraceID().String())),
-				)(ctx, req, info, handler)
-			},
+			grpclogging.UnaryServerInterceptor(
+				grpclogging.LoggerFunc(func(
+					ctx context.Context,
+					_ grpclogging.Level,
+					msg string,
+					fields ...any,
+				) {
+					logger.DebugContext(ctx, msg, fields...)
+				}),
+			),
 		)
 	})
 }
