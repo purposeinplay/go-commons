@@ -7,6 +7,7 @@ import (
 	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/purposeinplay/go-commons/errors"
 	commonserr "github.com/purposeinplay/go-commons/errors/proto/commons/error/v1"
+	"github.com/purposeinplay/go-commons/grpc/grpcutils"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
@@ -32,6 +33,7 @@ func NewSimpleServer(
 				filters.MethodName("Check"),
 				filters.MethodName("Healthcheck"),
 			))),
+		WithUnaryServerInterceptor(grpcutils.PassRequestIDUnaryInterceptor()),
 		WithUnaryServerInterceptor(errorHandlerUnaryServerInterceptor(errorReporter)),
 		WithUnaryServerInterceptor(grpcrecovery.UnaryServerInterceptor(
 			grpcrecovery.WithRecoveryHandler(func(
