@@ -31,7 +31,7 @@ func (s *server) SayHello(context.Context, *pb.HelloRequest) (*pb.HelloReply, er
 	sts := status.New(codes.NotFound, errors.ErrorTypeNotFound.String())
 
 	sts, err := sts.WithDetails(proto.MessageV1(&commonserr.ErrorResponse{
-		ErrorCode: 1,
+		ErrorCode: "1",
 		Message:   "not found",
 	}))
 	if err != nil {

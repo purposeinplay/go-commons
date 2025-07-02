@@ -32,7 +32,7 @@ func TestRetrieveDetails(t *testing.T) {
 	req.True(
 		proto.Equal(
 			&commonserr.ErrorResponse{
-				ErrorCode: 1,
+				ErrorCode: "1",
 				Message:   "message",
 			},
 			details,

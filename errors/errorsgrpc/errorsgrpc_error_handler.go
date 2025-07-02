@@ -3,13 +3,13 @@ package errorsgrpc
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	// nolint: staticcheck
+	"log/slog"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/purposeinplay/go-commons/errors"
 	commonserr "github.com/purposeinplay/go-commons/errors/proto/commons/error/v1"
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,14 +23,14 @@ type ReportErrorer interface {
 type PanicErrorHandler struct {
 	reportErrorer ReportErrorer
 
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
 // MustNewPanicErrorHandler creates an initialized PanicErrorHandler.
 // Panics if invalid data is passed.
 func MustNewPanicErrorHandler(
 	reportErrorer ReportErrorer,
-	logger *zap.Logger,
+	logger *slog.Logger,
 ) PanicErrorHandler {
 	if reportErrorer == nil {
 		panic("nil error reporter")
@@ -48,17 +48,14 @@ func MustNewPanicErrorHandler(
 
 // LogError logs an error to STDERR.
 func (h PanicErrorHandler) LogError(err error) {
-	h.logger.Error("grpc handler encountered an error", zap.Error(err))
+	h.logger.Error("grpc handler encountered an error", "error", err)
 }
 
 // LogPanic logs a panic to STDERR.
 func (h PanicErrorHandler) LogPanic(p any) {
-	const skipNumberOfFrames = 7
-
 	h.logger.Error(
 		"grpc handler encountered a panic",
-		zap.Any("cause", p),
-		zap.StackSkip("stack", skipNumberOfFrames),
+		"cause", p,
 	)
 }
 
@@ -137,11 +134,9 @@ func (h PanicErrorHandler) ReportError(
 }
 
 func errorToErrorResponse(err *errors.Error) *commonserr.ErrorResponse {
-	c, _ := strconv.Atoi(err.Code.String())
-
 	return &commonserr.ErrorResponse{
 		//nolint:gosec // disable G115
-		ErrorCode: commonserr.ErrorResponse_ErrorCode(c),
+		ErrorCode: err.Code.String(),
 		Message:   err.Message,
 	}
 }
