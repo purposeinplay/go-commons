@@ -3,8 +3,9 @@ package otel
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
 	"log/slog"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -24,7 +25,7 @@ type ErrorReporter struct {
 }
 
 // ReportError reports an error using both structured logging and OpenTelemetry tracing.
-// 
+//
 // The function will:
 //   - Always log the error using the structured logger
 //   - Record the error in an OpenTelemetry span if tracing is available
@@ -43,7 +44,10 @@ func (r ErrorReporter) ReportError(ctx context.Context, err error) {
 
 	if r.Logger == nil {
 		// Use the default logger if the provided logger is nil.
-		slog.Error("internal error: logger is nil, cannot report error", slog.Any("error", err))
+		slog.Error(
+			"internal error: logger is nil, cannot report error",
+			slog.Any("error", err),
+		)
 		return
 	}
 
@@ -99,12 +103,12 @@ func (r ErrorReporter) newTracer() trace.Tracer {
 //
 //   func main() {
 //       logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-//       
+//
 //       // Initialize OpenTelemetry trace provider (implementation details omitted)
 //       traceProvider := initTraceProvider()
-//       
+//
 //       reporter := &otel.ErrorReporter{Logger: logger, TraceProvider: traceProvider}
-//       
+//
 //       ctx := context.Background()
 //       err = someOperation()
 //       if err != nil {
