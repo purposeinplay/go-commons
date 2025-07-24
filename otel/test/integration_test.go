@@ -32,7 +32,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.0"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -93,7 +93,11 @@ func TestGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -121,7 +125,11 @@ func TestHTTPIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -147,7 +155,11 @@ func TestGRPCIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -288,7 +300,11 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() { tp.Close() })
