@@ -60,11 +60,6 @@ func (le *LeaderElection) IsLeader(ctx context.Context) (bool, error) {
 	}
 
 	if !isLeader {
-		le.logger.DebugContext(
-			ctx,
-			"not elected as leader, another instance holds the lock",
-		)
-
 		return false, nil
 	}
 
