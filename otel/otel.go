@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -97,7 +98,7 @@ func Init(
 		),
 	)
 
-	logExproter, err := otlploggrpc.New(
+	otelLogExporter, err := otlploggrpc.New(
 		context.Background(),
 		otlploggrpc.WithEndpoint(otelCollectorEndpoint),
 		otlploggrpc.WithInsecure(),
@@ -106,8 +107,14 @@ func Init(
 		return nil, fmt.Errorf("create otlp log grpc exporter: %w", err)
 	}
 
+	stdoutLogExporter, err := stdoutlog.New(stdoutlog.WithPrettyPrint())
+	if err != nil {
+		return nil, fmt.Errorf("create stdout log exporter: %w", err)
+	}
+
 	loggerProvider := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExproter)),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(otelLogExporter)),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(stdoutLogExporter)),
 		sdklog.WithResource(res),
 	)
 

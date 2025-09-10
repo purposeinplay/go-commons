@@ -16,8 +16,12 @@ func TestLogLevel(t *testing.T) {
 	exp, err := stdoutlog.New()
 	req.NoError(err)
 
+	stdoutExporter, err := stdoutlog.New()
+	req.NoError(err)
+
 	loggerProvider := sdklog.NewLoggerProvider(
 		sdklog.WithProcessor(sdklog.NewBatchProcessor(exp)),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(stdoutExporter)),
 	)
 
 	t.Cleanup(func() {

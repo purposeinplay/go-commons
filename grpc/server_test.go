@@ -16,8 +16,10 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/matryer/is"
+	commonserr "github.com/purposeinplay/go-commons/errors/proto/commons/error/v1"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
 	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
@@ -587,6 +589,16 @@ func (s *greeterService) Greet(
 	return &greetpb.GreetResponse{
 		Result: res,
 	}, nil
+}
+
+func TestMessage(t *testing.T) {
+	grpcStatus := status.New(codes.NotFound, "err")
+	grpcStatus, _ = grpcStatus.WithDetails(
+		proto.MessageV1(
+			&commonserr.ErrorResponse{
+				ErrorCode: "cpode",
+				Message:   "mes",
+			}))
 }
 
 // nolint: contextcheck // no need to pass context here.

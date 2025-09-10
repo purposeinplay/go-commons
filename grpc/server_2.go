@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log/slog"
+
 	"github.com/golang/protobuf/proto"
 	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/purposeinplay/go-commons/errors"
@@ -13,7 +15,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log/slog"
 )
 
 // ErrorReporter is the interface that wraps the ReportError method.
@@ -97,10 +98,11 @@ func errorHandlerUnaryServerInterceptor(
 			grpcStatus = status.New(code, appError.Type.String())
 
 			grpcStatus, _ = grpcStatus.WithDetails(
-				proto.MessageV1(commonserr.ErrorResponse{
-					ErrorCode: appError.Code.String(),
-					Message:   appError.Message,
-				}))
+				proto.MessageV1(
+					&commonserr.ErrorResponse{
+						ErrorCode: appError.Code.String(),
+						Message:   appError.Message,
+					}))
 		} else {
 			grpcStatus = status.New(codes.Internal, err.Error())
 

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/IBM/sarama"
-	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/dnwe/otelsarama"
+	"github.com/purposeinplay/go-commons/pubsub"
 	"log/slog"
 	"sync"
 )
