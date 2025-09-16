@@ -3,7 +3,7 @@ module github.com/purposeinplay/go-commons/psqltest
 go 1.17
 
 require (
-	github.com/DATA-DOG/go-txdb v0.1.5
+	github.com/DATA-DOG/go-txdb v0.1.6
 	github.com/romanyx/polluter v1.2.2
 )
 
