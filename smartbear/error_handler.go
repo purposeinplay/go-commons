@@ -3,9 +3,11 @@ package smartbear
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -40,6 +42,7 @@ func (e ErrorHandler) WriteErrorResponse(
 		appError         *errors.Error                // Type for application-specific errors
 		validationErrors validator.ValidationErrors   // Type for validation errors
 		requestError     *openapi3filter.RequestError // Type for openapi3filter request errors
+		timeErr          *time.ParseError             // Type for time related errors
 
 		response = ProblemDetails{ // Default to internal server error
 			Title:  "Internal Server Error",
@@ -79,6 +82,35 @@ func (e ErrorHandler) WriteErrorResponse(
 
 	// Process different error types in order of specificity
 	switch {
+	case errors.As(targetErr, &timeErr):
+		response = ProblemDetails{
+			Title:  http.StatusText(http.StatusBadRequest),
+			Status: ptr.To(int32(http.StatusBadRequest)),
+			Code:   &ValidationFailed,
+			Detail: ptr.To("Invalid date"),
+			Errors: &Errors{
+				{
+					Code:    &InvalidInput,
+					Detail:  "invalid date",
+					Pointer: ptr.To(timeErr.Value),
+				},
+			},
+		}
+
+	case isJSONError(targetErr):
+		response = ProblemDetails{
+			Title:  http.StatusText(http.StatusBadRequest),
+			Status: ptr.To(int32(http.StatusBadRequest)),
+			Code:   &ValidationFailed,
+			Detail: ptr.To("Invalid JSON"),
+			Errors: &Errors{
+				{
+					Code:   &InvalidInput,
+					Detail: fmt.Sprintf("JSON error: %v", targetErr),
+				},
+			},
+		}
+
 	case errors.As(targetErr, &requestError):
 		r := e.handleOpenAPI3Err(requestError)
 		if r == nil {
@@ -165,4 +197,16 @@ func (ErrorHandler) handleOpenAPI3Err(
 
 		return &pb
 	}
+}
+
+func isJSONError(err error) bool {
+	var (
+		syntaxErr    *json.SyntaxError
+		unmarshalErr *json.UnmarshalTypeError
+		invalidErr   *json.InvalidUnmarshalError
+	)
+
+	return errors.As(err, &syntaxErr) ||
+		errors.As(err, &unmarshalErr) ||
+		errors.As(err, &invalidErr)
 }
