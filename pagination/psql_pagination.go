@@ -129,12 +129,13 @@ func queryItems[T Tabler](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	pagSession := ses.Session(&gorm.Session{})
 
 	if pagination.First == nil && pagination.Last == nil {
-		pagSession = pagSession.Order("created_at DESC")
+		pagSession = pagSession.Order(fmt.Sprintf("%s.created_at DESC, %s.id DESC", table, table))
 
 		if pagination.afterCursor != nil {
 			pagSession = pagSession.Where(
-				fmt.Sprintf("%s.created_at < ?", table),
+				fmt.Sprintf("(%s.created_at, %s.id) < (?, ?)", table, table),
 				pagination.afterCursor.CreatedAt,
+				pagination.afterCursor.ID,
 			)
 		}
 
@@ -146,13 +147,14 @@ func queryItems[T Tabler](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	// First/After
 	if pagination.First != nil {
 		pagSession = pagSession.Order(
-			fmt.Sprintf("%s.created_at DESC", table),
+			fmt.Sprintf("%s.created_at DESC, %s.id DESC", table, table),
 		).Limit(*pagination.First)
 
 		if pagination.afterCursor != nil {
 			pagSession = pagSession.Where(
-				fmt.Sprintf("%s.created_at < ?", table),
+				fmt.Sprintf("(%s.created_at, %s.id) < (?, ?)", table, table),
 				pagination.afterCursor.CreatedAt,
+				pagination.afterCursor.ID,
 			)
 		}
 
@@ -164,13 +166,14 @@ func queryItems[T Tabler](ses *gorm.DB, pagination Arguments) ([]T, error) {
 	// Last/Before
 	if pagination.Last != nil {
 		pagSession = pagSession.Order(
-			fmt.Sprintf("%s.created_at ASC", table),
+			fmt.Sprintf("%s.created_at ASC, %s.id ASC", table, table),
 		).Limit(*pagination.Last)
 
 		if pagination.beforeCursor != nil {
 			pagSession = pagSession.Where(
-				fmt.Sprintf("%s.created_at > ?", table),
+				fmt.Sprintf("(%s.created_at, %s.id) > (?, ?)", table, table),
 				pagination.beforeCursor.CreatedAt,
+				pagination.beforeCursor.ID,
 			)
 		}
 
@@ -197,19 +200,31 @@ func getPageInfo[T Tabler](
 	return getBackwardPaginationPageInfo[T](db, pagination, startCursor)
 }
 
-func hasNextPage[T Tabler](ses *gorm.DB, createdAt time.Time) (bool, error) {
+func hasNextPage[T Tabler](ses *gorm.DB, createdAt time.Time, id string) (bool, error) {
 	var model T
-	condition := fmt.Sprintf("%s.created_at < ?", model.TableName())
-	return hasMoreItems[T](ses, condition, createdAt)
+	table := model.TableName()
+
+	if id == "" {
+		return hasMoreItemsByTime[T](ses, fmt.Sprintf("%s.created_at < ?", table), createdAt)
+	}
+
+	condition := fmt.Sprintf("(%s.created_at, %s.id) < (?, ?)", table, table)
+	return hasMoreItems[T](ses, condition, createdAt, id)
 }
 
-func hasPreviousPage[T Tabler](ses *gorm.DB, createdAt time.Time) (bool, error) {
+func hasPreviousPage[T Tabler](ses *gorm.DB, createdAt time.Time, id string) (bool, error) {
 	var model T
-	condition := fmt.Sprintf("%s.created_at > ?", model.TableName())
-	return hasMoreItems[T](ses, condition, createdAt)
+	table := model.TableName()
+
+	if id == "" {
+		return hasMoreItemsByTime[T](ses, fmt.Sprintf("%s.created_at > ?", table), createdAt)
+	}
+
+	condition := fmt.Sprintf("(%s.created_at, %s.id) > (?, ?)", table, table)
+	return hasMoreItems[T](ses, condition, createdAt, id)
 }
 
-func hasMoreItems[T Tabler](ses *gorm.DB, condition string, createdAt time.Time) (bool, error) {
+func hasMoreItemsByTime[T Tabler](ses *gorm.DB, condition string, createdAt time.Time) (bool, error) {
 	var model T
 	var result bool
 
@@ -219,11 +234,22 @@ func hasMoreItems[T Tabler](ses *gorm.DB, condition string, createdAt time.Time)
 		Where(condition, createdAt).
 		Limit(1).
 		Find(&result).Error
-	if err != nil {
-		return result, err
-	}
 
-	return result, nil
+	return result, err
+}
+
+func hasMoreItems[T Tabler](ses *gorm.DB, condition string, createdAt time.Time, id string) (bool, error) {
+	var model T
+	var result bool
+
+	err := ses.Session(&gorm.Session{}).
+		Model(model).
+		Select("1").
+		Where(condition, createdAt, id).
+		Limit(1).
+		Find(&result).Error
+
+	return result, err
 }
 
 func getForwardPaginationPageInfo[T Tabler](
@@ -232,12 +258,15 @@ func getForwardPaginationPageInfo[T Tabler](
 	endCursor *Cursor,
 ) (PageInfo, error) {
 	createdAt := time.Now()
+	id := ""
 
 	if endCursor != nil {
 		createdAt = endCursor.CreatedAt
+		id = endCursor.ID
 	} else if pagination.afterCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.afterCursor.CreatedAt
+		id = pagination.afterCursor.ID
 	}
 
 	var (
@@ -245,7 +274,7 @@ func getForwardPaginationPageInfo[T Tabler](
 		err      error
 	)
 
-	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt)
+	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt, id)
 	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
@@ -255,7 +284,7 @@ func getForwardPaginationPageInfo[T Tabler](
 		return pageInfo, nil
 	}
 
-	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt)
+	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt, id)
 	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for forward pagination: %w", err)
 	}
@@ -268,13 +297,18 @@ func getBackwardPaginationPageInfo[T Tabler](
 	pagination Arguments,
 	startCursor *Cursor,
 ) (PageInfo, error) {
-	var createdAt time.Time
+	var (
+		createdAt time.Time
+		id        string
+	)
 
 	if startCursor != nil {
 		createdAt = startCursor.CreatedAt
+		id = startCursor.ID
 	} else if pagination.beforeCursor != nil {
 		// Case where zero items are fetched but with a cursor.
 		createdAt = pagination.beforeCursor.CreatedAt
+		id = pagination.beforeCursor.ID
 	}
 
 	var (
@@ -282,7 +316,7 @@ func getBackwardPaginationPageInfo[T Tabler](
 		err      error
 	)
 
-	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt)
+	pageInfo.HasPreviousPage, err = hasPreviousPage[T](db, createdAt, id)
 	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}
@@ -292,7 +326,7 @@ func getBackwardPaginationPageInfo[T Tabler](
 		return pageInfo, nil
 	}
 
-	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt)
+	pageInfo.HasNextPage, err = hasNextPage[T](db, createdAt, id)
 	if err != nil {
 		return PageInfo{}, fmt.Errorf("existence check for backward pagination: %w", err)
 	}

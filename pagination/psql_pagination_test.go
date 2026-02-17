@@ -428,6 +428,90 @@ func TestListPSQLPaginatedItemsWithWhereCondtion(t *testing.T) {
 	})
 }
 
+func TestListPSQLPaginatedItemsSameCreatedAt(t *testing.T) {
+	req := require.New(t)
+	ctx := context.Background()
+
+	db := setupPsql(t)
+
+	sameTime := time.Now().Truncate(time.Microsecond)
+	users := make([]*user, 5)
+
+	for i := 0; i < 5; i++ {
+		id := uuid.UUID{}
+		id[0] = byte(i)
+
+		users[i] = &user{
+			ID:        id.String(),
+			CreatedAt: sameTime,
+		}
+	}
+
+	err := db.Create(users).Error
+	req.NoError(err)
+
+	// All items have the same created_at, so ordering is by id DESC.
+	slices.SortFunc(users, func(a, b *user) int {
+		if a.ID > b.ID {
+			return -1
+		}
+		if a.ID < b.ID {
+			return 1
+		}
+		return 0
+	})
+
+	psqlPaginator := pagination.PSQLPaginator[*user]{
+		DB: db,
+	}
+
+	// First page: 2 items
+	page1, err := psqlPaginator.ListItems(ctx, pagination.Arguments{
+		First: ptr.To(2),
+	})
+	req.NoError(err)
+	req.Len(page1.Items, 2)
+	req.Equal(users[0], page1.Items[0].Item)
+	req.Equal(users[1], page1.Items[1].Item)
+	req.True(page1.Info.HasNextPage, "first page should have next page")
+	req.False(page1.Info.HasPreviousPage)
+
+	// Second page: 2 items after cursor
+	page2, err := psqlPaginator.ListItems(ctx, pagination.Arguments{
+		First: ptr.To(2),
+		After: ptr.To(page1.Items[1].Cursor),
+	})
+	req.NoError(err)
+	req.Len(page2.Items, 2)
+	req.Equal(users[2], page2.Items[0].Item)
+	req.Equal(users[3], page2.Items[1].Item)
+	req.True(page2.Info.HasNextPage, "second page should have next page")
+	req.True(page2.Info.HasPreviousPage)
+
+	// Third page: remaining items
+	page3, err := psqlPaginator.ListItems(ctx, pagination.Arguments{
+		First: ptr.To(2),
+		After: ptr.To(page2.Items[1].Cursor),
+	})
+	req.NoError(err)
+	req.Len(page3.Items, 1)
+	req.Equal(users[4], page3.Items[0].Item)
+	req.False(page3.Info.HasNextPage)
+	req.True(page3.Info.HasPreviousPage)
+
+	// Backward pagination: last 2 items before page2's start
+	page4, err := psqlPaginator.ListItems(ctx, pagination.Arguments{
+		Last:   ptr.To(2),
+		Before: ptr.To(page2.Items[0].Cursor),
+	})
+	req.NoError(err)
+	req.Len(page4.Items, 2)
+	req.Equal(users[0], page4.Items[0].Item)
+	req.Equal(users[1], page4.Items[1].Item)
+	req.False(page4.Info.HasPreviousPage)
+	req.True(page4.Info.HasNextPage)
+}
+
 func TestListPSQLNonPointer(t *testing.T) {
 	req := require.New(t)
 	ctx := context.Background()
