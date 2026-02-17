@@ -2,6 +2,7 @@ package pagination_test
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"testing"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/purposeinplay/go-commons/psqldocker"
 	"github.com/purposeinplay/go-commons/psqlutil"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"k8s.io/utils/ptr"
@@ -86,17 +86,17 @@ func setupPsql(t *testing.T) *gorm.DB {
 
 	db, err := psqlutil.GormOpen(
 		context.Background(),
-		zap.NewExample(),
-		"postgres",
-		psqlutil.ComposeDSN(
-			"localhost",
-			psqlContainer.Port(),
-			psqlUser,
-			psqlPassword,
-			psqlDB,
-			"disable",
-		),
+		psqlutil.NewSlogLogger(slog.Default()),
+		psqlutil.ConnectionConfig{
+			Host:     "localhost",
+			Port:     psqlContainer.Port(),
+			User:     psqlUser,
+			Password: psqlPassword,
+			DBName:   psqlDB,
+			SSLMode:  "disable",
+		}.DSN(),
 		false,
+		nil,
 	)
 	req.NoError(err)
 
@@ -151,6 +151,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     userToCursor(users[0]),
 				EndCursor:       userToCursor(users[len(users)-1]),
+				TotalCount:      100,
 			},
 		},
 		"First3": {
@@ -164,6 +165,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     userToCursor(users[0]),
 				EndCursor:       userToCursor(users[2]),
+				TotalCount:      100,
 			},
 		},
 		"First3After3": {
@@ -178,6 +180,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     userToCursor(users[3]),
 				EndCursor:       userToCursor(users[5]),
+				TotalCount:      100,
 			},
 		},
 		"First94After6": {
@@ -192,6 +195,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     userToCursor(users[6]),
 				EndCursor:       userToCursor(users[99]),
+				TotalCount:      100,
 			},
 		},
 		"Last3": {
@@ -205,6 +209,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     userToCursor(users[97]),
 				EndCursor:       userToCursor(users[99]),
+				TotalCount:      100,
 			},
 		},
 		"Last3Before6": {
@@ -219,6 +224,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     userToCursor(users[3]),
 				EndCursor:       userToCursor(users[5]),
+				TotalCount:      100,
 			},
 		},
 		"Last95Before95": {
@@ -233,6 +239,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     userToCursor(users[0]),
 				EndCursor:       userToCursor(users[94]),
+				TotalCount:      100,
 			},
 		},
 		"First0NoCursor": {
@@ -246,6 +253,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 		"Last0NoCursor": {
@@ -259,6 +267,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 		"First0WithCursor": {
@@ -273,6 +282,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 		"Last0WithCursor": {
@@ -287,6 +297,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 		"First0CursorAtEnd": {
@@ -301,6 +312,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     false,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 		"Last0CursorStart": {
@@ -315,6 +327,7 @@ func TestListPSQLPaginatedItems(t *testing.T) {
 				HasNextPage:     true,
 				StartCursor:     nil,
 				EndCursor:       nil,
+				TotalCount:      100,
 			},
 		},
 	}
@@ -411,6 +424,7 @@ func TestListPSQLPaginatedItemsWithWhereCondtion(t *testing.T) {
 		HasNextPage:     false,
 		StartCursor:     userToCursor(users[0]),
 		EndCursor:       userToCursor(users[2]),
+		TotalCount:      3,
 	})
 }
 

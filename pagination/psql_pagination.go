@@ -50,6 +50,11 @@ func (p PSQLPaginator[T]) ListItems(
 
 	pageInfoSession := p.DB.Session(&gorm.Session{}).Model(model)
 
+	var totalCount int64
+	if err := pageInfoSession.Count(&totalCount).Error; err != nil {
+		return nil, fmt.Errorf("count items: %w", err)
+	}
+
 	var (
 		paginatedItems = make([]Item[T], len(items))
 		startCursor    *Cursor
@@ -100,6 +105,8 @@ func (p PSQLPaginator[T]) ListItems(
 	if err != nil {
 		return nil, fmt.Errorf("get page info: %w", err)
 	}
+
+	pageInfo.TotalCount = int(totalCount)
 
 	if len(paginatedItems) > 0 {
 		pageInfo.StartCursor = ptr.To(paginatedItems[0].Cursor)

@@ -71,6 +71,9 @@ type PageInfo struct {
 	StartCursor *string
 	// EndCursor corresponds to the last item in the result set.
 	EndCursor *string
+
+	// TotalCount provides the total amount of paginated items
+	TotalCount int
 }
 
 // Item contains a generic item and its cursor.
