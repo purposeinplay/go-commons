@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
@@ -11,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.0"
-	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -38,7 +39,9 @@ type TelemetryProvider struct {
 	loggerProvider *sdklog.LoggerProvider
 }
 
-func BaseAttributes(serviceName, serviceNamespace, version string) []attribute.KeyValue {
+func BaseAttributes(
+	serviceName, serviceNamespace, version string,
+) []attribute.KeyValue {
 	return []attribute.KeyValue{
 		semconv.ServiceName(serviceName),
 		semconv.ServiceNamespace(serviceNamespace),
@@ -127,12 +130,18 @@ func Init(
 }
 
 // Tracer returns a named tracer.
-func (t *TelemetryProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
+func (t *TelemetryProvider) Tracer(
+	name string,
+	options ...trace.TracerOption,
+) trace.Tracer {
 	return t.tracerProvider.Tracer(name, options...)
 }
 
 // Logger creates and returns a named logger with optional configuration options.
-func (t *TelemetryProvider) Logger(name string, opts ...log.LoggerOption) log.Logger {
+func (t *TelemetryProvider) Logger(
+	name string,
+	opts ...log.LoggerOption,
+) log.Logger {
 	return t.loggerProvider.Logger(name, opts...)
 }
 
@@ -146,11 +155,17 @@ func (t *TelemetryProvider) Close() error {
 	defer cancel()
 
 	if err := t.tracerProvider.Shutdown(timeoutCtx); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("shutdown tracer provider: %w", err))
+		errs = errors.Join(
+			errs,
+			fmt.Errorf("shutdown tracer provider: %w", err),
+		)
 	}
 
 	if err := t.loggerProvider.Shutdown(timeoutCtx); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("shutdown logger provider: %w", err))
+		errs = errors.Join(
+			errs,
+			fmt.Errorf("shutdown logger provider: %w", err),
+		)
 	}
 
 	return errs
