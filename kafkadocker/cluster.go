@@ -129,7 +129,7 @@ func (c *Cluster) startKraftCluster(ctx context.Context, networkName string) err
 
 	brokerControllerContainerReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:    "confluentinc/cp-kafka",
+			Image:    "confluentinc/cp-kafka:7.7.1",
 			Name:     "kafkadocker",
 			Hostname: "kafkadocker",
 			ExposedPorts: []string{
@@ -137,17 +137,21 @@ func (c *Cluster) startKraftCluster(ctx context.Context, networkName string) err
 			},
 			// nolint: revive // line too long
 			Env: map[string]string{
-				"KAFKA_PROCESS_ROLES":                        "controller,broker",
-				"KAFKA_NODE_ID":                              "1",
-				"CLUSTER_ID":                                 "h6EwvA-jRU6omVykKrSg1w",
-				"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":       "CONTROLLER:PLAINTEXT,BROKER:SASL_PLAINTEXT",
-				"KAFKA_LISTENERS":                            "BROKER://kafkadocker:9092,CONTROLLER://kafkadocker:9093",
-				"KAFKA_CONTROLLER_LISTENER_NAMES":            "CONTROLLER",
-				"KAFKA_CONTROLLER_QUORUM_VOTERS":             "1@kafkadocker:9093",
-				"KAFKA_INTER_BROKER_LISTENER_NAME":           "BROKER",
-				"KAFKA_SASL_ENABLED_MECHANISMS":              "PLAIN",
-				"KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL": "PLAIN",
-				"KAFKA_OPTS":                                 "-Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf",
+				"KAFKA_PROCESS_ROLES":                            "controller,broker",
+				"KAFKA_NODE_ID":                                  "1",
+				"CLUSTER_ID":                                     "h6EwvA-jRU6omVykKrSg1w",
+				"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":           "CONTROLLER:PLAINTEXT,BROKER:SASL_PLAINTEXT",
+				"KAFKA_LISTENERS":                                "BROKER://kafkadocker:9092,CONTROLLER://kafkadocker:9093",
+				"KAFKA_CONTROLLER_LISTENER_NAMES":                "CONTROLLER",
+				"KAFKA_CONTROLLER_QUORUM_VOTERS":                 "1@kafkadocker:9093",
+				"KAFKA_INTER_BROKER_LISTENER_NAME":               "BROKER",
+				"KAFKA_SASL_ENABLED_MECHANISMS":                  "PLAIN",
+				"KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL":     "PLAIN",
+				"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR":         "1",
+				"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1",
+				"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR":            "1",
+				"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS":         "0",
+				"KAFKA_OPTS":                                     "-Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf",
 			},
 			Networks: []string{networkName},
 			NetworkAliases: map[string][]string{

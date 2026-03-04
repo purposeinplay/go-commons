@@ -2,11 +2,17 @@ package kafkadocker_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/purposeinplay/go-commons/kafkadocker"
+	"github.com/purposeinplay/go-commons/pubsub"
+	"github.com/purposeinplay/go-commons/pubsub/kafkasarama"
 	"github.com/stretchr/testify/require"
 )
 
@@ -109,5 +115,145 @@ func TestKafka(t *testing.T) {
 
 			req.Equal([]string{topic}, topics)
 		})
+	}
+}
+
+func TestTopicIsReceivedByGroupedAndStandaloneConsumers(t *testing.T) {
+	ctx := context.Background()
+	req := require.New(t)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	cluster := &kafkadocker.Cluster{
+		Brokers:     1,
+		HealthProbe: true,
+		Kraft:       true,
+	}
+
+	err := cluster.Start(ctx)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		cluster.Stop(ctx)
+	})
+
+	brokers := cluster.BrokerAddresses()
+	saramaCfg := kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret")
+
+	client, err := sarama.NewClient(brokers, saramaCfg)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := client.Close()
+		if err != nil && !errors.Is(err, sarama.ErrClosedClient) {
+			req.NoError(err)
+		}
+	})
+
+	admin, err := sarama.NewClusterAdminFromClient(client)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := admin.Close()
+		req.NoError(err)
+	})
+
+	topic := fmt.Sprintf("test-fanout-%d", time.Now().UnixNano())
+	groupID := fmt.Sprintf("test-group-%d", time.Now().UnixNano())
+
+	err = admin.CreateTopic(topic, &sarama.TopicDetail{
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+	}, false)
+	req.NoError(err)
+
+	req.Eventually(func() bool {
+		if err := client.RefreshMetadata(topic); err != nil {
+			return false
+		}
+
+		partitions, err := client.Partitions(topic)
+		if err != nil {
+			return false
+		}
+
+		return len(partitions) > 0
+	}, 20*time.Second, 200*time.Millisecond)
+
+	standaloneSubscriber, err := kafkasarama.NewSubscriber(
+		logger,
+		kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret"),
+		brokers,
+		"",
+	)
+	req.NoError(err)
+
+	standaloneSub, err := standaloneSubscriber.Subscribe(topic)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := standaloneSub.Close()
+		req.NoError(err)
+	})
+
+	groupedSubscriber, err := kafkasarama.NewSubscriber(
+		logger,
+		kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret"),
+		brokers,
+		groupID,
+	)
+	req.NoError(err)
+
+	groupedSub, err := groupedSubscriber.Subscribe(topic)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := groupedSub.Close()
+		req.NoError(err)
+	})
+
+	publisher, err := kafkasarama.NewPublisher(
+		logger,
+		kafkasarama.NewSASLPlainPublisherConfig("admin", "admin-secret"),
+		brokers,
+	)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := publisher.Close()
+		req.NoError(err)
+	})
+
+	event := pubsub.Event[string, []byte]{
+		Type:    "fanout-test",
+		Payload: []byte(fmt.Sprintf("fanout-message-%d", time.Now().UnixNano())),
+	}
+
+	err = publisher.Publish(event, topic)
+	req.NoError(err)
+
+	t.Logf("published message to topic %s", topic)
+
+	select {
+	case received := <-standaloneSub.C():
+		req.NoError(received.Error)
+		req.Equal(event.Type, received.Type)
+		req.Equal(event.Payload, received.Payload)
+
+		t.Logf("received message in standalone subscriber: %s", received.Payload)
+
+	case <-time.After(20 * time.Second):
+		req.FailNow("timeout waiting standalone consumer message")
+	}
+
+	select {
+	case received := <-groupedSub.C():
+		req.NoError(received.Error)
+		req.Equal(event.Type, received.Type)
+		req.Equal(event.Payload, received.Payload)
+
+		t.Logf("received message in grouped subscriber: %s", received.Payload)
+
+	case <-time.After(20 * time.Second):
+		req.FailNow("timeout waiting consumer group message")
 	}
 }
