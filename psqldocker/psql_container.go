@@ -1,21 +1,17 @@
 package psqldocker
 
 import (
+	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	// import for side effects.
 	_ "github.com/lib/pq"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"strings"
+	"github.com/moby/moby/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
-
-// ensure Container implements the io.Closer interface.
-var _ io.Closer = (*Container)(nil)
 
 // Container represents a Docker container
 // running a PostgreSQL image.
@@ -23,55 +19,76 @@ type Container struct {
 	user,
 	password,
 	dbName string
-	dbPort   string
-	hostPort string
-	sqls     []string
+	dbPort         string
+	host           string
+	hostPort       string
+	sqls           []string
+	containerName  string
+	imageTag       string
+	startupTimeout time.Duration
 
-	runOptions       *dockertest.RunOptions
-	expiration       uint
-	res              *dockertest.Resource
-	pool             *dockertest.Pool
-	poolEndpoint     string
-	pingRetryTimeout time.Duration
+	container testcontainers.Container
 }
 
 // Start starts the docker container.
-func (c *Container) Start() error {
-	pool, err := newPool(c.pool, c.poolEndpoint, c.pingRetryTimeout)
-	if err != nil {
-		return err
+func (c *Container) Start(ctx context.Context) error {
+	portTCP := c.dbPort + "/tcp"
+
+	req := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Name:         c.containerName,
+			Image:        "postgres:" + c.imageTag,
+			Cmd:          []string{"-p", c.dbPort},
+			ExposedPorts: []string{portTCP},
+			Env: map[string]string{
+				"POSTGRES_USER":     c.user,
+				"POSTGRES_PASSWORD": c.password,
+				"POSTGRES_DB":       c.dbName,
+			},
+			// The postgres entrypoint logs "database system is ready to accept
+			// connections" once when initdb's temporary server boots and again
+			// when the real server starts. Waiting for the second occurrence,
+			// then confirming the port is listening, avoids flakiness on
+			// macOS/Windows where Docker Desktop proxies ports asynchronously.
+			WaitingFor: wait.ForAll(
+				wait.ForLog("database system is ready to accept connections").
+					WithOccurrence(2),
+				wait.ForListeningPort(portTCP),
+			).WithDeadline(c.startupTimeout),
+			HostConfigModifier: func(cfg *container.HostConfig) {
+				cfg.RestartPolicy = container.RestartPolicy{Name: "no"}
+			},
+		},
+		Started: true,
 	}
 
-	res, err := startContainer(pool, c.runOptions)
+	ctr, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		return fmt.Errorf("start container: %w", err)
 	}
 
-	c.res = res
+	c.container = ctr
 
-	// set expiration
-	_ = res.Expire(c.expiration)
-
-	c.hostPort = c.res.GetPort(c.dbPort + "/tcp")
-
-	err = pool.Retry(
-		func() error {
-			return pingDB(
-				c.user,
-				c.password,
-				c.dbName,
-				c.hostPort,
-			)
-		})
+	host, err := ctr.Host(ctx)
 	if err != nil {
-		_ = res.Close()
+		_ = ctr.Terminate(ctx)
 
-		return fmt.Errorf("ping db: %w", err)
+		return fmt.Errorf("host: %w", err)
 	}
 
-	err = executeSQLs(c.user, c.password, c.dbName, c.hostPort, c.sqls)
+	c.host = host
+
+	mapped, err := ctr.MappedPort(ctx, portTCP)
 	if err != nil {
-		_ = res.Close()
+		_ = ctr.Terminate(ctx)
+
+		return fmt.Errorf("mapped port: %w", err)
+	}
+
+	c.hostPort = mapped.Port()
+
+	if err := executeSQLs(c.DSN(), c.sqls); err != nil {
+		_ = ctr.Terminate(ctx)
 
 		return fmt.Errorf("execute sqls: %w", err)
 	}
@@ -79,15 +96,33 @@ func (c *Container) Start() error {
 	return nil
 }
 
-// Port returns the container host hostPort mapped
-// to the database running inside it.
+// Host returns the host the container is reachable on (usually "localhost").
+func (c *Container) Host() string {
+	return c.host
+}
+
+// Port returns the host port mapped to the database running inside the container.
 func (c *Container) Port() string {
 	return c.hostPort
 }
 
-// Close removes the Docker container.
-func (c *Container) Close() error {
-	return c.res.Close()
+// DSN returns a lib/pq-compatible connection string for the database.
+// Only valid after Start has returned successfully.
+func (c *Container) DSN() string {
+	return fmt.Sprintf(
+		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+		c.user, c.password, c.dbName, c.host, c.hostPort,
+	)
+}
+
+// Close removes the Docker container. It is a no-op if Start has not been
+// called or did not succeed.
+func (c *Container) Close(ctx context.Context) error {
+	if c.container == nil {
+		return nil
+	}
+
+	return c.container.Terminate(ctx)
 }
 
 // NewContainer starts a new psql database in a docker container.
@@ -103,146 +138,20 @@ func NewContainer(
 		opts[i].apply(&options)
 	}
 
-	exposedPSQLPort := options.dbPort
-
-	if !strings.Contains(exposedPSQLPort, "/tcp") {
-		exposedPSQLPort = exposedPSQLPort + "/tcp"
-	}
-
 	return &Container{
-		user:     user,
-		password: password,
-		dbName:   dbName,
-		dbPort:   options.dbPort,
-		sqls:     options.sqls,
-		runOptions: &dockertest.RunOptions{
-			Name:         options.containerName,
-			Cmd:          []string{"-p " + options.dbPort},
-			Repository:   "postgres",
-			Tag:          options.imageTag,
-			ExposedPorts: []string{exposedPSQLPort},
-			Env:          envVars(user, password, dbName),
-		},
-		expiration:       options.expirationSeconds,
-		pool:             options.pool,
-		poolEndpoint:     options.poolEndpoint,
-		pingRetryTimeout: options.pingRetryTimeout,
+		user:           user,
+		password:       password,
+		dbName:         dbName,
+		dbPort:         options.dbPort,
+		sqls:           options.sqls,
+		containerName:  options.containerName,
+		imageTag:       options.imageTag,
+		startupTimeout: options.startupTimeout,
 	}
 }
 
-func startContainer(
-	pool *dockertest.Pool,
-	runOptions *dockertest.RunOptions,
-) (*dockertest.Resource, error) {
-	return pool.RunWithOptions(
-		runOptions,
-		func(config *docker.HostConfig) {
-			config.AutoRemove = true
-			config.RestartPolicy = docker.RestartPolicy{
-				Name: "no",
-			}
-		},
-	)
-}
-
-// ErrWithPoolAndWithPoolEndpoint is returned when both
-// WithPool and WithPoolEndpoint options are given to the
-// NewContainer constructor.
-var ErrWithPoolAndWithPoolEndpoint = errors.New(
-	"with pool and with pool endpoint are mutually exclusive",
-)
-
-func newPool(
-	pool *dockertest.Pool,
-	poolEndpoint string,
-	pingRetryTimeout time.Duration,
-) (*dockertest.Pool, error) {
-	if pool != nil && poolEndpoint != "" {
-		return nil, ErrWithPoolAndWithPoolEndpoint
-	}
-
-	if pool != nil {
-		pool.MaxWait = pingRetryTimeout
-
-		return pool, nil
-	}
-
-	p, err := dockertest.NewPool(poolEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("new pool: %w", err)
-	}
-
-	p.MaxWait = pingRetryTimeout
-
-	return p, nil
-}
-
-func envVars(
-	user,
-	password,
-	dbName string,
-) []string {
-	return []string{
-		"POSTGRES_PASSWORD=" + password,
-		"POSTGRES_USER=" + user,
-		"POSTGRES_DB=" + dbName,
-	}
-}
-
-func pingDB(
-	user,
-	password,
-	dbName,
-	port string,
-) error {
-	db, err := sql.Open("postgres", fmt.Sprintf(
-		"user=%s "+
-			"password=%s "+
-			"dbname=%s "+
-			"host=localhost "+
-			"port=%s "+
-			"sslmode=disable",
-		user,
-		password,
-		dbName,
-		port))
-	if err != nil {
-		return fmt.Errorf("sql open: %w", err)
-	}
-
-	defer func() {
-		_ = db.Close()
-	}()
-
-	err = db.Ping()
-	if err != nil {
-		return fmt.Errorf("ping: %w", err)
-	}
-
-	return nil
-}
-
-func executeSQLs(
-	user,
-	password,
-	dbName,
-	hostPort string,
-	sqls []string,
-) error {
-	db, err := sql.Open(
-		"postgres",
-		fmt.Sprintf(
-			"user=%s "+
-				"password=%s "+
-				"dbname=%s "+
-				"host=localhost "+
-				"port=%s "+
-				"sslmode=disable",
-			user,
-			password,
-			dbName,
-			hostPort),
-	)
+func executeSQLs(dsn string, sqls []string) error {
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}

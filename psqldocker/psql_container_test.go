@@ -1,14 +1,13 @@
 package psqldocker_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/lib/pq"
 	"github.com/matryer/is"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/purposeinplay/go-commons/psqldocker"
 )
 
@@ -25,9 +24,7 @@ func TestNewContainer(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
-
-		p, err := dockertest.NewPool("")
-		i.NoErr(err)
+		ctx := context.Background()
 
 		cont := psqldocker.NewContainer(
 			user,
@@ -35,22 +32,19 @@ func TestNewContainer(t *testing.T) {
 			dbName,
 			psqldocker.WithContainerName(containerNameFromTest(t)),
 			psqldocker.WithDBPort("5432"),
-			psqldocker.WithPool(p),
 			psqldocker.WithImageTag("alpine"),
-			psqldocker.WithPoolEndpoint(""),
 			psqldocker.WithSQL(
 				"CREATE TABLE users(user_id UUID PRIMARY KEY);",
 			),
-			psqldocker.WithPingRetryTimeout(20),
-			psqldocker.WithExpiration(20),
+			psqldocker.WithStartupTimeout(20),
 		)
 
-		err = cont.Start()
+		err := cont.Start(ctx)
 		i.NoErr(err)
 
 		t.Logf("container started on hostPort: %s", cont.Port())
 
-		err = cont.Close()
+		err = cont.Close(ctx)
 		i.NoErr(err)
 	})
 
@@ -58,6 +52,7 @@ func TestNewContainer(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
+		ctx := context.Background()
 
 		c := psqldocker.NewContainer(
 			user,
@@ -66,10 +61,46 @@ func TestNewContainer(t *testing.T) {
 			psqldocker.WithContainerName(containerNameFromTest(t)),
 		)
 
-		err := c.Start()
+		err := c.Start(ctx)
 		i.NoErr(err)
 
-		err = c.Close()
+		err = c.Close(ctx)
+		i.NoErr(err)
+	})
+
+	t.Run("CustomDBPort", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+		ctx := context.Background()
+
+		c := psqldocker.NewContainer(
+			user,
+			password,
+			dbName,
+			psqldocker.WithContainerName(containerNameFromTest(t)),
+			psqldocker.WithDBPort("5433"),
+		)
+
+		err := c.Start(ctx)
+		i.NoErr(err)
+
+		t.Logf("container started on hostPort: %s", c.Port())
+
+		err = c.Close(ctx)
+		i.NoErr(err)
+	})
+
+	t.Run("CloseBeforeStart", func(t *testing.T) {
+		t.Parallel()
+
+		i := is.New(t)
+		ctx := context.Background()
+
+		c := psqldocker.NewContainer(user, password, dbName)
+
+		// Must not panic; should be a no-op.
+		err := c.Close(ctx)
 		i.NoErr(err)
 	})
 
@@ -77,6 +108,7 @@ func TestNewContainer(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
+		ctx := context.Background()
 
 		c := psqldocker.NewContainer(
 			user,
@@ -85,21 +117,15 @@ func TestNewContainer(t *testing.T) {
 			psqldocker.WithImageTag("error:latest"),
 		)
 
-		err := c.Start()
-
-		var dockerErr *docker.Error
-
-		i.True(errors.As(err, &dockerErr))
-		i.Equal(
-			"invalid tag format",
-			dockerErr.Message,
-		)
+		err := c.Start(ctx)
+		i.True(err != nil)
 	})
 
 	t.Run("InvalidSQL", func(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
+		ctx := context.Background()
 
 		c := psqldocker.NewContainer(
 			user,
@@ -109,7 +135,7 @@ func TestNewContainer(t *testing.T) {
 			psqldocker.WithSQL("error"),
 		)
 
-		err := c.Start()
+		err := c.Start(ctx)
 
 		var pqErr *pq.Error
 
@@ -120,63 +146,24 @@ func TestNewContainer(t *testing.T) {
 		)
 	})
 
-	t.Run("ProvideWithPoolAndWithPoolEndpoint", func(t *testing.T) {
-		t.Parallel()
-
-		i := is.New(t)
-
-		c := psqldocker.NewContainer(
-			user,
-			password,
-			dbName,
-			psqldocker.WithPool(new(dockertest.Pool)),
-			psqldocker.WithPoolEndpoint("endpoint"),
-		)
-
-		err := c.Start()
-
-		i.True(errors.Is(
-			err,
-			psqldocker.ErrWithPoolAndWithPoolEndpoint,
-		))
-	})
-
-	t.Run("InvalidPoolEndpointURL", func(t *testing.T) {
-		t.Parallel()
-
-		i := is.New(t)
-
-		c := psqldocker.NewContainer(
-			user,
-			password,
-			dbName,
-			psqldocker.WithPoolEndpoint("://endpoint"),
-		)
-
-		err := c.Start()
-
-		i.Equal(
-			"new pool: invalid endpoint",
-			err.Error(),
-		)
-	})
-
 	t.Run("PingFail", func(t *testing.T) {
 		t.Parallel()
 
 		i := is.New(t)
+		ctx := context.Background()
 
 		c := psqldocker.NewContainer(
 			user,
 			password,
 			dbName,
 			psqldocker.WithContainerName(containerNameFromTest(t)),
-			psqldocker.WithPingRetryTimeout(1),
+			psqldocker.WithStartupTimeout(1),
 		)
 
-		err := c.Start()
+		err := c.Start(ctx)
 
-		i.True(strings.Contains(err.Error(), "ping db: reached retry deadline"))
+		i.True(err != nil)
+		i.True(strings.Contains(err.Error(), "start container"))
 	})
 }
 
