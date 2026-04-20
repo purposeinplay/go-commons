@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	"net"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -31,7 +32,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.23.0"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -57,7 +58,10 @@ func TestTracer(t *testing.T) {
 	req.NoError(err)
 
 	t.Cleanup(func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
 		defer cancel()
 
 		if err := exp.Shutdown(shutdownCtx); err != nil {
@@ -89,7 +93,11 @@ func TestGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -101,7 +109,10 @@ func TestGraphQLIntegration(t *testing.T) {
 	s := graph.NewServer(nil)
 
 	http.HandleFunc("POST /query", s.ServeHTTP)
-	http.HandleFunc("GET /playground", playground.Handler("GraphQL playground", "/query"))
+	http.HandleFunc(
+		"GET /playground",
+		playground.Handler("GraphQL playground", "/query"),
+	)
 
 	t.Log("starting server")
 
@@ -114,7 +125,11 @@ func TestHTTPIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -140,7 +155,11 @@ func TestGRPCIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -189,9 +208,11 @@ func TestGRPCIntegration(t *testing.T) {
 		"bufnet",
 		grpcclient.WithContextDialer(bufDialer1),
 		grpcclient.WithNoTLS(),
-		grpcclient.WithOTEL(otelgrpc.WithFilter(func(info *stats.RPCTagInfo) bool {
-			return !strings.Contains(info.FullMethodName, "Greet")
-		})),
+		grpcclient.WithOTEL(
+			otelgrpc.WithFilter(func(info *stats.RPCTagInfo) bool {
+				return !strings.Contains(info.FullMethodName, "Greet")
+			}),
+		),
 	)
 	req.NoError(err)
 
@@ -279,7 +300,11 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(
+		ctx,
+		"localhost:4317",
+		semconv.ServiceName("test-service"),
+	)
 	req.NoError(err)
 
 	t.Cleanup(func() { tp.Close() })
@@ -324,25 +349,27 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 
 	greeterClient1 := greetpb.NewGreetServiceClient(conn1)
 
-	s := graph.NewServer(func(ctx context.Context, id string) (*model.User, error) {
-		resp, err := greeterClient1.Greet(
-			ctx,
-			&greetpb.GreetRequest{
-				Greeting: &greetpb.Greeting{
-					FirstName: "test",
-					LastName:  "otel",
+	s := graph.NewServer(
+		func(ctx context.Context, id string) (*model.User, error) {
+			resp, err := greeterClient1.Greet(
+				ctx,
+				&greetpb.GreetRequest{
+					Greeting: &greetpb.Greeting{
+						FirstName: "test",
+						LastName:  "otel",
+					},
 				},
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("greet: %w", err)
-		}
+			)
+			if err != nil {
+				return nil, fmt.Errorf("greet: %w", err)
+			}
 
-		return &model.User{
-			ID:   id,
-			Name: resp.Result,
-		}, nil
-	})
+			return &model.User{
+				ID:   id,
+				Name: resp.Result,
+			}, nil
+		},
+	)
 
 	mux := http.NewServeMux()
 
@@ -394,7 +421,9 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 	resp, err := http.Post(
 		"http://localhost:8080/query",
 		"application/json",
-		strings.NewReader(`{"query": "query GetUserID { getUser(id: \"1\") { id name } }"}`),
+		strings.NewReader(
+			`{"query": "query GetUserID { getUser(id: \"1\") { id name } }"}`,
+		),
 	)
 	req.NoError(err)
 
@@ -404,7 +433,10 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 	err = resp.Body.Close()
 	req.NoError(err)
 
-	req.JSONEq(`{"data":{"getUser":{"id":"1","name":"testotel"}}}`, string(body))
+	req.JSONEq(
+		`{"data":{"getUser":{"id":"1","name":"testotel"}}}`,
+		string(body),
+	)
 
 	err = server.Shutdown(ctx)
 	req.NoError(err)

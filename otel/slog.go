@@ -1,8 +1,9 @@
 package otel
 
 import (
-	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"log/slog"
+
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
 func NewSlogLogger(name string) *slog.Logger {
