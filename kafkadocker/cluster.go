@@ -12,8 +12,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/avast/retry-go"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -296,7 +295,7 @@ func (c *Cluster) startKraftCluster(ctx context.Context, networkName string) err
 func (c *Cluster) startZookeeperCluster(ctx context.Context, networkName string) error {
 	zookeeperReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: "confluentinc/cp-zookeeper",
+			Image: "confluentinc/cp-zookeeper:7.7.1",
 			Name:  "kafkadocker-zookeeper",
 			Env: map[string]string{
 				"ZOOKEEPER_SERVER_ID":   "1",
@@ -340,7 +339,7 @@ func (c *Cluster) startZookeeperCluster(ctx context.Context, networkName string)
 
 		brokerRequests[brokerID-1] = testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image: "confluentinc/cp-kafka",
+				Image: "confluentinc/cp-kafka:7.7.1",
 				ExposedPorts: []string{
 					portTCP,
 				},
@@ -393,7 +392,7 @@ func (c *Cluster) startZookeeperCluster(ctx context.Context, networkName string)
 									)
 
 									return retry.Do(func() error {
-										p, err := container.MappedPort(egCtx, nat.Port(portTCP))
+										p, err := container.MappedPort(egCtx, portTCP)
 										if err != nil {
 											return fmt.Errorf("get hook mapped port: %w", err)
 										}
@@ -509,7 +508,7 @@ func (c *Cluster) startZookeeperCluster(ctx context.Context, networkName string)
 
 		idx := strings.Split(name, "-")[2]
 
-		port, err := bc.MappedPort(ctx, nat.Port(fmt.Sprintf("909%s/tcp", idx)))
+		port, err := bc.MappedPort(ctx, fmt.Sprintf("909%s/tcp", idx))
 		if err != nil {
 			return fmt.Errorf("get broker container %d mapped port: %w", i, err)
 		}
