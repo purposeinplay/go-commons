@@ -5,16 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
+
 	"github.com/IBM/sarama"
 	"github.com/dnwe/otelsarama"
 	"github.com/purposeinplay/go-commons/pubsub"
-	"log/slog"
-	"sync"
 )
 
 var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
 
 // Subscriber represents a kafka subscriber.
+//
+// On the consumer-group path, every event delivered on the subscription
+// channel must be acknowledged with Event.Ack() (or rejected with
+// Event.Nack()) before the next message in the partition is read. Failing
+// to ack/nack stalls that partition until the session is rebalanced.
 type Subscriber struct {
 	logger        *slog.Logger
 	cfg           *sarama.Config
@@ -144,7 +150,18 @@ func consumePartition(
 	for {
 		select {
 		case m := <-partitionConsumer.Messages():
-			processMessage(m, eventCh)
+			select {
+			case eventCh <- buildEvent(m):
+			case <-ctx.Done():
+				if err := partitionConsumer.Close(); err != nil {
+					logger.Error(
+						"close partition consumer error",
+						slog.String("error", err.Error()),
+					)
+				}
+
+				return
+			}
 
 		case err := <-partitionConsumer.Errors():
 			eventCh <- pubsub.Event[string, []byte]{
@@ -165,10 +182,7 @@ func consumePartition(
 	}
 }
 
-func processMessage(
-	m *sarama.ConsumerMessage,
-	eventCh chan<- pubsub.Event[string, []byte],
-) {
+func buildEvent(m *sarama.ConsumerMessage) pubsub.Event[string, []byte] {
 	var typ string
 
 	for _, h := range m.Headers {
@@ -183,11 +197,27 @@ func processMessage(
 		typ = m.Topic
 	}
 
-	eventCh <- pubsub.Event[string, []byte]{
+	return pubsub.Event[string, []byte]{
 		Type:    typ,
 		Payload: m.Value,
 	}
 }
+
+// messageAcker is the per-message acker used on the consumer-group path.
+// The ConsumeClaim loop blocks on done after sending the event and acts on
+// the result (true = ack/MarkMessage, false = nack/skip). sync.Once
+// guarantees idempotence.
+type messageAcker struct {
+	once sync.Once
+	done chan bool
+}
+
+func newMessageAcker() *messageAcker {
+	return &messageAcker{done: make(chan bool, 1)}
+}
+
+func (m *messageAcker) Ack()  { m.once.Do(func() { m.done <- true }) }
+func (m *messageAcker) Nack() { m.once.Do(func() { m.done <- false }) }
 
 // C returns a receive-only go channel of events published.
 func (s Subscription) C() <-chan pubsub.Event[string, []byte] {
@@ -309,7 +339,15 @@ func (h consumerGroupHandler) ConsumeClaim(
 				return nil
 			}
 
-			processMessage(message, h.eventCh)
+			acker := newMessageAcker()
+			evt := buildEvent(message)
+			evt.Acker = acker
+
+			select {
+			case h.eventCh <- evt:
+			case <-session.Context().Done():
+				return nil
+			}
 
 			h.logger.Debug(
 				"message claimed",
@@ -318,7 +356,21 @@ func (h consumerGroupHandler) ConsumeClaim(
 				slog.String("topic", message.Topic),
 			)
 
-			session.MarkMessage(message, "")
+			select {
+			case acked := <-acker.done:
+				if acked {
+					session.MarkMessage(message, "")
+				} else {
+					h.logger.Debug(
+						"message nacked; offset not committed",
+						slog.String("topic", message.Topic),
+						slog.Int("partition", int(message.Partition)),
+						slog.Int64("offset", message.Offset),
+					)
+				}
+			case <-session.Context().Done():
+				return nil
+			}
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
 		// https://github.com/IBM/sarama/issues/1192

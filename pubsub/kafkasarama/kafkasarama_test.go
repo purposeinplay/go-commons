@@ -105,7 +105,10 @@ func TestPubSub(t *testing.T) {
 
 				t.Logf("sub1 received the message: %+v in %s", mes, time.Since(now))
 
-				is.Equal(receivedMes, mes)
+				is.Equal(receivedMes.Type, mes.Type)
+				is.Equal(receivedMes.Payload, mes.Payload)
+
+				receivedMes.Ack()
 
 				count++
 
@@ -119,7 +122,10 @@ func TestPubSub(t *testing.T) {
 		defer wg.Done()
 
 		receivedMes := <-sub2.C()
-		is.Equal(receivedMes, mes)
+		is.Equal(receivedMes.Type, mes.Type)
+		is.Equal(receivedMes.Payload, mes.Payload)
+
+		receivedMes.Ack()
 
 		t.Logf("sub2 received the message in %s", time.Since(now))
 	}()
@@ -188,6 +194,7 @@ func TestConsumerGroups(t *testing.T) {
 			select {
 			case mes := <-sub1.C():
 				t.Logf("sub 1: %s", mes.Payload)
+				mes.Ack()
 			case <-ctx.Done():
 				t.Log("sub 1: context done")
 				return
@@ -218,6 +225,7 @@ func TestConsumerGroups(t *testing.T) {
 			select {
 			case mes := <-sub2.C():
 				t.Logf("sub 2: %s", mes.Payload)
+				mes.Ack()
 			case <-ctx.Done():
 				t.Log("sub 2: context done")
 				return
