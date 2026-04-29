@@ -239,6 +239,8 @@ func TestTopicIsReceivedByGroupedAndStandaloneConsumers(t *testing.T) {
 		req.Equal(event.Type, received.Type)
 		req.Equal(event.Payload, received.Payload)
 
+		received.Ack()
+
 		t.Logf("received message in standalone subscriber: %s", received.Payload)
 
 	case <-time.After(20 * time.Second):
@@ -251,9 +253,163 @@ func TestTopicIsReceivedByGroupedAndStandaloneConsumers(t *testing.T) {
 		req.Equal(event.Type, received.Type)
 		req.Equal(event.Payload, received.Payload)
 
+		received.Ack()
+
 		t.Logf("received message in grouped subscriber: %s", received.Payload)
 
 	case <-time.After(20 * time.Second):
 		req.FailNow("timeout waiting consumer group message")
+	}
+}
+
+// TestConsumerGroupAckNackReplay verifies that:
+//   - Acked messages have their offset committed and are NOT redelivered to a
+//     fresh consumer in the same group.
+//   - Nacked messages do NOT have their offset committed and ARE redelivered
+//     to a fresh consumer in the same group.
+func TestConsumerGroupAckNackReplay(t *testing.T) {
+	ctx := context.Background()
+	req := require.New(t)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	cluster := &kafkadocker.Cluster{
+		Brokers:     1,
+		HealthProbe: true,
+		Kraft:       true,
+	}
+
+	err := cluster.Start(ctx)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		cluster.Stop(ctx)
+	})
+
+	brokers := cluster.BrokerAddresses()
+	saramaCfg := kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret")
+
+	client, err := sarama.NewClient(brokers, saramaCfg)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := client.Close()
+		if err != nil && !errors.Is(err, sarama.ErrClosedClient) {
+			req.NoError(err)
+		}
+	})
+
+	admin, err := sarama.NewClusterAdminFromClient(client)
+	req.NoError(err)
+
+	t.Cleanup(func() {
+		err := admin.Close()
+		req.NoError(err)
+	})
+
+	topic := fmt.Sprintf("test-acknack-%d", time.Now().UnixNano())
+	groupID := fmt.Sprintf("test-acknack-group-%d", time.Now().UnixNano())
+
+	err = admin.CreateTopic(topic, &sarama.TopicDetail{
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+	}, false)
+	req.NoError(err)
+
+	req.Eventually(func() bool {
+		if err := client.RefreshMetadata(topic); err != nil {
+			return false
+		}
+
+		partitions, err := client.Partitions(topic)
+		if err != nil {
+			return false
+		}
+
+		return len(partitions) > 0
+	}, 20*time.Second, 200*time.Millisecond)
+
+	publisher, err := kafkasarama.NewPublisher(
+		logger,
+		kafkasarama.NewSASLPlainPublisherConfig("admin", "admin-secret"),
+		brokers,
+	)
+	req.NoError(err)
+
+	t.Cleanup(func() { req.NoError(publisher.Close()) })
+
+	first := pubsub.Event[string, []byte]{Type: "acknack", Payload: []byte("first")}
+	second := pubsub.Event[string, []byte]{Type: "acknack", Payload: []byte("second")}
+
+	req.NoError(publisher.Publish(first, topic))
+	req.NoError(publisher.Publish(second, topic))
+
+	// First subscriber: ack the first message, nack the second.
+	// Use OffsetOldest so the fresh consumer group reads messages that were
+	// already published; subsequent subscribers in the same group will
+	// resume from the committed offset regardless.
+	subACfg := kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret")
+	subACfg.Consumer.Offsets.Initial = sarama.OffsetOldest
+
+	subA, err := kafkasarama.NewSubscriber(logger, subACfg, brokers, groupID)
+	req.NoError(err)
+
+	subAStream, err := subA.Subscribe(topic)
+	req.NoError(err)
+
+	select {
+	case ev := <-subAStream.C():
+		req.NoError(ev.Error)
+		req.Equal(first.Payload, ev.Payload)
+		ev.Ack()
+		t.Logf("subA acked: %s", ev.Payload)
+	case <-time.After(20 * time.Second):
+		req.FailNow("timeout waiting for first message in subA")
+	}
+
+	select {
+	case ev := <-subAStream.C():
+		req.NoError(ev.Error)
+		req.Equal(second.Payload, ev.Payload)
+		ev.Nack()
+		t.Logf("subA nacked: %s", ev.Payload)
+	case <-time.After(20 * time.Second):
+		req.FailNow("timeout waiting for second message in subA")
+	}
+
+	// Give sarama's AutoCommit ticker enough time to flush the committed
+	// offset for the first message before tearing the session down.
+	time.Sleep(2 * time.Second)
+
+	req.NoError(subAStream.Close())
+
+	// Second subscriber in the same group: should only see the nacked message.
+	subB, err := kafkasarama.NewSubscriber(
+		logger,
+		kafkasarama.NewSASLPlainSubscriberConfig("admin", "admin-secret"),
+		brokers,
+		groupID,
+	)
+	req.NoError(err)
+
+	subBStream, err := subB.Subscribe(topic)
+	req.NoError(err)
+
+	t.Cleanup(func() { req.NoError(subBStream.Close()) })
+
+	select {
+	case ev := <-subBStream.C():
+		req.NoError(ev.Error)
+		req.Equal(second.Payload, ev.Payload, "expected nacked message to be redelivered")
+		ev.Ack()
+		t.Logf("subB received replayed nacked message: %s", ev.Payload)
+	case <-time.After(20 * time.Second):
+		req.FailNow("timeout waiting for replayed nacked message in subB")
+	}
+
+	// Confirm the previously acked message is NOT redelivered.
+	select {
+	case ev := <-subBStream.C():
+		req.Failf("unexpected extra message", "got %q after replay", ev.Payload)
+	case <-time.After(3 * time.Second):
 	}
 }
