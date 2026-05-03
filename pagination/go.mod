@@ -3,6 +3,7 @@ module github.com/purposeinplay/go-commons/pagination
 go 1.24.0
 
 require (
+	github.com/alicebob/miniredis/v2 v2.36.1
 	github.com/google/uuid v1.6.0
 	github.com/purposeinplay/go-commons/psqldocker v0.0.3
 	github.com/purposeinplay/go-commons/psqlutil v0.0.18
@@ -18,7 +19,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/alicebob/miniredis/v2 v2.36.1 // indirect
 	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

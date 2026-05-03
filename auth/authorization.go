@@ -2,9 +2,9 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/dgrijalva/jwt-go"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -18,7 +18,7 @@ type AuthorizerConfig struct {
 
 // AuthorizerInterceptor is a server interceptor to authenticate and authorize requests.
 type AuthorizerInterceptor struct {
-	logger     *zap.Logger
+	logger     *slog.Logger
 	jwtManager *JWTManager
 	config     *AuthorizerConfig
 }
@@ -33,7 +33,7 @@ type CtxProviderClaimsKey struct{}
 
 // NewAuthorizerInterceptor creates a new authorizer interceptor.
 func NewAuthorizerInterceptor(
-	logger *zap.Logger,
+	logger *slog.Logger,
 	jwtManager *JWTManager,
 	config *AuthorizerConfig,
 ) *AuthorizerInterceptor {

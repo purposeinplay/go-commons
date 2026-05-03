@@ -1,17 +1,18 @@
 package router_test
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	commonhttp "github.com/purposeinplay/go-commons/http"
 	"github.com/purposeinplay/go-commons/http/router"
-	"go.uber.org/zap"
 )
 
 func TestHandlerErrorFunc(t *testing.T) {
-	mux := router.New(router.WithLogger(zap.NewExample()))
+	mux := router.New(router.WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
 
 	mux.Get("/test", router.HandlerErrorFunc(func(w http.ResponseWriter, r *http.Request) error {
 		if r.Header.Get("test") != "yes" {

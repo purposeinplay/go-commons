@@ -107,13 +107,12 @@ func (l *StructuredLoggerEntry) WithError(err error) *slog.Logger {
 	return l.Logger
 }
 
-// GetSlogEntry returns the in-context StructuredLoggerEntry for a
+// GetLogEntry returns the in-context StructuredLoggerEntry for a
 // request, or nil if no structured logger middleware is on the chain.
-//
-// Distinct from the existing GetLogEntry (which returns the zap-based
-// entry from go-commons/logs) so consumers that mix both during a
-// migration can tell them apart.
-func GetSlogEntry(r *http.Request) *StructuredLoggerEntry {
+// Callers can mutate the entry's Logger across the request lifecycle
+// (e.g. entry.Logger = entry.Logger.With("user_id", uid)) and chi's
+// Write/Panic callbacks will pick up the augmented logger.
+func GetLogEntry(r *http.Request) *StructuredLoggerEntry {
 	entry, ok := chimiddleware.GetLogEntry(r).(*StructuredLoggerEntry)
 	if !ok {
 		return nil

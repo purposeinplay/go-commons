@@ -3,6 +3,15 @@
 All notable changes to the `github.com/purposeinplay/go-commons/sentry`
 module are documented here.
 
+## [sentry/v0.0.6]
+
+### Fixed
+
+- Module bumped to `go 1.22`. The `Middleware` added in `v0.0.5` uses
+  `log/slog`, which requires Go 1.21+; the module had stayed at
+  `go 1.17`, breaking lint/test on the configured CI runner.
+- CI Go version bumped from `1.19` to `1.22` to match.
+
 ## [sentry/v0.0.5]
 
 ### Added

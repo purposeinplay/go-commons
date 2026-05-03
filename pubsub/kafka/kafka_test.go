@@ -2,6 +2,7 @@ package kafka_test
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -10,11 +11,10 @@ import (
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafka"
-	"go.uber.org/zap"
 )
 
 func TestPubSub(t *testing.T) {
-	logger := zap.NewExample()
+	logger := slog.Default()
 
 	// nolint: gocritic, revive
 	is := is.New(t)
@@ -123,7 +123,7 @@ func TestPubSub(t *testing.T) {
 func TestConsumerGroups(t *testing.T) {
 	t.Skip("consumer group is failing at the moment")
 
-	logger := zap.NewExample()
+	logger := slog.Default()
 
 	// nolint: gocritic, revive
 	is := is.New(t)

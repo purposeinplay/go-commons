@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/purposeinplay/go-commons/rand"
-
-	"github.com/purposeinplay/go-commons/logs"
 	"github.com/purposeinplay/go-commons/worker"
-	"go.uber.org/zap"
 
 	"github.com/streadway/amqp"
 )
@@ -22,7 +20,7 @@ type Options struct {
 	Connection *amqp.Connection
 
 	// Logger is a logger interface to write the worker logs.
-	Logger *zap.Logger
+	Logger *slog.Logger
 
 	// Name is used to identify the app as a consumer. Defaults to "win".
 	Name string
@@ -53,11 +51,7 @@ func New(opts Options) (*Adapter, error) {
 	}
 
 	if opts.Logger == nil {
-		l, err := logs.NewLogger()
-		if err != nil {
-			return nil, err
-		}
-		opts.Logger = l
+		opts.Logger = slog.Default()
 	}
 
 	return &Adapter{
@@ -73,7 +67,7 @@ func New(opts Options) (*Adapter, error) {
 type Adapter struct {
 	Connection     *amqp.Connection
 	Channel        *amqp.Channel
-	Logger         *zap.Logger
+	Logger         *slog.Logger
 	consumerName   string
 	exchange       string
 	ctx            context.Context
@@ -142,7 +136,7 @@ func (q *Adapter) Stop() error {
 
 // Perform enqueues a new job.
 func (q Adapter) Perform(job worker.Job) error {
-	q.Logger.Info("enqueuing job", zap.Any("job", job))
+	q.Logger.Info("enqueuing job", slog.Any("job", job))
 
 	err := q.Channel.Publish(
 		q.exchange,  // exchange
@@ -156,7 +150,7 @@ func (q Adapter) Perform(job worker.Job) error {
 		},
 	)
 	if err != nil {
-		q.Logger.Error("error enqueuing job", zap.Any("job", job))
+		q.Logger.Error("error enqueuing job", slog.Any("job", job))
 
 		return fmt.Errorf("error enqueuing job: %w", err)
 	}
@@ -166,7 +160,7 @@ func (q Adapter) Perform(job worker.Job) error {
 
 // Register consumes a task, using the declared worker.Handler.
 func (q *Adapter) Register(name string, h worker.Handler) error {
-	q.Logger.Info("register job", zap.Any("job", name))
+	q.Logger.Info("register job", slog.String("job", name))
 
 	_, err := q.Channel.QueueDeclare(
 		name,
@@ -198,23 +192,23 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 	go func() {
 		for d := range msgs {
 			sem <- true
-			q.Logger.Info("received job", zap.Any("job", name), zap.Any("body", d.Body))
+			q.Logger.Info("received job", slog.String("job", name), slog.Any("body", d.Body))
 
 			args := worker.Args{}
 
 			err := json.Unmarshal(d.Body, &args)
 			if err != nil {
-				q.Logger.Info("unable to retrieve job", zap.Any("job", name))
+				q.Logger.Info("unable to retrieve job", slog.String("job", name), slog.Any("error", err))
 				continue
 			}
 
 			if err := h(args); err != nil {
-				q.Logger.Info("unable to process job", zap.Any("job", name))
+				q.Logger.Info("unable to process job", slog.String("job", name), slog.Any("error", err))
 				continue
 			}
 
 			if err := d.Ack(false); err != nil {
-				q.Logger.Info("unable to ack job", zap.Any("job", name))
+				q.Logger.Info("unable to ack job", slog.String("job", name), slog.Any("error", err))
 			}
 		}
 
@@ -228,7 +222,7 @@ func (q *Adapter) Register(name string, h worker.Handler) error {
 
 // PerformIn performs a job delayed by the given duration.
 func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
-	q.Logger.Info("enqueuing job", zap.Any("job", job))
+	q.Logger.Info("enqueuing job", slog.Any("job", job))
 	d := int64(t / time.Second)
 
 	// Trick broker using x-dead-letter feature:
@@ -247,7 +241,7 @@ func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
 		},
 	)
 	if err != nil {
-		q.Logger.Info("error creating delayed temp queue for job %w", zap.Any("job", job.Handler))
+		q.Logger.Info("error creating delayed temp queue for job", slog.String("job", job.Handler), slog.Any("error", err))
 		return err
 	}
 
@@ -264,7 +258,7 @@ func (q Adapter) PerformIn(job worker.Job, t time.Duration) error {
 	)
 
 	if err != nil {
-		q.Logger.Info("error enqueuing job %w", zap.Any("job", job.Handler))
+		q.Logger.Info("error enqueuing job", slog.String("job", job.Handler), slog.Any("error", err))
 		return err
 	}
 	return nil
