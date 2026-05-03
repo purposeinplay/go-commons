@@ -9,7 +9,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/purposeinplay/go-commons/pubsub"
-	"go.uber.org/zap"
 )
 
 var _ pubsub.Subscriber[string, []byte] = (*Subscriber)(nil)
@@ -21,7 +20,7 @@ type Subscriber struct {
 
 // NewSubscriber creates a new kafka subscriber.
 func NewSubscriber(
-	logger *zap.Logger,
+	logger *slog.Logger,
 	saramaConfig *sarama.Config,
 	brokers []string,
 	consumerGroup string,

@@ -1,6 +1,6 @@
 module github.com/purposeinplay/go-commons/sentry
 
-go 1.17
+go 1.22
 
 require (
 	github.com/getsentry/sentry-go v0.17.0

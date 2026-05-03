@@ -1,71 +1,68 @@
 package kafka
 
 import (
+	"log/slog"
+
 	"github.com/ThreeDotsLabs/watermill"
-	"go.uber.org/zap"
 )
 
-var _ watermill.LoggerAdapter = (*zapLogger)(nil)
+var _ watermill.LoggerAdapter = (*slogLogger)(nil)
 
-type zapLogger struct {
-	log *zap.Logger
+type slogLogger struct {
+	log *slog.Logger
 
 	trace,
 	debug bool
 }
 
 func newLoggerAdapter(
-	log *zap.Logger,
-) *zapLogger {
-	return &zapLogger{
+	log *slog.Logger,
+) *slogLogger {
+	return &slogLogger{
 		log:   log,
 		trace: false,
 		debug: false,
 	}
 }
 
-func (l zapLogger) Error(msg string, err error, fields watermill.LogFields) {
-	l.log.Error(msg, append(map2fields(fields), zap.Error(err))...)
+func (l slogLogger) Error(msg string, err error, fields watermill.LogFields) {
+	l.log.Error(msg, append(map2attrs(fields), slog.Any("error", err))...)
 }
 
-func (l zapLogger) Info(msg string, fields watermill.LogFields) {
-	l.log.Info(msg, map2fields(fields)...)
+func (l slogLogger) Info(msg string, fields watermill.LogFields) {
+	l.log.Info(msg, map2attrs(fields)...)
 }
 
-func (l zapLogger) Debug(msg string, fields watermill.LogFields) {
+func (l slogLogger) Debug(msg string, fields watermill.LogFields) {
 	if !l.debug {
 		return
 	}
 
-	l.log.Debug(msg, map2fields(fields)...)
+	l.log.Debug(msg, map2attrs(fields)...)
 }
 
-func (l zapLogger) Trace(msg string, fields watermill.LogFields) {
+func (l slogLogger) Trace(msg string, fields watermill.LogFields) {
 	if !l.trace {
 		return
 	}
 
-	l.log.Debug(msg, map2fields(fields)...)
+	l.log.Debug(msg, map2attrs(fields)...)
 }
 
-func (l zapLogger) With(fields watermill.LogFields) watermill.LoggerAdapter {
-	newLogger := l.log
-
-	for field, data := range fields {
-		newLogger = l.log.With(zap.Any(field, data))
-	}
-
-	return zapLogger{
-		log: newLogger,
+func (l slogLogger) With(fields watermill.LogFields) watermill.LoggerAdapter {
+	return slogLogger{
+		log:   l.log.With(map2attrs(fields)...),
+		trace: l.trace,
+		debug: l.debug,
 	}
 }
 
-func map2fields(m map[string]any) []zap.Field {
-	fields := make([]zap.Field, 0, len(m))
+func map2attrs(m map[string]any) []any {
+	attrs := make([]any, 0, len(m))
 
 	for k, v := range m {
-		fields = append(fields, zap.Any(k, v))
+		attrs = append(attrs, slog.Any(k, v))
 	}
 
-	return fields
+	return attrs
 }

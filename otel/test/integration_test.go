@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	commonsgrpc "github.com/purposeinplay/go-commons/grpc"
 	"github.com/purposeinplay/go-commons/grpc/grpcclient"
 	"github.com/purposeinplay/go-commons/grpc/test_data/greetpb"
@@ -32,7 +32,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/stats"
@@ -89,7 +88,7 @@ func TestGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(ctx, "localhost:4317", attribute.String("service.name", "test-service"))
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -114,7 +113,7 @@ func TestHTTPIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(ctx, "localhost:4317", attribute.String("service.name", "test-service"))
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -140,7 +139,7 @@ func TestGRPCIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(ctx, "localhost:4317", attribute.String("service.name", "test-service"))
 	req.NoError(err)
 
 	t.Cleanup(func() {
@@ -163,7 +162,7 @@ func TestGRPCIntegration(t *testing.T) {
 
 	grpcServer1, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis1),
-		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithDebug(slog.Default(), true),
 		commonsgrpc.WithOTEL(
 			otelgrpc.WithFilter(filters.Not(filters.MethodName("Greet"))),
 		),
@@ -201,14 +200,13 @@ func TestGRPCIntegration(t *testing.T) {
 		}
 	})
 
-	logger, err := zap.NewDevelopment()
-	req.NoError(err)
+	logger := slog.Default()
 
 	greeterClient1 := greetpb.NewGreetServiceClient(conn1)
 
 	grpcServer2, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis2),
-		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithDebug(slog.Default(), true),
 		commonsgrpc.WithOTEL(
 			otelgrpc.WithFilter(filters.Not(filters.MethodName("Greet"))),
 		),
@@ -223,7 +221,7 @@ func TestGRPCIntegration(t *testing.T) {
 					) (*greetpb.GreetResponse, error) {
 						t.Log("greet func server 2")
 
-						ctxzap.Info(ctx, "zap log")
+						slog.InfoContext(ctx, "slog log")
 
 						return greeterClient1.Greet(ctx, req)
 					},
@@ -279,7 +277,7 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	tp, err := otel.Init(ctx, "localhost:4317", "test-service")
+	tp, err := otel.Init(ctx, "localhost:4317", attribute.String("service.name", "test-service"))
 	req.NoError(err)
 
 	t.Cleanup(func() { tp.Close() })
@@ -293,7 +291,7 @@ func TestGRPCGraphQLIntegration(t *testing.T) {
 
 	grpcServer1, err := commonsgrpc.NewServer(
 		commonsgrpc.WithGRPCListener(lis1),
-		commonsgrpc.WithDebug(zap.NewExample(), true),
+		commonsgrpc.WithDebug(slog.Default(), true),
 		commonsgrpc.WithOTEL(),
 		commonsgrpc.WithRegisterServerFunc(func(server *grpc.Server) {
 			greetpb.RegisterGreetServiceServer(server, &greeterService{})

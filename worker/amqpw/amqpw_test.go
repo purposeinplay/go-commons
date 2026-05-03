@@ -3,27 +3,23 @@ package amqpw
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/purposeinplay/go-commons/logs"
 	"github.com/purposeinplay/go-commons/rand"
 	"github.com/purposeinplay/go-commons/worker"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 var q *Adapter
 
 // Setup the adapter.
 func TestMain(m *testing.M) {
-	l, err := logs.NewLogger()
-	if err != nil {
-		log.Fatal(err)
-	}
+	l := slog.Default()
 
 	// Setup AMQP connection
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
@@ -37,7 +33,8 @@ func TestMain(m *testing.M) {
 	})
 
 	if err != nil {
-		l.Fatal(err.Error(), zap.Any("error", err))
+		l.Error("new adapter", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -49,21 +46,23 @@ func TestMain(m *testing.M) {
 		select {
 		case <-ctx.Done():
 			cancel()
-			l.Fatal(ctx.Err().Error(), zap.Any("error", ctx.Err()))
+			l.Error(ctx.Err().Error(), slog.Any("error", ctx.Err()))
 		}
 	}()
 
 	err = q.Start(ctx)
 	if err != nil {
 		cancel()
-		l.Fatal(err.Error(), zap.Any("error", err))
+		l.Error(err.Error(), slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	code := m.Run()
 
 	err = q.Stop()
 	if err != nil {
-		l.Fatal(err.Error(), zap.Any("error", err))
+		l.Error(err.Error(), slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	l.Info("Test stopped")

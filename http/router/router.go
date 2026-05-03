@@ -1,10 +1,10 @@
 package router
 
 import (
+	"log/slog"
 	"net/http"
 
 	commonshttp "github.com/purposeinplay/go-commons/http"
-	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -54,7 +54,7 @@ func New(options ...Option) Router {
 	return r
 }
 
-func NewDefaultRouter(logger *zap.Logger) Router {
+func NewDefaultRouter(logger *slog.Logger) Router {
 	r := New(
 		WithRequestID(),
 		WithRealIP(),

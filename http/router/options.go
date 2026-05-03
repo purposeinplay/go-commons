@@ -1,11 +1,12 @@
 package router
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"go.uber.org/zap"
+	commonshttp "github.com/purposeinplay/go-commons/http"
 )
 
 type Option func(r *chiRouter)
@@ -53,8 +54,8 @@ func WithRealIP() Option {
 	}
 }
 
-func WithLogger(logger *zap.Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(r *chiRouter) {
-		r.Use(NewLoggerMiddleware(logger))
+		r.Use(commonshttp.NewStructuredLogger(logger))
 	}
 }

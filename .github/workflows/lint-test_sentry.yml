@@ -9,7 +9,7 @@ on:
 
 env:
   PACKAGE: sentry
-  GO_VERSION: 1.19
+  GO_VERSION: 1.22
 
 name: test-sentry
 jobs:

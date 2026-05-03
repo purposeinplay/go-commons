@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"gorm.io/gorm/logger"
 	"log/slog"
 	"time"
 
@@ -12,15 +11,10 @@ import (
 	// import for init function.
 	_ "github.com/jackc/pgx/v5/stdlib"
 	slogGorm "github.com/orandin/slog-gorm"
-	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"moul.io/zapgorm2"
+	"gorm.io/gorm/logger"
 )
-
-func NewZapLogger(logger *zap.Logger) logger.Interface {
-	return zapgorm2.New(logger)
-}
 
 func NewSlogLogger(logger *slog.Logger) logger.Interface {
 	return slogGorm.New(slogGorm.WithHandler(logger.Handler()),

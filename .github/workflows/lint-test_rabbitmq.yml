@@ -11,7 +11,7 @@ on:
 
 env:
   PACKAGE: rabbitmq
-  GO_VERSION: 1.19
+  GO_VERSION: 1.22
 
 jobs:
   lint:

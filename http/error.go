@@ -3,13 +3,11 @@ package http
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/purposeinplay/go-commons/http/render"
-	"github.com/purposeinplay/go-commons/logs"
-	"go.uber.org/zap"
 )
 
 var oauthErrorMap = map[int]string{
@@ -135,11 +133,7 @@ func HandleError(httpErr error, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger, err := logs.GetLogEntry(r)
-	if err != nil {
-		log.Panicf("could not get logger %+v", err)
-	}
-
+	logger := loggerFor(r)
 	errorID := middleware.GetReqID(r.Context())
 
 	var e *HTTPError
@@ -147,22 +141,28 @@ func HandleError(httpErr error, w http.ResponseWriter, r *http.Request) {
 	case errors.As(httpErr, &e):
 		if e.Code >= http.StatusInternalServerError {
 			e.ErrorID = errorID
-			// this will get us the stack trace too
-			logger.With(zap.Error(e.Cause())).Error(e.Error())
+			logger.With(slog.Any("error", e.Cause())).Error(e.Error())
 		} else {
-			logger.With(zap.Error(e.Cause())).Warn(e.Error())
+			logger.With(slog.Any("error", e.Cause())).Warn(e.Error())
 		}
 
 		if err := render.SendJSON(w, e.Code, e); err != nil {
 			HandleError(err, w, r)
 		}
 	default:
-		logger.With(zap.Error(e)).Error(e.Error())
+		logger.With(slog.Any("error", httpErr)).Error(httpErr.Error())
 
 		// hide real error details from response to prevent info leaks
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, writeErr := w.Write([]byte(`{"code":500,"msg":"Internal server error","error_id":"` + errorID + `"}`)); writeErr != nil {
-			logger.With(zap.Error(writeErr)).Error(e.Error())
+			logger.With(slog.Any("error", writeErr)).Error(httpErr.Error())
 		}
 	}
+}
+
+func loggerFor(r *http.Request) *slog.Logger {
+	if entry := GetLogEntry(r); entry != nil {
+		return entry.Logger
+	}
+	return slog.Default()
 }

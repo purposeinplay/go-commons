@@ -2,13 +2,13 @@ package kafka
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/IBM/sarama"
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	"github.com/purposeinplay/go-commons/pubsub"
-	"go.uber.org/zap"
 )
 
 var _ pubsub.Publisher[string, []byte] = (*Publisher)(nil)
@@ -20,7 +20,7 @@ type Publisher struct {
 
 // NewPublisher creates a new kafka publisher.
 func NewPublisher(
-	logger *zap.Logger,
+	logger *slog.Logger,
 	saramaConfig *sarama.Config,
 	brokers []string,
 ) (*Publisher, error) {

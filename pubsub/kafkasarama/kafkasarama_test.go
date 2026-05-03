@@ -13,8 +13,6 @@ import (
 	"github.com/matryer/is"
 	"github.com/purposeinplay/go-commons/pubsub"
 	"github.com/purposeinplay/go-commons/pubsub/kafkasarama"
-	"go.uber.org/zap"
-	"go.uber.org/zap/exp/zapslog"
 )
 
 func TestMain(m *testing.M) {
@@ -26,12 +24,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestPubSub(t *testing.T) {
-	logger := zap.NewExample()
-
 	// nolint: gocritic, revive
 	is := is.New(t)
 
-	slogLogger := slog.New(zapslog.NewHandler(logger.Core(), nil))
+	slogLogger := slog.Default()
 
 	var (
 		username  = os.Getenv("KAFKA_USERNAME")
